@@ -85,6 +85,12 @@ The executed [`linear_sliding_law_test.ipynb`](notebooks/linear_sliding_law_test
 
 The large obstacles reduce mean basal speed to 0.0026--0.0054 m yr$^{-1}$. Neither material map overturns before surface re-emergence: the minimum order Jacobian remains 0.875--0.941 in the persistent-extrusion geometry and 0.576--0.724 in the slow-flow geometry. The sign remains positive on three meshes. In contrast, the reaction traction required by the original prescribed-speed boundary does positive tangential work at about 34--35 and 102--114 times the gravitational power across the three meshes. The original folds are therefore driven by the moving boundary; the same geometries do not fold under passive linear sliding.
 
+## Dissipative sliding counterexample
+
+The executed [`dissipative_sliding_counterexample.ipynb`](notebooks/dissipative_sliding_counterexample.ipynb) tests whether the preceding result can be generalized to all dissipative beds. It cannot. The model uses a smooth circular trough, a traction-free surface, and the constant law $u_t=C\tau_b$, with $C=10^{-5}$ m yr$^{-1}$ Pa$^{-1}$. No velocity is prescribed. Gravity supplies the mechanical power, while basal drag removes 98.0% of it.
+
+At 1.66 kyr, the order Jacobian spans $-0.0845$ to $0.0267$ and the isochrone contains a vertical tangent and an overturned limb. At 1.82 kyr, its minimum is $-0.224$. These values change by less than $4\times10^{-5}$ over three curved meshes, and horizontal velocity remains above 0.10 m yr$^{-1}$ along every tracked trajectory. Basal dissipativity is therefore not a no-overturning condition; the trajectory order budget remains the relevant test.
+
 ## Existing notebooks
 
 The earlier notebooks remain in the repository as a record of model development. In particular, the original unified notebooks imposed a fitted basal packet and sharp interior boundary; their apparent matches are not evidence for the present mechanical hypothesis. The relevant positive control is [`full_stokes_waddington_fold.ipynb`](notebooks/full_stokes_waddington_fold.ipynb), which shows that resolved Glen flow can overturn a sufficiently steep prescribed seed. The next step is to create that seed dynamically in the transient free-surface model defined here.
