@@ -620,7 +620,7 @@ A steady full-Stokes velocity field that satisfies this equality produces a vert
 
 \subsection{Stagnation, separation and closed circulation}
 
-If \(u\) reaches zero, the \(x\)-travel-time representation becomes singular. If a secondary circulation forms, a streamline may not have a unique surface origin and may intersect an equal-age surface in a topology not represented by a single downstream coordinate. Strong roughness, cavities and sharp corners are therefore not merely large values of \(\Rneg\); they can invalidate the coordinate system on which the theorem rests. Numerical calculations should treat \(u=0\) as an event and switch to a more general Lagrangian deformation analysis.
+If \(u\) reaches zero or reverses sign, downstream position can no longer parameterize a particle trajectory and the \(x\)-travel-time representation becomes singular. This is a breakdown of the coordinate description, not necessarily a singularity in the ice motion. Numerical trajectories should then be integrated in time rather than evaluated with the \(x\)-based formulas. If the full velocity vanishes, a trajectory may terminate at or approach a stagnation point. If a secondary circulation forms, a streamline may not have a unique surface origin and may intersect an equal-age surface in a topology not represented by a single downstream coordinate. Strong roughness, cavities and sharp corners are therefore not merely large values of \(\Rneg\); they can invalidate the coordinate system on which the theorem rests.
 
 \subsection{Surface ablation and sublimation}
 
