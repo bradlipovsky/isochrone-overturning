@@ -599,74 +599,6 @@ Appendix~\ref{app:periodic} gives the expansion leading to Equation~\eqref{eq:pe
 
 Cancellation is not guaranteed for a sheared background, a solitary asymmetric obstacle, a finite path ending mid-cycle, strongly nonlinear roughness or near-stagnant trajectories. Equation~\eqref{eq:periodiccancel} is therefore a restricted asymptotic result, not a general symmetry theorem.
 
-\section{Steady overturning and limits of the assumptions}
-\label{sec:limits}
-
-Under assumptions (A1)--(A4), the theorem determines whether the order budget remains positive or reaches the vertical-tangent threshold. This section first describes overturning within that framework and then identifies settings in which one or more assumptions are not satisfied, so that the two-dimensional steady coordinate construction of Section~\ref{sec:kinematic-coordinates} does not apply. Spatially variable density requires a mass-flux streamfunction rather than a volume-flux streamfunction; Appendix~\ref{app:density} gives that extension.
-
-\subsection{Overturning within the theorem: cumulative extrusion}
-
-Within the steady two-dimensional setting of the theorem, cumulative reverse shear can overturn an isochrone. A glacier with \(u>0\) can reach this state if reverse shear is sufficiently strong, sufficiently persistent or sufficiently concentrated where \(u\) is small. Equation~\eqref{eq:verticalcondition} gives the exact threshold:
-\begin{equation}
-\dot a_0u_{s0}
-\int_{x_0}^{x}\frac{u_z^-}{u^3}\,\dd\xi
-=
-1+
-\dot a_0u_{s0}
-\int_{x_0}^{x}\frac{u_z^+}{u^3}\,\dd\xi.
-\label{eq:exactthresholdexpanded}
-\end{equation}
-A steady full-Stokes velocity field that satisfies this equality produces a vertical tangent without any change in boundary conditions. The extrusion-flow literature establishes the necessary local reverse shear but does not evaluate this cumulative isochrone-order threshold.
-
-\subsection{Stagnation, separation and closed circulation}
-
-If \(u\) reaches zero or reverses sign, downstream position can no longer parameterize a particle trajectory and the \(x\)-travel-time representation becomes singular. A three-dimensional full-Stokes model of Allan Hills illustrates the approach to this limit: \textcite{Manos2026} describe slow to nearly stagnant basal ice upstream of a nunatak. Their modeled speed remains nonzero, so the coordinate exists formally, but the \(1/u\) and \(1/u^3\) factors in the travel-time and order integrals become large. At \(u=0\), the singularity belongs to the coordinate description, not necessarily the ice motion. Numerical trajectories should then be integrated in time rather than evaluated with the \(x\)-based formulas. If the full velocity vanishes, a trajectory may terminate at or approach a stagnation point. If a secondary circulation forms, a streamline may not have a unique surface origin and may intersect an equal-age surface in a topology not represented by a single downstream coordinate. Strong roughness, cavities and sharp corners are therefore not merely large values of \(\Rneg\); they can invalidate the coordinate system on which the theorem rests.
-
-\subsection{Surface ablation and sublimation}
-
-Newly deposited material enters the glacier through a surface accumulation zone with \(\tau=0\). Existing isochrones terminate where ice emerges in a surface ablation zone. In a blue-ice area, the surface streamfunction need not be globally monotone because
-\begin{equation}
-\Psi'(x)=\dot a(x)
-\end{equation}
-changes sign between accumulation and ablation zones. A streamline may enter through an upstream accumulation zone and emerge through a downstream ablation zone. The theorem can still be applied along an interior trajectory if that trajectory has a unique origin in the upstream accumulation zone, but \(\Psi^{-1}\) must be constructed only over that part of the surface. Multiple surface accumulation zones or basal freeze-on require a more general material-source label.
-
-Steady ablation most naturally produces upward-bent and truncated layers, not an intact fold. However, migration, onset or cessation of an ablation zone changes the age field relative to the new steady solution and supplies the inherited disturbance considered by WBA. Surface sublimation followed by burial can also preserve an unconformity with steep or truncated limbs. At Allan Hills, present ablation terminates trajectories, whereas changes in the position of the ablation zone introduce time dependence that lies outside the steady theorem.
-
-\subsection{Basal melting and freeze-on}
-
-Basal melting removes trajectories and truncates layers. Basal freeze-on adds ice at the bed, so one surface deposition coordinate cannot label the entire stratigraphy. Numerical models show that freeze-on can generate plume-like structures and complex internal layering extending through a large fraction of the ice thickness \parencite{LeysingerVieli2018}. Swath-radar observations additionally show that many northern Greenland structures contain subglacial debris and localize deformation, although their exact emplacement mechanism remains unresolved \parencite{Holschuh2026}. A moving melt/freeze boundary makes the velocity and age problem time dependent.
-
-\subsection{Time-dependent geometry and basal traction}
-
-If the bed, free surface, divide position or basal traction changes, the inherited age field is not the steady age solution of the new velocity field. The perturbation then obeys a homogeneous advection equation only after the change; it need not vanish initially. Divide migration converts a formerly steady Raymond arch into a fold seed \parencite{JacobsonWaddington2005}. Traveling slippery or sticky patches produce moving-frame critical layers and thickness-scale overturning \parencite{Wolovick2014,WolovickCreyts2016}. Three-dimensional radar reconstructions independently show overturned folds that record extinct ice streams and fold sequences that record changes in shear-margin activity \parencite{Franke2022,Jansen2024}. Bedrock uplift, rotation or erosion similarly changes the reference stratigraphy and can inject a finite-amplitude disturbance even when subsequent flow is steady.
-
-\subsection{Active rheology, anisotropy and three-dimensional flow}
-
-Equation~\eqref{eq:uzdecomp} assumes isotropic scalar viscosity. Crystal fabric, impurities, grain size and damage can alter both the stress--strain relation and the velocity field in response to stratigraphy. Full-Stokes anisotropic divide models already demonstrate substantial changes in isochrone shape and age--depth relations \parencite{MartinGudmundssonPritchardGagliardini2009}. More strongly coupled heterogeneity can generate folds internally rather than merely advecting an imposed perturbation \parencite{Alley1997,ThorsteinssonWaddington2002,Bons2016,Bons2025}. Airborne radar over the Institute and M{\"o}ller ice streams maps large folds in a deep, anisotropic unit where flow converges into a tributary, providing an Antarctic example of this coupling \parencite{Ross2020}. The Allan Hills microstructure indicates that anisotropy and localized shear cannot be ignored \parencite{Stoll2026}.
-
-The order theorem is also intrinsically two-dimensional. In three dimensions, incompressibility provides a vector potential rather than a scalar streamfunction, and neighboring surface origins can exchange order in one horizontal projection while remaining separated in the other. Divide models show that along-ridge flow and divide migration alter isochrone architecture even when cross-flow is modest \parencite{MartinHindmarshNavarro2009}. A three-dimensional generalization should track the two-dimensional Jacobian mapping a surface deposition patch to an equal-age surface. The scalar \(\Jord\) is recovered only when cross-flow is negligible and a coherent flow tube exists.
-
-\section{Implications for old-ice sites}
-
-Allan Hills lies close to several limits in which a two-dimensional fixed-obstacle approximation becomes unreliable. Present-day ice rises into a surface ablation zone above steep nunatak topography \parencite{Spaulding2012,Kehrl2018,Stoll2026}. The three-dimensional full-Stokes model of \textcite{Manos2026} predicts nearly stagnant basal ice upstream of the nunatak, where the bottom \(20~\mathrm{m}\) averages approximately \(0.4\)--\(0.5~\mathrm{mm\,yr^{-1}}\). Modeled speed remains nonzero but locally falls to order micrometres per year. In contrast, modeled basal speeds in the Cul-de-sac are approximately \(46\)--\(49~\mathrm{mm\,yr^{-1}}\). These modeled scales distinguish local preservation in slow ice from transport of old ice into the Cul-de-sac.
-
-Near-stagnant flow has two consequences for the present calculation. First, the \(u^{-3}\) weighting in Equation~\eqref{eq:Rdef} becomes large and numerically sensitive even though assumption (A2) may remain technically satisfied. Second, the modeled flow is fundamentally three-dimensional. It contains important local bridging stresses associated with horizontal gradients of vertical velocity; the corresponding \(-w_x\) term appears explicitly in the full-Stokes shear decomposition, Equation~\eqref{eq:uzdecomp}. A two-dimensional order budget is therefore meaningful only within a coherent flow tube for which cross-flow is small. The Cul-de-sac presents a separate provenance problem: its geochemistry and modeled transport indicate a distinct accumulation environment \parencite{Manos2026}. The assumption that each trajectory can be represented by one surface accumulation zone is therefore unlikely to describe all Cul-de-sac ice, and a three-dimensional, multi-source material map is needed there.
-
-The structural observations constrain, but do not determine, the deformation history. The \(69^{\circ}\) mean layer dip in ALHIC2302 is steep but remains below vertical \parencite{Kirkpatrick2025}. Centimetre-scale z-folds in ALHIC1901 record local folding, but they do not by themselves explain every core-scale age reversal \parencite{Stoll2026}. The inverted age--depth relation in ALHIC1901 more directly indicates that \(\tau_z\) changes sign over some sampled intervals \parencite{Shackleton2025}. Equation~\eqref{eq:Jage} then implies \(\Jord<0\) if the samples lie on one continuous family of surface-deposited layers. Multiple source regions, unconformities or faults could instead produce an apparent age reversal.
-
-The same calculation is relevant to deep old-ice drilling. At the Beyond EPICA site, radar and flow modelling indicate strong basal thinning and possible stagnant or disturbed ice near the bed \parencite{Lilien2021,Chung2025BeyondEPICA}. Evaluating \(\Jord\) along model trajectories would test whether the steady velocity field preserves order above this basal unit. The boundary conditions differ from those at Allan Hills, but both settings require a mechanical link between modelled flow and the stratigraphic age interpretation.
-
-For old-ice stratigraphic interpretation, the equations define four tests of whether steady local topography can produce an observed fold or age reversal.
-
-\begin{enumerate}[leftmargin=*,label=(\arabic*)]
-  \item \textbf{Steady fixed geometry.} Compute the present or reconstructed steady full-Stokes field and evaluate \(\Rpos\), \(\Rneg\) and \(\Jord\) along source-to-core trajectories. If the order budget \(1+\Rpos-\Rneg\) remains well above zero, fixed present-day geometry cannot produce the observed recumbent folding.
-  \item \textbf{Steady but singular or multi-source flow.} Test for stagnation, recirculation, basal freeze-on and surface origin multiplicity. If these occur, the simple order theorem is inapplicable and the full material map must be used.
-  \item \textbf{Inherited unsteady stratigraphy.} If the steady model preserves order, evaluate changes in ablation pattern, ice thickness, flow direction, divide position, bed geometry and basal traction. These mechanisms inject finite disturbances that can later be amplified by shear.
-  \item \textbf{Active deformation.} If kinematic models underpredict observed folds, couple fabric and rheological heterogeneity to flow. The microstructural observations make this mechanism plausible at centimetre scale.
-\end{enumerate}
-
-This hierarchy distinguishes regimes in which changing boundary conditions are mechanically required. In regular, shallow, non-stagnant flow, Equation~\eqref{eq:obstaclebound} keeps the order budget well above zero, so a time-dependent or rheological mechanism is needed. In more general full-Stokes flow, sufficiently cumulative extrusion or loss of one-way flow can overturn steady isochrones without a boundary change.
-
 \section{Trajectory diagnostic for full-Stokes models}
 
 The order criterion can be evaluated without explicitly solving the age equation or advecting a dense family of isochrones. Start trajectories in a surface accumulation zone and record \(x_0\), \(\dot a_0\) and \(u_{s0}\). With \(t\) denoting time since deposition, integrate along each trajectory
@@ -758,23 +690,74 @@ These examples are constructive rather than site specific. Their topographic rel
 
 \section{Discussion}
 
-\subsection{A theorem about deposition order, not about curvature}
+\subsection{Steady overturning and limits of the assumptions}
+\label{sec:limits}
 
-The curvature equation for an advected material line contains first and second spatial derivatives of velocity. It correctly shows that an obstacle can create curvature from an initially straight layer. The present order criterion answers a different question. A recumbent fold requires the horizontal projection of an equal-age surface to reverse, or equivalently \(\tau_z\) to change sign. An obstacle may generate large curvature while \(\Jord\) remains positive everywhere. This is the rigorous sense in which a steady bump can disturb isochrones without supplying the order-reversing seed required for a recumbent fold.
+Under assumptions (A1)--(A4), the theorem determines whether the order budget remains positive or reaches the vertical-tangent threshold. This subsection first describes overturning within that framework and then identifies settings in which one or more assumptions are not satisfied, so that the two-dimensional steady coordinate construction of Section~\ref{sec:kinematic-coordinates} does not apply. Spatially variable density requires a mass-flux streamfunction rather than a volume-flux streamfunction; Appendix~\ref{app:density} gives that extension.
 
-The Parrenin--Hindmarsh path factor already places WBA's statement about steady stratigraphy on conditional footing. In the present physical coordinates, the condition is Equation~\eqref{eq:ordercondition}. If it holds, the steady surface-deposition map remains ordered. If cumulative reverse shear crosses the threshold, the steady age field itself contains a fold; no perturbation relative to that solution is required. The calculations below this threshold are consistent with WBA, while the calculations that cross it supply the case left open by \textcite{ParreninHindmarsh2007}. This boundary-generated problem is distinct from placing an arbitrary material line in the velocity field and asking whether an inherited wrinkle grows.
+\subsubsection{Overturning within the theorem: cumulative extrusion}
 
-\subsection{Why local extrusion is usually insufficient}
+Within the steady two-dimensional setting of the theorem, cumulative reverse shear can overturn an isochrone. A glacier with \(u>0\) can reach this state if reverse shear is sufficiently strong, sufficiently persistent or sufficiently concentrated where \(u\) is small. Equation~\eqref{eq:verticalcondition} gives the exact threshold:
+\begin{equation}
+\dot a_0u_{s0}
+\int_{x_0}^{x}\frac{u_z^-}{u^3}\,\dd\xi
+=
+1+
+\dot a_0u_{s0}
+\int_{x_0}^{x}\frac{u_z^+}{u^3}\,\dd\xi.
+\label{eq:exactthresholdexpanded}
+\end{equation}
+A steady full-Stokes velocity field that satisfies this equality produces a vertical tangent without any change in boundary conditions. The extrusion-flow literature establishes the necessary local reverse shear but does not evaluate this cumulative isochrone-order threshold.
 
-Full-Stokes solutions contain local extrusion, but local extrusion does not imply order reversal. Equation~\eqref{eq:JPR} can be read as an order budget. Deposition supplies an initial contribution of one, surface-fast shear adds \(\Rpos\), and reverse shear subtracts \(\Rneg\). Reverse shear around a localized or periodic obstacle may also be short-lived or cancel between stoss and lee sides. Equation~\eqref{eq:obstaclebound} bounds this subtraction, while Equation~\eqref{eq:periodiccancel} gives the perturbative cancellation.
+\subsubsection{Stagnation, separation and closed circulation}
 
-Near stagnation, the reverse-shear subtraction becomes much more sensitive to speed. The \(u^{-3}\) spatial weighting and \(u^{-2}\) temporal weighting imply that a slowly moving basal zone can accumulate a large order change even when the pointwise shear is moderate. This is also the regime in which age becomes large, numerical conditioning deteriorates and recirculation becomes possible. A steady-obstacle explanation for Allan Hills folding must therefore identify a slow reverse-shear trajectory and show that the order budget reaches zero in Equation~\eqref{eq:verticalcondition}; showing \(u_z<0\) is insufficient.
+If \(u\) reaches zero or reverses sign, downstream position can no longer parameterize a particle trajectory and the \(x\)-travel-time representation becomes singular. A three-dimensional full-Stokes model of Allan Hills illustrates the approach to this limit: \textcite{Manos2026} describe slow to nearly stagnant basal ice upstream of a nunatak. Their modeled speed remains nonzero, so the coordinate exists formally, but the \(1/u\) and \(1/u^3\) factors in the travel-time and order integrals become large. At \(u=0\), the singularity belongs to the coordinate description, not necessarily the ice motion. Numerical trajectories should then be integrated in time rather than evaluated with the \(x\)-based formulas. If the full velocity vanishes, a trajectory may terminate at or approach a stagnation point. If a secondary circulation forms, a streamline may not have a unique surface origin and may intersect an equal-age surface in a topology not represented by a single downstream coordinate. Strong roughness, cavities and sharp corners are therefore not merely large values of \(\Rneg\); they can invalidate the coordinate system on which the theorem rests.
 
-\subsection{Boundary changes as fold seeds}
+\subsubsection{Surface ablation and sublimation}
 
-Time-dependent boundary processes provide several mechanisms for creating finite inherited disturbances. \textcite{Hudleston1976} proposed that minor advances or retreats at Barnes Ice Cap changed particle paths relative to existing basal banding, after which flow over an irregular bed amplified the disturbance into recumbent folds. \textcite{JacobelBindschadler1993} similarly inferred a time-dependent grounding-line source for advected, aperiodic waves and an associated internal-layer dip at the mouths of Ice Streams D and E. Modern radar observations make this temporal interpretation more direct: overturned folds preserve extinct ice streams in northeast Greenland, while fold amplitude as a function of layer age records changes in shear-margin activity \parencite{Franke2022,Jansen2024}. Surface sublimation can truncate and steepen layers; migration of an ablation zone can leave that geometry to be buried or sheared. Basal melt and freeze-on alter material sources and sinks. Divide migration changes the reference velocity profile. Traveling traction anomalies create a moving-frame critical layer and material trapping. Bedrock uplift or rotation changes both geometry and stress. Each mechanism breaks at least one assumption behind the steady order theorem and can therefore create a nonzero perturbation relative to the steady stratigraphy.
+Newly deposited material enters the glacier through a surface accumulation zone with \(\tau=0\). Existing isochrones terminate where ice emerges in a surface ablation zone. In a blue-ice area, the surface streamfunction need not be globally monotone because
+\begin{equation}
+\Psi'(x)=\dot a(x)
+\end{equation}
+changes sign between accumulation and ablation zones. A streamline may enter through an upstream accumulation zone and emerge through a downstream ablation zone. The theorem can still be applied along an interior trajectory if that trajectory has a unique origin in the upstream accumulation zone, but \(\Psi^{-1}\) must be constructed only over that part of the surface. Multiple surface accumulation zones or basal freeze-on require a more general material-source label.
 
-The order framework does not identify which mechanism operated at Allan Hills. It supplies a rejection test. If a high-resolution, history-consistent full-Stokes model of fixed geometry keeps the order budget well above zero on all relevant trajectories, then steady topographic draping is excluded as the cause of recumbent age reversals. The remaining explanation must invoke time dependence, multiple material sources, active rheology, three-dimensional exchange or structural discontinuity.
+Steady ablation most naturally produces upward-bent and truncated layers, not an intact fold. However, migration, onset or cessation of an ablation zone changes the age field relative to the new steady solution and supplies the inherited disturbance considered by WBA. Surface sublimation followed by burial can also preserve an unconformity with steep or truncated limbs. At Allan Hills, present ablation terminates trajectories, whereas changes in the position of the ablation zone introduce time dependence that lies outside the steady theorem.
+
+\subsubsection{Basal melting and freeze-on}
+
+Basal melting removes trajectories and truncates layers. Basal freeze-on adds ice at the bed, so one surface deposition coordinate cannot label the entire stratigraphy. Numerical models show that freeze-on can generate plume-like structures and complex internal layering extending through a large fraction of the ice thickness \parencite{LeysingerVieli2018}. Swath-radar observations additionally show that many northern Greenland structures contain subglacial debris and localize deformation, although their exact emplacement mechanism remains unresolved \parencite{Holschuh2026}. A moving melt/freeze boundary makes the velocity and age problem time dependent.
+
+\subsubsection{Time-dependent geometry and basal traction}
+
+If the bed, free surface, divide position or basal traction changes, the inherited age field is not the steady age solution of the new velocity field. The perturbation then obeys a homogeneous advection equation only after the change; it need not vanish initially. Divide migration converts a formerly steady Raymond arch into a fold seed \parencite{JacobsonWaddington2005}. Traveling slippery or sticky patches produce moving-frame critical layers and thickness-scale overturning \parencite{Wolovick2014,WolovickCreyts2016}. Three-dimensional radar reconstructions independently show overturned folds that record extinct ice streams and fold sequences that record changes in shear-margin activity \parencite{Franke2022,Jansen2024}. Bedrock uplift, rotation or erosion similarly changes the reference stratigraphy and can inject a finite-amplitude disturbance even when subsequent flow is steady.
+
+\subsubsection{Active rheology, anisotropy and three-dimensional flow}
+
+Equation~\eqref{eq:uzdecomp} assumes isotropic scalar viscosity. Crystal fabric, impurities, grain size and damage can alter both the stress--strain relation and the velocity field in response to stratigraphy. Full-Stokes anisotropic divide models already demonstrate substantial changes in isochrone shape and age--depth relations \parencite{MartinGudmundssonPritchardGagliardini2009}. More strongly coupled heterogeneity can generate folds internally rather than merely advecting an imposed perturbation \parencite{Alley1997,ThorsteinssonWaddington2002,Bons2016,Bons2025}. Airborne radar over the Institute and M{\"o}ller ice streams maps large folds in a deep, anisotropic unit where flow converges into a tributary, providing an Antarctic example of this coupling \parencite{Ross2020}. The Allan Hills microstructure indicates that anisotropy and localized shear cannot be ignored \parencite{Stoll2026}.
+
+The order theorem is also intrinsically two-dimensional. In three dimensions, incompressibility provides a vector potential rather than a scalar streamfunction, and neighboring surface origins can exchange order in one horizontal projection while remaining separated in the other. Divide models show that along-ridge flow and divide migration alter isochrone architecture even when cross-flow is modest \parencite{MartinHindmarshNavarro2009}. A three-dimensional generalization should track the two-dimensional Jacobian mapping a surface deposition patch to an equal-age surface. The scalar \(\Jord\) is recovered only when cross-flow is negligible and a coherent flow tube exists.
+
+\subsection{Implications for old-ice sites}
+
+Allan Hills lies close to several limits in which a two-dimensional fixed-obstacle approximation becomes unreliable. Present-day ice rises into a surface ablation zone above steep nunatak topography \parencite{Spaulding2012,Kehrl2018,Stoll2026}. The three-dimensional full-Stokes model of \textcite{Manos2026} predicts nearly stagnant basal ice upstream of the nunatak, where the bottom \(20~\mathrm{m}\) averages approximately \(0.4\)--\(0.5~\mathrm{mm\,yr^{-1}}\). Modeled speed remains nonzero but locally falls to order micrometres per year. In contrast, modeled basal speeds in the Cul-de-sac are approximately \(46\)--\(49~\mathrm{mm\,yr^{-1}}\). These modeled scales distinguish local preservation in slow ice from transport of old ice into the Cul-de-sac.
+
+Near-stagnant flow has two consequences for the present calculation. First, the \(u^{-3}\) weighting in Equation~\eqref{eq:Rdef} becomes large and numerically sensitive even though assumption (A2) may remain technically satisfied. Second, the modeled flow is fundamentally three-dimensional. It contains important local bridging stresses associated with horizontal gradients of vertical velocity; the corresponding \(-w_x\) term appears explicitly in the full-Stokes shear decomposition, Equation~\eqref{eq:uzdecomp}. A two-dimensional order budget is therefore meaningful only within a coherent flow tube for which cross-flow is small. The Cul-de-sac presents a separate provenance problem: its geochemistry and modeled transport indicate a distinct accumulation environment \parencite{Manos2026}. The assumption that each trajectory can be represented by one surface accumulation zone is therefore unlikely to describe all Cul-de-sac ice, and a three-dimensional, multi-source material map is needed there.
+
+The structural observations constrain, but do not determine, the deformation history. The \(69^{\circ}\) mean layer dip in ALHIC2302 is steep but remains below vertical \parencite{Kirkpatrick2025}. Centimetre-scale z-folds in ALHIC1901 record local folding, but they do not by themselves explain every core-scale age reversal \parencite{Stoll2026}. The inverted age--depth relation in ALHIC1901 more directly indicates that \(\tau_z\) changes sign over some sampled intervals \parencite{Shackleton2025}. Equation~\eqref{eq:Jage} then implies \(\Jord<0\) if the samples lie on one continuous family of surface-deposited layers. Multiple source regions, unconformities or faults could instead produce an apparent age reversal.
+
+The same calculation is relevant to deep old-ice drilling. At the Beyond EPICA site, radar and flow modelling indicate strong basal thinning and possible stagnant or disturbed ice near the bed \parencite{Lilien2021,Chung2025BeyondEPICA}. Evaluating \(\Jord\) along model trajectories would test whether the steady velocity field preserves order above this basal unit. The boundary conditions differ from those at Allan Hills, but both settings require a mechanical link between modelled flow and the stratigraphic age interpretation.
+
+For old-ice stratigraphic interpretation, the equations define four tests of whether steady local topography can produce an observed fold or age reversal.
+
+\begin{enumerate}[leftmargin=*,label=(\arabic*)]
+  \item \textbf{Steady fixed geometry.} Compute the present or reconstructed steady full-Stokes field and evaluate \(\Rpos\), \(\Rneg\) and \(\Jord\) along source-to-core trajectories. If the order budget \(1+\Rpos-\Rneg\) remains well above zero, fixed present-day geometry cannot produce the observed recumbent folding.
+  \item \textbf{Steady but singular or multi-source flow.} Test for stagnation, recirculation, basal freeze-on and surface origin multiplicity. If these occur, the simple order theorem is inapplicable and the full material map must be used.
+  \item \textbf{Inherited unsteady stratigraphy.} If the steady model preserves order, evaluate changes in ablation pattern, ice thickness, flow direction, divide position, bed geometry and basal traction. These mechanisms inject finite disturbances that can later be amplified by shear.
+  \item \textbf{Active deformation.} If kinematic models underpredict observed folds, couple fabric and rheological heterogeneity to flow. The microstructural observations make this mechanism plausible at centimetre scale.
+\end{enumerate}
+
+This hierarchy distinguishes regimes in which changing boundary conditions are mechanically required. In regular, shallow, non-stagnant flow, Equation~\eqref{eq:obstaclebound} keeps the order budget well above zero, so a time-dependent or rheological mechanism is needed. In more general full-Stokes flow, sufficiently cumulative extrusion or loss of one-way flow can overturn steady isochrones without a boundary change.
+
 
 \subsection{Novelty and relationship to established theory}
 
