@@ -394,7 +394,7 @@ where \(\pi_0\) and \(\pi\) are their logarithmic flux coordinates at deposition
 =\operatorname{sgn}(-\tau_z).
 \label{eq:PHsign}
 \end{equation}
-The present result is therefore not an independent no-overturning theorem. Nor is \(\Jord\) independent of the established thinning variable: Equation~\eqref{eq:thinningrelation} identifies it as the signed inverse vertical-thinning factor. The contribution of the physical-space representation is that it exposes the positive and negative parts of vertical shear, remains regular at the first vertical tangent and can be evaluated directly from a numerical velocity field. The \texttt{age\_flow\_line} numerical age model of \textcite{ParreninChungMartin2025} assumes strictly positive accumulation for its horizontal flux coordinate and no reverse horizontal flow for its vertical flux coordinate; it computes age and positive vertical thinning within that admissible regime.
+The present result is therefore not an independent no-overturning theorem. Nor is \(\Jord\) independent of the established thinning variable: Equation~\eqref{eq:thinningrelation} identifies it as the signed inverse vertical-thinning factor. The contribution of the physical-space representation is that it exposes the positive and negative parts of vertical shear, remains regular at the first vertical tangent and can be evaluated directly from a numerical velocity field.
 
 \section{Full-Stokes constraints on isochrone order}
 
@@ -484,7 +484,7 @@ This inequality discards all positive contributions, including gravity-driven sh
 
 Neither incompressibility nor the Stokes equations fixes the sign of \(u_z\). The constitutive relation constrains \(u_z+w_x\), while longitudinal stress and nonhydrostatic pressure can alter the Cartesian vertical gradient of horizontal speed. Analytical rough-bed solutions predict local velocity maxima and minima, and therefore regions with \(u_z<0\), even for gravity-driven linear viscous flow \parencite{Gudmundsson1997linear}. The historical extrusion-flow literature likewise shows that surface-fast velocity profiles are not a pointwise theorem of full-Stokes mechanics \parencite{Waddington2010}.
 
-At stronger roughness, the one-way-flow assumption itself can fail. \textcite{Gudmundsson1997nonlinear} found separated secondary circulation in troughs of sufficiently steep sinusoidal beds. Ideal no-slip Stokes flow near a sharp corner can contain nested Moffatt eddies \parencite{Moffatt1964}; \textcite{MeyerCreyts2017} extended this mechanism to Glen-law ice in subglacial mountain valleys and showed that oblique flow can produce three-dimensional eddies. These examples are not direct models of Allan Hills: glacier beds may slide, Glen flow is nonlinear, and real corners are rounded. Their theoretical significance is that steady creeping-flow equations do not forbid recirculation. When \(u=0\) or trajectories close, the downstream travel-time coordinate and unique surface-origin map cease to exist, so Equations~\eqref{eq:Jexact}--\eqref{eq:ordercondition} no longer apply globally.
+At stronger roughness, the one-way-flow assumption itself can fail. \textcite{Gudmundsson1997nonlinear} found separated secondary circulation in troughs of sufficiently steep sinusoidal beds. Ideal no-slip Stokes flow near a sharp corner can contain nested Moffatt eddies \parencite{Moffatt1964}; \textcite{MeyerCreyts2017} extended this mechanism to Glen-law ice in subglacial mountain valleys and showed that oblique flow can produce three-dimensional eddies. These examples are idealizations: glacier beds may slide, Glen flow is nonlinear, and real corners are rounded. Their theoretical significance is that steady creeping-flow equations do not forbid recirculation. When \(u=0\) or trajectories close, the downstream travel-time coordinate and unique surface-origin map cease to exist, so Equations~\eqref{eq:Jexact}--\eqref{eq:ordercondition} no longer apply globally.
 
 The distinction between local extrusion and cumulative order reversal is central. Published rough-bed solutions establish that \(u_z\) can be negative. They do not, by that fact alone, establish that \(\Rneg\) reaches \(1+\Rpos\). The latter is an order-one integrated threshold.
 
@@ -572,7 +572,7 @@ In a typical interior or flank setting where \(U\gg\dot a\), an isolated fixed b
 {\dot a_0U_{\mathrm{dep}}\dot\gamma_{\mathrm{rev}}}.
 \label{eq:lengththreshold}
 \end{equation}
-Slow throughflow reduces this required length through the \(U_{\min}^{3}\) numerator. For scale, take \(\dot a_0=0.05~\mathrm{m\,yr^{-1}}\), \(U_{\mathrm{dep}}=10~\mathrm{m\,yr^{-1}}\), \(\dot\gamma_{\mathrm{rev}}=0.01~\mathrm{yr^{-1}}\) and \(\ell=1~\mathrm{km}\). Equation~\eqref{eq:obstaclebound} gives \(\Rneg\leq0.005\) when \(U_{\min}=10~\mathrm{m\,yr^{-1}}\), which rules out overturning under these assumed bounds. With \(U_{\min}=1~\mathrm{m\,yr^{-1}}\), the bound is \(\Rneg\leq5\) and no longer rules it out. These illustrative values are not estimates for Allan Hills; they show that a tenfold reduction in minimum speed raises the bound by a factor of one thousand.
+Slow throughflow reduces this required length through the \(U_{\min}^{3}\) numerator. For scale, take \(\dot a_0=0.05~\mathrm{m\,yr^{-1}}\), \(U_{\mathrm{dep}}=10~\mathrm{m\,yr^{-1}}\), \(\dot\gamma_{\mathrm{rev}}=0.01~\mathrm{yr^{-1}}\) and \(\ell=1~\mathrm{km}\). Equation~\eqref{eq:obstaclebound} gives \(\Rneg\leq0.005\) when \(U_{\min}=10~\mathrm{m\,yr^{-1}}\), which rules out overturning under these assumed bounds. With \(U_{\min}=1~\mathrm{m\,yr^{-1}}\), the bound is \(\Rneg\leq5\) and no longer rules it out.
 
 Equation~\eqref{eq:obstaclebound} makes precise why ``flow over a bump cannot fold an isochrone'' is often a good glacier approximation but not a universal Stokes theorem. The approximation depends on non-stagnant flow, a localized deformation zone and a small accumulation-to-speed ratio.
 
@@ -602,11 +602,11 @@ Cancellation is not guaranteed for a sheared background, a solitary asymmetric o
 \section{Steady overturning and limits of the assumptions}
 \label{sec:limits}
 
-The theorem does not fail when assumptions (A1)--(A4) hold. Instead, it predicts whether the order budget remains positive or reaches the vertical-tangent threshold. This section first describes overturning within the theorem and then identifies settings in which one or more assumptions are not satisfied, so that the two-dimensional steady coordinate construction of Section~\ref{sec:kinematic-coordinates} does not apply. Spatially variable density requires a mass-flux streamfunction rather than a volume-flux streamfunction; Appendix~\ref{app:density} gives that extension.
+Under assumptions (A1)--(A4), the theorem determines whether the order budget remains positive or reaches the vertical-tangent threshold. This section first describes overturning within that framework and then identifies settings in which one or more assumptions are not satisfied, so that the two-dimensional steady coordinate construction of Section~\ref{sec:kinematic-coordinates} does not apply. Spatially variable density requires a mass-flux streamfunction rather than a volume-flux streamfunction; Appendix~\ref{app:density} gives that extension.
 
 \subsection{Overturning within the theorem: cumulative extrusion}
 
-The direct steady-flow mechanism is cumulative reverse shear. A glacier with \(u>0\) can overturn a steady isochrone if reverse shear is sufficiently strong, sufficiently persistent or sufficiently concentrated where \(u\) is small. Equation~\eqref{eq:verticalcondition} gives the exact threshold:
+Within the steady two-dimensional setting of the theorem, cumulative reverse shear can overturn an isochrone. A glacier with \(u>0\) can reach this state if reverse shear is sufficiently strong, sufficiently persistent or sufficiently concentrated where \(u\) is small. Equation~\eqref{eq:verticalcondition} gives the exact threshold:
 \begin{equation}
 \dot a_0u_{s0}
 \int_{x_0}^{x}\frac{u_z^-}{u^3}\,\dd\xi
@@ -616,7 +616,7 @@ The direct steady-flow mechanism is cumulative reverse shear. A glacier with \(u
 \int_{x_0}^{x}\frac{u_z^+}{u^3}\,\dd\xi.
 \label{eq:exactthresholdexpanded}
 \end{equation}
-A change in boundary conditions is not mechanically necessary if a steady full-Stokes velocity field satisfies this equality. This outcome is predicted by the theorem rather than representing a failure of it. The extrusion-flow literature establishes the necessary local reverse shear but does not evaluate this cumulative isochrone-order threshold.
+A steady full-Stokes velocity field that satisfies this equality produces a vertical tangent without any change in boundary conditions. The extrusion-flow literature establishes the necessary local reverse shear but does not evaluate this cumulative isochrone-order threshold.
 
 \subsection{Stagnation, separation and closed circulation}
 
