@@ -32,6 +32,7 @@ NITSCHE_PENALTY = 3.0e4
 RADIUS = 250.0  # m
 CENTER_HEIGHT = 100.0  # m
 CAP_HALF_WIDTH = np.sqrt(RADIUS**2 - CENTER_HEIGHT**2)
+EVOLUTION_AGES = (0.0, 300.0, 600.0, 900.0, 1150.0, 1374.0)
 
 
 def bed_height(x):
@@ -220,6 +221,7 @@ def trace_map(
     maximum_age=5000.0,
     time_step=1.0,
     source_count=301,
+    snapshot_ages=(),
 ):
     """Trace a surface-deposition map until it exits the open domain."""
     sources = np.linspace(-0.96 * side, -0.04 * side, source_count)
@@ -239,6 +241,7 @@ def trace_map(
 
     best = {"minimum J": np.inf, "age": np.nan}
     first_resolved_overturn = None
+    evolution_snapshots = {}
     minimum_path_u = np.inf
     for age in np.arange(0.0, maximum_age + time_step, time_step):
         local_bed = bed_height(state[:, 0])
@@ -256,6 +259,11 @@ def trace_map(
             if len(group) >= 5:
                 jacobian[group] = np.gradient(state[group, 0], sources[group])
         finite_jacobian = np.isfinite(jacobian)
+        if age in snapshot_ages:
+            evolution_snapshots[age] = {
+                "states": state.copy(),
+                "valid": valid.copy(),
+            }
         if np.any(finite_jacobian):
             valid_sources = sources[finite_jacobian]
             snapshot = {
@@ -292,16 +300,19 @@ def trace_map(
     best["deposition source count"] = len(sources)
     best["deposition source span"] = np.ptp(sources)
     best["first resolved overturn"] = first_resolved_overturn
+    best["evolution snapshots"] = evolution_snapshots
     return best
 
 
-def run_case(cut_fraction, resolution):
+def run_case(cut_fraction, resolution, snapshot_ages=()):
     """Solve one domain and evaluate its surface-deposition map."""
     velocity, side, diagnostics = solve_stokes(
         cut_fraction, 1.0, resolution
     )
     sample, minimum_grid_u, maximum_grid_u = make_sampler(velocity, side)
-    material_map = trace_map(sample, side)
+    material_map = trace_map(
+        sample, side, snapshot_ages=snapshot_ages
+    )
     row = {
         "cut fraction": cut_fraction,
         "target spacing (m)": resolution,
@@ -337,7 +348,10 @@ sweep_rows = []
 sweep_maps = {}
 for cut_fraction in (0.95, 0.90, 0.85, 0.80, 0.70):
     print(f"Solving cut fraction {cut_fraction:g}.", flush=True)
-    row, material_map = run_case(cut_fraction, 7.5)
+    snapshot_ages = EVOLUTION_AGES if cut_fraction == 0.80 else ()
+    row, material_map = run_case(
+        cut_fraction, 7.5, snapshot_ages=snapshot_ages
+    )
     sweep_rows.append(row)
     sweep_maps[cut_fraction] = material_map
 sweep = pd.DataFrame(sweep_rows)
@@ -394,7 +408,8 @@ print(
 
 cut_fraction = 0.80
 side = cut_fraction * CAP_HALF_WIDTH
-material_map = sweep_maps[cut_fraction]["first resolved overturn"]
+case_map = sweep_maps[cut_fraction]
+material_map = case_map["first resolved overturn"]
 figure, axes = plt.subplots(
     1, 3, figsize=(14.0, 4.4), constrained_layout=True
 )
@@ -407,7 +422,19 @@ valid = material_map["valid"] & np.isfinite(material_map["jacobian"])
 points = material_map["states"][valid]
 sources = material_map["sources"][valid]
 negative = material_map["jacobian"][valid] < 0.0
-axes[0].plot(points[:, 0], points[:, 1], color="tab:blue", linewidth=2.0)
+snapshot_colors = plt.cm.viridis(
+    np.linspace(0.08, 0.88, len(EVOLUTION_AGES))
+)
+for age, color in zip(EVOLUTION_AGES, snapshot_colors):
+    snapshot = case_map["evolution snapshots"][age]
+    snapshot_points = snapshot["states"][snapshot["valid"]]
+    axes[0].plot(
+        snapshot_points[:, 0],
+        snapshot_points[:, 1],
+        color=color,
+        linewidth=1.6,
+        label=f"{age / 1000:.2f} kyr",
+    )
 axes[0].scatter(
     points[negative, 0],
     points[negative, 1],
@@ -422,12 +449,9 @@ axes[0].set(
     ylim=(-160.0, 5.0),
     xlabel="Horizontal coordinate (m)",
     ylabel="Elevation (m)",
-    title=(
-        f"(a) {material_map['age'] / 1000:.2f} kyr isochrone, "
-        f"$J_{{min}}={material_map['minimum J']:.3f}$"
-    ),
+    title="(a) Isochrone evolution",
 )
-axes[0].legend(frameon=False, fontsize=8, loc="lower left")
+axes[0].legend(frameon=False, fontsize=7, loc="lower left", ncol=2)
 
 segments = np.stack((points[:-1], points[1:]), axis=1)
 collection = LineCollection(segments, cmap="viridis", linewidth=2.0)
@@ -446,7 +470,10 @@ axes[1].margins(0.10)
 axes[1].set(
     xlabel="Horizontal coordinate (m)",
     ylabel="Elevation (m)",
-    title="(b) Overturned-limb detail",
+    title=(
+        f"(b) {material_map['age'] / 1000:.2f} kyr overturned limb, "
+        f"$J_{{min}}={material_map['minimum J']:.3f}$"
+    ),
 )
 colorbar = figure.colorbar(collection, ax=axes[1], pad=0.02)
 colorbar.set_label("Surface deposition coordinate $x_0$ (m)")
