@@ -91,6 +91,14 @@ The executed [`dissipative_sliding_counterexample.ipynb`](notebooks/dissipative_
 
 At 1.66 kyr, the order Jacobian spans $-0.0845$ to $0.0267$ and the isochrone contains a vertical tangent and an overturned limb. At 1.82 kyr, its minimum is $-0.224$. These values change by less than $4\times10^{-5}$ over three curved meshes, and horizontal velocity remains above 0.10 m yr$^{-1}$ along every tracked trajectory. Basal dissipativity is therefore not a no-overturning condition; the trajectory order budget remains the relevant test.
 
+The resolved flow is rotational but is not a Moffatt eddy. The minimum horizontal speed over every velocity degree of freedom is 0.10047 m yr$^{-1}$ on all three meshes. Its streamlines are therefore open and cannot form a closed recirculation cell. This distinction is also mathematical: integrating $\mathrm{D}\tau/\mathrm{D}t=1$ around a closed orbit of period $T$ would require both $\tau(T)-\tau(0)=T$ and $\tau(T)=\tau(0)$. A closed eddy does not admit the steady, uniquely surface-sourced age field assumed by the order theorem.
+
+## Finite-thickness geometry survey
+
+The executed [`dissipative_sliding_geometry_survey.ipynb`](notebooks/dissipative_sliding_geometry_survey.ipynb) tests whether the passive counterexample survives in more conventional glacier geometries. The domains are periodic and therefore have no lateral wall. They retain 10--50 m of ice outside a broad or U-shaped overdeepening. A separate calculation places 130 m of relief at the free surface above a flat bed. Each calculation uses the same density, viscosity, slope, and basal drag as the circular-trough counterexample. Surface mass balance is diagnosed from the steady kinematic boundary condition.
+
+None of the four surface-deposition maps overturns before re-emergence. Their minimum order Jacobians are 0.742, 0.554, 0.512, and 0.863. The closest case is the U-shaped trough with 25 m boundary thickness; its three-mesh sequence is 0.512, 0.531, and 0.521. Horizontal speed remains positive along every contributing trajectory. The calculation therefore predicts strong layer rotation but no overturned limb for these geometries. This negative result shows that the passive circular-trough fold is geometrically special; it does not establish that finite-thickness glaciers cannot fold in steady flow.
+
 ## Existing notebooks
 
 The earlier notebooks remain in the repository as a record of model development. In particular, the original unified notebooks imposed a fitted basal packet and sharp interior boundary; their apparent matches are not evidence for the present mechanical hypothesis. The relevant positive control is [`full_stokes_waddington_fold.ipynb`](notebooks/full_stokes_waddington_fold.ipynb), which shows that resolved Glen flow can overturn a sufficiently steep prescribed seed. The next step is to create that seed dynamically in the transient free-surface model defined here.
@@ -100,3 +108,5 @@ The earlier notebooks remain in the repository as a record of model development.
 - [Shackleton et al. (2025), *Miocene and Pliocene ice and air from the Allan Hills blue ice area*](https://doi.org/10.1073/pnas.2502681122)
 - [Waddington, Bolzan, and Alley (2001), *Potential for stratigraphic folding near ice-sheet centers*](https://doi.org/10.3189/172756501781831756)
 - [Jacobson and Waddington (2004), *Recumbent folding in ice sheets: a core-referential study*](https://doi.org/10.3189/172756504781830204)
+- [Moffatt (1964), *Viscous and resistive eddies near a sharp corner*](https://doi.org/10.1017/S0022112064000015)
+- [Meyer and Creyts (2017), *Formation of ice eddies in subglacial mountain valleys*](https://doi.org/10.1002/2017JF004329)

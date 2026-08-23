@@ -192,6 +192,7 @@ def solve_stokes(resolution):
             fd.assemble(basal_law_residual**2 * fd.ds(1)) / bed_length
         )
         / basal_stress_scale,
+        "minimum nodal horizontal speed": np.min(velocity.dat.data_ro[:, 0]),
         "cells": mesh.num_cells(),
     }
     return mesh, velocity, diagnostics
@@ -330,6 +331,9 @@ for resolution, (mesh, velocity, diagnostics) in zip(
                 "rms basal normal speed"
             ],
             "minimum trajectory u (m/yr)": minimum_speed,
+            "minimum nodal u (m/yr)": diagnostics[
+                "minimum nodal horizontal speed"
+            ],
         }
     )
     maps.append((sources, snapshots, accumulation))
@@ -429,4 +433,7 @@ figure_directory.mkdir(exist_ok=True)
 for suffix in ("eps", "pdf"):
     figure.savefig(figure_directory / f"dissipative_sliding_counterexample.{suffix}")
 figure.savefig(figure_directory / "dissipative_sliding_counterexample.png", dpi=220)
+for suffix in ("eps", "pdf"):
+    figure.savefig(figure_directory / f"Figure7.{suffix}")
+figure.savefig(figure_directory / "Figure7.png", dpi=220)
 plt.show()
