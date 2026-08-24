@@ -1,4 +1,4 @@
-"""Passive Stokes overturning in a positive-thickness open trough."""
+"""Stokes overturning with a linear sliding law in an open trough."""
 
 from pathlib import Path
 import logging
@@ -91,7 +91,7 @@ def cap_mesh(cut_fraction, resolution):
 
 
 def solve_stokes(cut_fraction, traction_factor, resolution=7.5):
-    """Solve with passive bed drag and hydrostatic open-side traction."""
+    """Solve with linear bed drag and hydrostatic open-side traction."""
     mesh, side = cap_mesh(cut_fraction, resolution)
     velocity_space = fd.VectorFunctionSpace(mesh, "CG", 2)
     pressure_space = fd.FunctionSpace(mesh, "CG", 1)
@@ -499,6 +499,6 @@ axes[2].text(
 
 figure_directory = Path("../figures")
 for suffix in ("eps", "pdf"):
-    figure.savefig(figure_directory / f"Figure9.{suffix}")
-figure.savefig(figure_directory / "Figure9.png", dpi=220)
+    figure.savefig(figure_directory / f"Figure3.{suffix}")
+figure.savefig(figure_directory / "Figure3.png", dpi=220)
 plt.show()
