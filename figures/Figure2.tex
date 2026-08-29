@@ -7,11 +7,6 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta}
 
-\newcommand{\Rpos}{\mathcal{P}}
-\newcommand{\Rneg}{\mathcal{R}}
-\newcommand{\Jord}{\mathcal{J}}
-\newcommand{\orderfactor}{\mathcal{B}}
-
 \begin{document}
 \begin{tikzpicture}[x=1.08cm,y=1.15cm,>=Latex]
 
@@ -20,7 +15,7 @@
     node[right,align=center] {distance\\or\\travel time};
 
   \draw[->] (0,-1.5) -- (0,3.4)
-    node[above] {$\orderfactor=1+\Rpos-\Rneg$};
+    node[above] {$\mathcal{B}=1+\mathcal{P}-\mathcal{R}$};
 
   \draw[dashed] (0,0.0) -- (9,0.0);
   \node[left] at (0,0) {$0$};
@@ -37,14 +32,14 @@
 
   % Centered annotations above the vertical dotted line
   \node[align=center] at (6.2,3.18)
-    {first vertical tangent\\[2pt]$\Rneg=1+\Rpos$};
+    {first vertical tangent\\[2pt]$\mathcal{R}=1+\mathcal{P}$};
 
   % Region labels
   \node[align=center] at (2.2,0.65)
-    {ordered\\$\Jord>0$};
+    {ordered\\$\mathcal{J}>0$};
 
   \node[align=center] at (7.8,-0.35)
-    {overturned\\$\Jord<0$};
+    {overturned\\$\mathcal{J}<0$};
 
     % Shear annotations
   \node[above] at (1.45,2.52)
