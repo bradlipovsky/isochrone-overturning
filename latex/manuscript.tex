@@ -34,86 +34,11 @@ Observed basal folds motivated a distinction between initiation and passive ampl
 
 Airborne radar shows that order-reversing structures occur at ice-sheet scale. Dated horizons at Petermann Glacier contain overturned limbs and a sheath fold \citep{Bons2016}. Three-dimensional radar mapping in northeast Greenland resolved \(500\)--\(600~\mathrm{m}\) overturned anticline--syncline pairs associated with extinct ice streams \citep{Franke2022}. \citet{Franke2022} interpreted these structures as upright folds formed by earlier convergent flow and subsequently sheared into recumbent geometries after flow reorganization. These observations do not establish formation by a fixed steady velocity field.
 
-\citet{Waddington2001} examined whether local shear rotates a pre-existing wrinkle toward overturning or whether longitudinal extension flattens it, and argued that a transient process must first disturb steady stratigraphy. Finite-strain calculations later followed such inherited disturbances along trajectories and showed how divide migration can supply them \citep{JacobsonWaddington2004,JacobsonWaddington2005}. For continuously generated steady stratigraphy, \citet{ParreninHindmarshRemy2006} introduced logarithmic flux coordinates, and \citet{ParreninHindmarsh2007} generalized this construction to horizontally non-uniform velocity. Their \((\pi,\theta)\) coordinates---the logarithms of total flux and normalized streamfunction---make steady particle trajectories parallel straight lines labelled by their surface origin \(\pi_0\). The associated path-sign parameter \(\alpha\) measures the change in separation between neighboring surface origins and shows that an isochrone passes through vertical when \(\alpha>1\). They proved that upward-increasing horizontal velocity precludes this state, but did not construct a glacier flow with \(\alpha>1\) or connect the criterion to full-Stokes mechanics. Their framework also supports vertical thinning functions and numerical age solvers \citep{Parrenin2013,HindmarshLeysingerVieliParrenin2009,ParreninChungMartin2025}.
+\citet{Waddington2001} examined whether local shear rotates a pre-existing wrinkle toward overturning or whether longitudinal extension flattens it, and argued that a transient process must first disturb steady stratigraphy. Finite-strain calculations later followed such inherited disturbances along trajectories and showed how divide migration can supply them \citep{JacobsonWaddington2004,JacobsonWaddington2005}. For continuously generated steady stratigraphy, \citet{ParreninHindmarshRemy2006} introduced logarithmic flux coordinates, and \citet{ParreninHindmarsh2007} generalized this construction to horizontally non-uniform velocity. Their \((\pi,\theta)\) coordinates (see Table~\ref{tab:notation} for notation)---the logarithms of total flux and normalized streamfunction---make steady particle trajectories parallel straight lines labelled by their surface origin \(\pi_0\). The associated path-sign parameter \(\alpha\) measures the change in separation between neighboring surface origins and shows that an isochrone passes through vertical when \(\alpha>1\). They proved that upward-increasing horizontal velocity precludes this state, but did not construct a glacier flow with \(\alpha>1\) or connect the criterion to full-Stokes mechanics. Their framework also supports vertical thinning functions and numerical age solvers \citep{Parrenin2013,HindmarshLeysingerVieliParrenin2009,ParreninChungMartin2025}.
 
-Steady accumulation and near-surface flow can produce single-valued firn undulations \citep{NgKing2011,NgKing2013}, whereas traveling basal-traction anomalies produce overturned folds through an explicitly transient mechanism \citep{Wolovick2014,WolovickCreyts2016}. Full-Stokes models also amplify seeded or active structures through anisotropy, basal shear and bed relief \citep{Zhang2024}. Not every fold-like radar return traces a continuous surface-deposited isochrone. Steep specular limbs may be poorly imaged \citep{Holschuh2014}, and some northern Greenland structures contain debris-rich horizons with diffuse scattering \citep{Holschuh2026}.  The unresolved step is whether a steady glacier velocity field can overturn the passive age field generated continuously at the surface.
+Steady accumulation and near-surface flow can produce single-valued firn undulations \citep{NgKing2011,NgKing2013}, whereas traveling basal-traction anomalies produce overturned folds through an explicitly transient mechanism \citep{Wolovick2014,WolovickCreyts2016}. Full-Stokes models also amplify seeded or active structures through anisotropy, basal shear and bed relief \citep{Zhang2024}. Not every fold-like radar return traces a continuous surface-deposited isochrone. Steep specular limbs may be poorly imaged \citep{Holschuh2014}, and some northern Greenland structures contain debris-rich horizons with diffuse scattering \citep{Holschuh2026}. The unresolved step is whether a steady glacier velocity field can overturn the passive age field generated continuously at the surface. Table~\ref{tab:lineage} summarizes the relationship between these studies and the present analysis.
 
 Here, we treat age as a passive, non-diffusive scalar introduced at surface deposition, and write the signed inverse vertical-thinning factor as the horizontal order of particles along an isochrone. Its cumulative budget separates surface-fast regular shear and extrusive reverse shear. We relate that budget to the full-Stokes stress balance, derive preservation regimes and obstacle bounds, and formulate a trajectory diagnostic. A gravity-driven full-Stokes example then overturns a surface-generated isochrone under a linear sliding law, without an inherited perturbation.
-
-Table~\ref{tab:notation} defines the notation used below.
-
-\begingroup
-\small
-\begin{longtable}{@{}p{0.18\textwidth}p{0.59\textwidth}p{0.17\textwidth}@{}}
-\caption{Notation. Units are given for the dimensional quantities used in the numerical example; all fluxes are ice-equivalent.}
-\label{tab:notation}\\
-\toprule
-Symbol & Definition & Units \\
-\midrule
-\endfirsthead
-\multicolumn{3}{@{}l}{\textit{Table~\ref{tab:notation} continued}}\\
-\toprule
-Symbol & Definition & Units \\
-\midrule
-\endhead
-\bottomrule
-\endfoot
-\multicolumn{3}{@{}l}{\textit{Coordinates and kinematics}}\\
-\(x,z\) & Horizontal and vertical Cartesian coordinates; \(x\) increases downstream. & \(\mathrm{m}\) \\
-\(x_0\) & Horizontal coordinate of surface deposition; a material-origin label. & \(\mathrm{m}\) \\
-\(\xi,\zeta\) & Horizontal and vertical coordinates of integration. & \(\mathrm{m}\) \\
-\(z_0\) & Elevation of an unperturbed streamline in the periodic calculation. & \(\mathrm{m}\) \\
-\(s(x)\) & Free-surface elevation. & \(\mathrm{m}\) \\
-\(H,L,\ell\) & Ice thickness, horizontal forcing scale and length of a reverse-shear segment. & \(\mathrm{m}\) \\
-\(t,\tau,T\) & Time since deposition, stratigraphic age and trajectory duration or orbit period. & \(\mathrm{yr}\) \\
-\(\bm{u}=[u,w]^{\mathsf T}\) & Velocity vector and its horizontal and vertical components. & \(\mathrm{m\,yr^{-1}}\) \\
-\(u_s,u_{s0}\) & Horizontal surface speed and its value at deposition. & \(\mathrm{m\,yr^{-1}}\) \\
-\(U,U_b\) & Characteristic horizontal speed and uniform background plug-flow speed. & \(\mathrm{m\,yr^{-1}}\) \\
-\(U_{\min},U_{\mathrm{dep}}\) & Lower speed bound on a trajectory segment and upper bound on speed at deposition. & \(\mathrm{m\,yr^{-1}}\) \\
-\(u_1\) & First-order horizontal-velocity perturbation. & \(\mathrm{m\,yr^{-1}}\) \\
-\(\dot a,\dot a_0\) & Ice-equivalent surface accumulation rate and its value at \(x_0\). & \(\mathrm{m\,yr^{-1}}\) \\
-\(\psi,\Psi\) & Streamfunction per unit width and its restriction to the surface, \(\Psi(x)=\psi[x,s(x)]\). & \(\mathrm{m^2\,yr^{-1}}\) \\
-\(\delta x,\delta x_0\) & Horizontal separations at observation and deposition. & \(\mathrm{m}\) \\
-\multicolumn{3}{@{}l}{\textit{Parrenin--Hindmarsh coordinates}}\\
-\(Q,Q^{\mathrm{ref}}\) & Total horizontal flow-tube flux and its value at a reference position. & \(\mathrm{m^3\,yr^{-1}}\) \\
-\(\Omega\) & Streamfunction normalized by total flux. & \(1\) \\
-\(\pi,\theta\) & Logarithmic flux coordinates: \(\pi=\ln[Q(x)/Q^{\mathrm{ref}}]\) and \(\theta=\ln\Omega\). & \(1\) \\
-\(\pi_0\) & Logarithmic flux coordinate of surface deposition. & \(1\) \\
-\(\delta\pi,\delta\pi_0\) & Neighboring-particle separations in logarithmic flux at observation and deposition. & \(1\) \\
-\(\alpha\) & Path-sign parameter defined by \(\delta\pi=(1-\alpha)\delta\pi_0\). & \(1\) \\
-\multicolumn{3}{@{}l}{\textit{Stratigraphic order}}\\
-\(\mathcal{J}\) & Isochrone-order Jacobian, \(\left.\partial x/\partial x_0\right|_\tau\). & \(1\) \\
-\(\lambda_z\) & Vertical thinning function for ordered stratigraphy. & \(1\) \\
-\(u_z,u_z^+,u_z^-\) & Vertical shear and its positive and negative parts. & \(\mathrm{yr^{-1}}\) \\
-\(\dot\gamma_{\mathrm{rev}}\) & Upper bound on reverse vertical shear. & \(\mathrm{yr^{-1}}\) \\
-\(\mathcal{P},\mathcal{R}\) & Accumulated positive-shear and reverse-shear contributions. & \(1\) \\
-\(\mathcal{B}\) & Order budget, \(1+\mathcal{P}-\mathcal{R}\). & \(1\) \\
-\multicolumn{3}{@{}l}{\textit{Stress balance and asymptotic quantities}}\\
-\(p,p_{\mathrm{atm}},p_{\mathrm{nh}}\) & Pressure, atmospheric pressure and nonhydrostatic pressure. & \(\mathrm{Pa}\) \\
-\(\rho\) & Ice density. & \(\mathrm{kg\,m^{-3}}\) \\
-\(\bm{g},g\) & Gravitational acceleration and its magnitude. & \(\mathrm{m\,s^{-2}}\) \\
-\(\bm{\tau}\) & Deviatoric stress tensor; distinct from scalar age \(\tau\). & \(\mathrm{Pa}\) \\
-\(\tau_{xx},\tau_{xz},\tau_{xz}^{s}\) & Longitudinal stress, shear stress and surface shear stress. & \(\mathrm{Pa}\) \\
-\(\bm{D},\eta\) & Strain-rate tensor and scalar effective viscosity. & \(\mathrm{yr^{-1}},\ \mathrm{Pa\,yr}\) \\
-\(G,R_{\mathrm{FS}}\) & Gravity-driven and residual full-Stokes contributions to \(u_z\). & \(\mathrm{yr^{-1}}\) \\
-\(\mathcal{G},\mathcal{F}\) & Cumulative gravity-driven and residual full-Stokes order contributions. & \(1\) \\
-\(\varepsilon\) & Glacier aspect ratio \(H/L\). & \(1\) \\
-\(\epsilon_b,k\) & Roughness-amplitude parameter and horizontal wavenumber. & \(1,\ \mathrm{m^{-1}}\) \\
-\multicolumn{3}{@{}l}{\textit{Numerical boundary condition}}\\
-\(\bm{\sigma}\) & Full Cauchy stress tensor. & \(\mathrm{Pa}\) \\
-\(\bm{t},\bm{n}\) & Unit tangent and outward unit normal on the bed. & \(1\) \\
-\(u_t,u_n\) & Tangential and normal basal velocity components. & \(\mathrm{m\,yr^{-1}}\) \\
-\(\tau_b,C\) & Resisting basal shear stress and linear-sliding mobility. & \(\mathrm{Pa},\ \mathrm{m\,yr^{-1}\,Pa^{-1}}\) \\
-\(\beta\) & Mean surface slope used to orient gravity in the numerical example. & \(\mathrm{rad}\) \\
-\multicolumn{3}{@{}l}{\textit{Operators and conventions}}\\
-\((\,\cdot\,)_x,(\,\cdot\,)_z,(\,\cdot\,)_t\) & Partial derivatives with respect to \(x,z,t\); \(u_t\) instead denotes tangential velocity where explicitly stated. & --- \\
-\(\mathrm{D}/\mathrm{D}t,\nabla\) & Material time derivative and spatial gradient. & --- \\
-\((\,\cdot\,)^{\mathsf T},\{\,\cdot\,,\,\cdot\,\}\) & Transpose and Poisson bracket. & --- \\
-\(\left.\partial(\,\cdot\,)/\partial x\right|_\psi\) & Partial derivative with the subscripted coordinate held fixed; analogous notation is used for other variables. & --- \\
-\([f]_{-}\) & Negative-part magnitude, \(\max(-f,0)\). & units of \(f\) \\
-\(\operatorname{sgn},\det,O(\,\cdot\,)\) & Sign, determinant and asymptotic-order notation. & --- \\
-\end{longtable}
-\endgroup
 
 \section{Steady age transport and the order Jacobian}
 
@@ -734,6 +659,129 @@ OpenAI Codex using GPT-5 and \texttt{5.6-sol} (available at \texttt{openai.com/c
 \bibliography{references}
 
 \appendix
+
+\section{Notation}
+
+\begingroup
+\small
+\begin{longtable}{@{}p{0.18\textwidth}p{0.59\textwidth}p{0.17\textwidth}@{}}
+\caption{Notation. Units are given for the dimensional quantities used in the numerical example; all fluxes are ice-equivalent.}
+\label{tab:notation}\\
+\toprule
+Symbol & Definition & Units \\
+\midrule
+\endfirsthead
+\multicolumn{3}{@{}l}{\textit{Table~\ref{tab:notation} continued}}\\
+\toprule
+Symbol & Definition & Units \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\multicolumn{3}{@{}l}{\textit{Coordinates and kinematics}}\\
+\(x,z\) & Horizontal and vertical Cartesian coordinates; \(x\) increases downstream. & \(\mathrm{m}\) \\
+\(x_0\) & Horizontal coordinate of surface deposition; a material-origin label. & \(\mathrm{m}\) \\
+\(\xi,\zeta\) & Horizontal and vertical coordinates of integration. & \(\mathrm{m}\) \\
+\(z_0\) & Elevation of an unperturbed streamline in the periodic calculation. & \(\mathrm{m}\) \\
+\(s(x)\) & Free-surface elevation. & \(\mathrm{m}\) \\
+\(H,L,\ell\) & Ice thickness, horizontal forcing scale and length of a reverse-shear segment. & \(\mathrm{m}\) \\
+\(t,\tau,T\) & Time since deposition, stratigraphic age and trajectory duration or orbit period. & \(\mathrm{yr}\) \\
+\(\bm{u}=[u,w]^{\mathsf T}\) & Velocity vector and its horizontal and vertical components. & \(\mathrm{m\,yr^{-1}}\) \\
+\(u_s,u_{s0}\) & Horizontal surface speed and its value at deposition. & \(\mathrm{m\,yr^{-1}}\) \\
+\(U,U_b\) & Characteristic horizontal speed and uniform background plug-flow speed. & \(\mathrm{m\,yr^{-1}}\) \\
+\(U_{\min},U_{\mathrm{dep}}\) & Lower speed bound on a trajectory segment and upper bound on speed at deposition. & \(\mathrm{m\,yr^{-1}}\) \\
+\(u_1\) & First-order horizontal-velocity perturbation. & \(\mathrm{m\,yr^{-1}}\) \\
+\(\dot a,\dot a_0\) & Ice-equivalent surface accumulation rate and its value at \(x_0\). & \(\mathrm{m\,yr^{-1}}\) \\
+\(\psi,\Psi\) & Streamfunction per unit width and its restriction to the surface, \(\Psi(x)=\psi[x,s(x)]\). & \(\mathrm{m^2\,yr^{-1}}\) \\
+\(\delta x,\delta x_0\) & Horizontal separations at observation and deposition. & \(\mathrm{m}\) \\
+\multicolumn{3}{@{}l}{\textit{Parrenin--Hindmarsh coordinates}}\\
+\(Q,Q^{\mathrm{ref}}\) & Total horizontal flow-tube flux and its value at a reference position. & \(\mathrm{m^3\,yr^{-1}}\) \\
+\(\Omega\) & Streamfunction normalized by total flux. & \(1\) \\
+\(\pi,\theta\) & Logarithmic flux coordinates: \(\pi=\ln[Q(x)/Q^{\mathrm{ref}}]\) and \(\theta=\ln\Omega\). & \(1\) \\
+\(\pi_0\) & Logarithmic flux coordinate of surface deposition. & \(1\) \\
+\(\delta\pi,\delta\pi_0\) & Neighboring-particle separations in logarithmic flux at observation and deposition. & \(1\) \\
+\(\alpha\) & Path-sign parameter defined by \(\delta\pi=(1-\alpha)\delta\pi_0\). & \(1\) \\
+\multicolumn{3}{@{}l}{\textit{Stratigraphic order}}\\
+\(\mathcal{J}\) & Isochrone-order Jacobian, \(\left.\partial x/\partial x_0\right|_\tau\). & \(1\) \\
+\(\lambda_z\) & Vertical thinning function for ordered stratigraphy. & \(1\) \\
+\(u_z,u_z^+,u_z^-\) & Vertical shear and its positive and negative parts. & \(\mathrm{yr^{-1}}\) \\
+\(\dot\gamma_{\mathrm{rev}}\) & Upper bound on reverse vertical shear. & \(\mathrm{yr^{-1}}\) \\
+\(\mathcal{P},\mathcal{R}\) & Accumulated positive-shear and reverse-shear contributions. & \(1\) \\
+\(\mathcal{B}\) & Order budget, \(1+\mathcal{P}-\mathcal{R}\). & \(1\) \\
+\multicolumn{3}{@{}l}{\textit{Stress balance and asymptotic quantities}}\\
+\(p,p_{\mathrm{atm}},p_{\mathrm{nh}}\) & Pressure, atmospheric pressure and nonhydrostatic pressure. & \(\mathrm{Pa}\) \\
+\(\rho\) & Ice density. & \(\mathrm{kg\,m^{-3}}\) \\
+\(\bm{g},g\) & Gravitational acceleration and its magnitude. & \(\mathrm{m\,s^{-2}}\) \\
+\(\bm{\tau}\) & Deviatoric stress tensor; distinct from scalar age \(\tau\). & \(\mathrm{Pa}\) \\
+\(\tau_{xx},\tau_{xz},\tau_{xz}^{s}\) & Longitudinal stress, shear stress and surface shear stress. & \(\mathrm{Pa}\) \\
+\(\bm{D},\eta\) & Strain-rate tensor and scalar effective viscosity. & \(\mathrm{yr^{-1}},\ \mathrm{Pa\,yr}\) \\
+\(G,R_{\mathrm{FS}}\) & Gravity-driven and residual full-Stokes contributions to \(u_z\). & \(\mathrm{yr^{-1}}\) \\
+\(\mathcal{G},\mathcal{F}\) & Cumulative gravity-driven and residual full-Stokes order contributions. & \(1\) \\
+\(\varepsilon\) & Glacier aspect ratio \(H/L\). & \(1\) \\
+\(\epsilon_b,k\) & Roughness-amplitude parameter and horizontal wavenumber. & \(1,\ \mathrm{m^{-1}}\) \\
+\multicolumn{3}{@{}l}{\textit{Numerical boundary condition}}\\
+\(\bm{\sigma}\) & Full Cauchy stress tensor. & \(\mathrm{Pa}\) \\
+\(\bm{t},\bm{n}\) & Unit tangent and outward unit normal on the bed. & \(1\) \\
+\(u_t,u_n\) & Tangential and normal basal velocity components. & \(\mathrm{m\,yr^{-1}}\) \\
+\(\tau_b,C\) & Resisting basal shear stress and linear-sliding mobility. & \(\mathrm{Pa},\ \mathrm{m\,yr^{-1}\,Pa^{-1}}\) \\
+\(\beta\) & Mean surface slope used to orient gravity in the numerical example. & \(\mathrm{rad}\) \\
+\multicolumn{3}{@{}l}{\textit{Operators and conventions}}\\
+\((\,\cdot\,)_x,(\,\cdot\,)_z,(\,\cdot\,)_t\) & Partial derivatives with respect to \(x,z,t\); \(u_t\) instead denotes tangential velocity where explicitly stated. & --- \\
+\(\mathrm{D}/\mathrm{D}t,\nabla\) & Material time derivative and spatial gradient. & --- \\
+\((\,\cdot\,)^{\mathsf T},\{\,\cdot\,,\,\cdot\,\}\) & Transpose and Poisson bracket. & --- \\
+\(\left.\partial(\,\cdot\,)/\partial x\right|_\psi\) & Partial derivative with the subscripted coordinate held fixed; analogous notation is used for other variables. & --- \\
+\([f]_{-}\) & Negative-part magnitude, \(\max(-f,0)\). & units of \(f\) \\
+\(\operatorname{sgn},\det,O(\,\cdot\,)\) & Sign, determinant and asymptotic-order notation. & --- \\
+\end{longtable}
+\endgroup
+
+\section{Relationship to previous studies}
+
+\begingroup
+\scriptsize
+\setlength{\aboverulesep}{0.2ex}
+\setlength{\belowrulesep}{0.2ex}
+\begin{longtable}{@{}p{0.20\textwidth}p{0.37\textwidth}p{0.37\textwidth}@{}}
+\caption{Relationship between established folding analyses and the present formulation.}
+\label{tab:lineage}\\
+\toprule
+Study & Primary question & Diagnostic and scope \\
+\midrule
+\endfirsthead
+\multicolumn{3}{@{}l}{\textit{Table~\ref{tab:lineage} continued}}\\
+\toprule
+Study & Primary question & Diagnostic and scope \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\citet{Hudleston1976} & How did observed basal recumbent folds form? & A transient change in flow creates misalignment, followed by passive amplification over an irregular bed. \\
+\midrule
+\citet{WhillansJohnsen1983} & How do fixed basal variations distort radar layers? & Linear-viscous flow over relief with variable sliding and drag; calculated undulations match Byrd Station radar layers. \\
+\midrule
+\citet{Waddington2001} & Does a pre-existing local wrinkle flatten or rotate toward overturning? & Instantaneous tangent slope relative to a steady reference isochrone. \\
+\midrule
+\citet{JacobsonWaddington2004} & Does a finite-strain history overturn an injected disturbance? & Deformation gradient integrated along trajectories. \\
+\midrule
+\citet{ParreninHindmarshRemy2006,ParreninHindmarsh2007} & How does steady flow shape isochrones and preserve particle order? & Log total flux and log normalized streamfunction straighten trajectories; the path-sign factor maps deposition coordinate \(\pi_0\) to present coordinate \(\pi\). \\
+\midrule
+\citet{NgKing2011,NgKing2013} & Can steady spatial forcing generate folded firn geometry? & Accumulation and near-surface flow generate single-valued layer undulations, but not recumbent order reversal. \\
+\midrule
+\citet{Bons2016,Franke2022} & What do three-dimensional radar surveys show about large folds? & Dated horizons contain overturned and sheath folds that record convergence, basal shear and former flow configurations. \\
+\midrule
+\citet{Wolovick2014,WolovickCreyts2016} & Can changing basal traction generate observed overturning? & Traveling slippery or sticky patches produce thickness-scale overturned folds. \\
+\midrule
+\citet{Hindmarsh2006} & Do layers drape or override bed and basal-boundary perturbations? & Perturbation and full-mechanical models; wavelength controls architecture. \\
+\midrule
+\citet{Zhang2024} & How do anisotropy, convergent flow and bed relief amplify englacial folds? & Full-Stokes growth of active or bed-seeded structures, including recumbent basal folds. \\
+\midrule
+\citet{HindmarshLeysingerVieliParrenin2009,ParreninChungMartin2025} & How can age and thinning be computed accurately in steady flow tubes? & Eulerian and characteristic solvers for age, origin and vertical thinning. \\
+\midrule
+\citet{Gudmundsson1997linear} & Can rough-bed Stokes flow contain local extrusion? & Analytical velocity extrema and reverse vertical shear near sinusoidal relief. \\
+\midrule
+This study & Has cumulative reverse shear erased depositional ordering? & Signed inverse-thinning factor, positive--negative shear budget, full-Stokes threshold, obstacle bounds and trajectory diagnostic. \\
+\end{longtable}
+\endgroup
 
 \section{Inverse-coordinate identities}
 
