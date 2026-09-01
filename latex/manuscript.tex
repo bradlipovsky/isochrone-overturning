@@ -24,7 +24,7 @@ Correspondence: Bradley Paul Lipovsky, \texttt{bpl7@uw.edu}}
 
 \section{Introduction}
 
-Recovering old ice is useful only where its age and stratigraphic context can be established. The European Beyond EPICA--Oldest Ice project used radar and flow modelling at Little Dome C to target a continuous record beyond \(1~\mathrm{Ma}\) \citep{Lilien2021,Chung2025BeyondEPICA}. Antarctic blue-ice areas instead expose discontinuous intervals through surface ablation and upward ice motion \citep{Bintanja1999,Spaulding2012}. At Allan Hills, cores have progressed from disturbed ice near \(1~\mathrm{Ma}\) to Pliocene and Miocene ice and air approaching \(6~\mathrm{Ma}\) \citep{Higgins2015,Yan2019,Shackleton2025}. These cores are a focus of NSF COLDEX.
+Recovering old ice is useful only where its age and stratigraphic context can be established. At Little Dome C, radar and flow modelling have been used to target a continuous record beyond \(1~\mathrm{Ma}\) \citep{Lilien2021,Chung2025BeyondEPICA}. Antarctic blue-ice areas instead expose discontinuous intervals through surface ablation and upward ice motion \citep{Bintanja1999,Spaulding2012}. The S{\o}r Rondane Mountains are another blue-ice setting being surveyed for old ice \citep{Izeboud2026}. At Allan Hills, cores have progressed from disturbed ice near \(1~\mathrm{Ma}\) to Pliocene and Miocene ice and air approaching \(6~\mathrm{Ma}\) \citep{Higgins2015,Yan2019,Shackleton2025}.
 
 Allan Hills ice is locally out of order: ALHIC1901 contains multiple age reversals \citep{Shackleton2025}; two recent cores have mean layer dips of approximately \(29^{\circ}\) and \(69^{\circ}\) \citep{Kirkpatrick2025}; and ALHIC1901 microstructure records simple shear, crystal-orientation stripes and centimetre-scale folds \citep{Stoll2026}. Radar and flow modelling show strong spatial variation in archive continuity and transport history \citep{Kehrl2018,Manos2026}. Layer deformation therefore affects the interpretation of the recovered ages.
 
@@ -618,7 +618,7 @@ Allan Hills approaches several limits of the two-dimensional calculation. Ice ri
 
 Observations constrain but do not determine this history. The \(69^{\circ}\) mean dip in ALHIC2302 remains below vertical \citep{Kirkpatrick2025}, and centimetre-scale folds in ALHIC1901 need not explain core-scale reversals \citep{Stoll2026}. The ALHIC1901 age--depth inversion implies \(\mathcal{J}<0\) through Equation~\ref{eq:Jage} only if samples belong to one continuous surface-deposited layer family \citep{Shackleton2025}.
 
-At Beyond EPICA, radar and flow modelling indicate strong basal thinning and possibly stagnant or disturbed ice \citep{Lilien2021,Chung2025BeyondEPICA}. Evaluating \(\mathcal{J}\) along trajectories would test whether steady flow preserves order above this basal unit.
+At Little Dome C, radar and flow modelling indicate strong basal thinning and possibly stagnant or disturbed ice \citep{Lilien2021,Chung2025BeyondEPICA}. Evaluating \(\mathcal{J}\) along trajectories would test whether steady flow preserves order above this basal unit.
 
 The equations suggest four tests of an observed fold or age reversal.
 
@@ -656,7 +656,7 @@ Full-Stokes mechanics permits reverse shear through longitudinal stress, nonhydr
 
 The numerical example generates a recumbent isochrone directly from ordered surface deposition (Figure~\ref{fig:positiveboundary}). Gravity drives the flow, the bed obeys a linear sliding law, and both lateral ice thickness and horizontal velocity along the relevant trajectories remain positive. This steady full-Stokes flow crosses the order threshold under glaciological boundary conditions.
 
-For NSF COLDEX at Allan Hills, the next calculation is to integrate \(\mathcal{P}\), \(\mathcal{R}\) and \(\mathcal{J}\) along reconstructed source-to-core trajectories using Equations~\ref{eq:trajectory}--\ref{eq:Jdiagnostic}. A three-dimensional material map is required where cross-flow or multiple source regions are important. The same diagnostic can test stratigraphic order at continuous old-ice sites such as Beyond EPICA.
+At Allan Hills and Little Dome C, the order budget provides a common test of whether local flow preserves deposition order. Applying it requires reconstructed trajectories and, where cross-flow or multiple source regions are important, a three-dimensional material map. A fold complicates a climate archive, but it also preserves a mechanical record of the flow that brought ancient ice within reach.
 
 \section*{Data availability statement}
 No new observational data are presented. The analytical results are fully specified by the equations in this manuscript. Executed notebooks contain the full-Stokes solves, trajectory calculations, numerical checks and figure generation and are available at \texttt{github.com/bradlipovsky/allan-hills-stratigraphy}.
@@ -668,9 +668,9 @@ Bradley Paul Lipovsky developed the analysis and wrote the manuscript draft.
 To be completed by the author before submission.
 
 \section*{Acknowledgements}
-To be completed before submission. Support and contributions from NSF COLDEX and collaborating investigators should be documented here.
+The author received no funding from NSF COLDEX, an NSF Science and Technology Center (NSF-2019719), for this work. The author nevertheless benefited from the Center's generous intellectual environment and is grateful for conversations with colleagues across its community.
 
-OpenAI Codex using GPT-5 and \texttt{5.6-sol} (available at \texttt{openai.com/codex}) was used from 3 to 29 August 2026 to assist with literature searches, drafting and revising manuscript text, LaTeX formatting, numerical-code development and the search for illustrative model geometries and boundary conditions. The author reviewed and revised all AI-assisted material, verified the cited sources, equations, code and numerical results, and takes full responsibility for the manuscript.
+OpenAI Codex using GPT-5 and \texttt{5.6-sol} (available at \texttt{openai.com/codex}) was used from 3 August to 1 September 2026 to assist with literature searches, drafting and revising manuscript text, LaTeX formatting, numerical-code development and the search for illustrative model geometries and boundary conditions. The author reviewed and revised all AI-assisted material, verified the cited sources, equations, code and numerical results, and takes full responsibility for the manuscript.
 
 \bibliographystyle{igs}
 \bibliography{references}
