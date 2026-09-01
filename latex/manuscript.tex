@@ -44,7 +44,24 @@ Here, we treat age as a passive, non-diffusive scalar introduced at surface depo
 
 \subsection{Kinematic coordinates and material origin}
 
-Let \(u(x,z)\) and \(w(x,z)\) be the horizontal and vertical components of a continuously differentiable, steady two-dimensional velocity field in a domain bounded above by \(z=s(x)\). We use four conditions. (A1) The flow is incompressible, \(u_x+w_z=0\). (A2) After orienting \(x\) downstream, \(u(x,z)>0\) along every trajectory considered. (A3) Each trajectory intersects one upstream accumulation surface exactly once, at \(x=x_0\), where the ice-equivalent accumulation rate \(\dot a(x_0)>0\). (A4) Stratigraphic age is a passive, non-diffusive scalar that is zero at deposition and satisfies
+Let \(u(x,z)\) and \(w(x,z)\) be the horizontal and vertical components of a continuously differentiable, steady two-dimensional velocity field in a domain bounded above by \(z=s(x)\). The flow is incompressible,
+\begin{equation}
+u_x+w_z=0.
+\label{eq:incompressibility}
+\end{equation}
+After orienting \(x\) downstream, horizontal velocity remains positive along every trajectory considered:
+\begin{equation}
+u(x,z)>0.
+\label{eq:forwardflow}
+\end{equation}
+Each trajectory intersects one upstream accumulation surface exactly once, at
+\begin{equation}
+x=x_0,
+\qquad z=s(x_0),
+\qquad \dot a(x_0)>0,
+\label{eq:surfaceorigin}
+\end{equation}
+where \(\dot a\) is the ice-equivalent accumulation rate. Stratigraphic age is a passive, non-diffusive scalar that is zero at deposition and satisfies
 \begin{equation}
 \frac{\mathrm{D}\tau}{\mathrm{D}t}
 =\underbrace{\tau_t}_{=0}+u\tau_x+w\tau_z
@@ -55,16 +72,16 @@ Let \(u(x,z)\) and \(w(x,z)\) be the horizontal and vertical components of a con
 \end{equation}
 The Eulerian age field is steady, so \(\tau_t=0\), although the age of a moving particle increases at one unit of time per unit time.
 
-These conditions have separate roles. Conditions (A1) and (A4) give the age--streamfunction Jacobian identity below. Condition (A2) permits integration in the downstream coordinate and excludes recirculation. Condition (A3) assigns every trajectory a unique deposition coordinate \(x_0\). Together they define a unique map from surface deposition to position on an isochrone and make the horizontal order Jacobian \(\left.\partial x/\partial x_0\right|_\tau\) well-defined. The discussion of steady overturning and limitations considers surface and basal sources, stagnation and other cases in which these conditions are not satisfied.
+Equations~\ref{eq:incompressibility} and \ref{eq:age} give the age--streamfunction Jacobian identity below. Equation~\ref{eq:forwardflow} permits integration in the downstream coordinate and excludes recirculation. Equation~\ref{eq:surfaceorigin} assigns every trajectory a unique deposition coordinate \(x_0\). Together they define a unique map from surface deposition to position on an isochrone and make the horizontal order Jacobian \(\left.\partial x/\partial x_0\right|_\tau\) well-defined. The discussion of steady overturning and limitations considers surface and basal sources, stagnation and other cases in which these conditions are not satisfied.
 
-Condition (A1) permits the velocity to be represented by a scalar streamfunction \(\psi\). Curves of constant \(\psi\) are streamlines because \(\bm{u}\cdot\nabla\psi=0\), and the difference in \(\psi\) between two streamlines is their volume flux per unit width. The streamfunction is defined up to an arbitrary additive constant and requires no rheological assumption. We choose the orientation
+Equation~\ref{eq:incompressibility} permits the velocity to be represented by a scalar streamfunction \(\psi\). Curves of constant \(\psi\) are streamlines because \(\bm{u}\cdot\nabla\psi=0\), and the difference in \(\psi\) between two streamlines is their volume flux per unit width. The streamfunction is defined up to an arbitrary additive constant and requires no rheological assumption. We choose the orientation
 \begin{equation}
  u=\psi_z,
  \qquad
  w=-\psi_x.
  \label{eq:streamfunction}
 \end{equation}
-Combining Equations~\eqref{eq:age} and \eqref{eq:streamfunction} gives the exact Jacobian identity
+Combining Equations~\ref{eq:age} and \ref{eq:streamfunction} gives the exact Jacobian identity
 \begin{equation}
 \begin{vmatrix}
 \displaystyle\frac{\partial\tau}{\partial x} & \displaystyle\frac{\partial\tau}{\partial z} \\[1.2ex]
@@ -93,7 +110,7 @@ The steady surface kinematic condition is
  u_s s_x-\left.w\right|_{z=s(x)}=\dot a,
 \label{eq:surfacekinematic}
 \end{equation}
-where \(u_s=u\bigl[x,s(x)\bigr]\). Differentiating \(\Psi\) with the chain rule, substituting Equation~\eqref{eq:streamfunction}, and then applying Equation~\eqref{eq:surfacekinematic} gives
+where \(u_s=u\bigl[x,s(x)\bigr]\). Differentiating \(\Psi\) with the chain rule, substituting Equation~\ref{eq:streamfunction}, and then applying Equation~\ref{eq:surfacekinematic} gives
 \begin{equation}
 \Psi'(x)
 =\left.\psi_x\right|_{z=s(x)}+\left.\psi_z\right|_{z=s(x)}s_x
@@ -114,7 +131,7 @@ The streamfunction connects these descriptions. The increment \(\mathop{}\!\math
 \end{equation}
 where \(\dot a_0\equiv\left.\dot a(x)\right|_{x=x_0}=\dot a(x_0)\) is the accumulation rate at deposition.
 
-At fixed \(\psi\), Equation~\eqref{eq:age} gives
+At fixed \(\psi\), Equation~\ref{eq:age} gives
 \begin{equation}
 \left.\frac{\partial\tau}{\partial x}\right|_{\psi}=\frac{1}{u}.
 \end{equation}
@@ -124,12 +141,12 @@ Consequently the age at \((x,\psi)\) is the travel time from deposition. Here, \
 \frac{\mathop{}\!\mathrm{d}\xi}{u\left[\xi,z(\xi,\psi)\right]}.
 \label{eq:traveltime}
 \end{equation}
-At fixed \(x\), Equation~\eqref{eq:streamfunction} implies
+At fixed \(x\), Equation~\ref{eq:streamfunction} implies
 \begin{equation}
  z_{\psi}=\frac{1}{u}.
 \label{eq:zpsi}
 \end{equation}
-Stratigraphic order compares travel times on neighboring streamlines, which are neighboring values of \(\psi\). We therefore differentiate Equation~\eqref{eq:traveltime} with respect to \(\psi\) at fixed downstream position. Using Equations~\eqref{eq:x0psi} and \eqref{eq:zpsi} gives
+Stratigraphic order compares travel times on neighboring streamlines, which are neighboring values of \(\psi\). We therefore differentiate Equation~\ref{eq:traveltime} with respect to \(\psi\) at fixed downstream position. Using Equations~\ref{eq:x0psi} and \ref{eq:zpsi} gives
 \begin{equation}
 \tau_{\psi}
 =-\frac{1}{\dot a_0u_{s0}}
@@ -154,7 +171,7 @@ It measures whether particles deposited in increasing order of \(x_0\) remain in
 
 \medskip
 \noindent\textbf{Theorem 1 (Cumulative order criterion).}
-Under assumptions (A1)--(A4), the isochrone-order Jacobian is
+Under Equations~\ref{eq:incompressibility}--\ref{eq:age}, the isochrone-order Jacobian is
 \begin{equation}
 \boxed{
 \mathcal{J}
@@ -181,7 +198,7 @@ At fixed age, differentiation of \(\tau(x,\psi)\) gives
 =-\frac{\tau_{\psi}}{\tau_x|_{\psi}}
 =-u\tau_{\psi}.
 \end{equation}
-Multiplication by \(\mathop{}\!\mathrm{d}\psi/\mathop{}\!\mathrm{d} x_0=\dot a_0\) and substitution of Equation~\eqref{eq:taupsi} gives Equation~\eqref{eq:Jexact}. At fixed \(x\), \(\tau_z=\tau_{\psi}\psi_z=u\tau_{\psi}\), which gives Equation~\eqref{eq:Jage}. \hfill\(\square\)
+Multiplication by \(\mathop{}\!\mathrm{d}\psi/\mathop{}\!\mathrm{d} x_0=\dot a_0\) and substitution of Equation~\ref{eq:taupsi} gives Equation~\ref{eq:Jexact}. At fixed \(x\), \(\tau_z=\tau_{\psi}\psi_z=u\tau_{\psi}\), which gives Equation~\ref{eq:Jage}. \hfill\(\square\)
 
 The correction of annual-layer thickness for cumulative ice deformation goes back at least to \citet{Nye1963} and \citet{DansgaardJohnsen1969}. In the present notation, the vertical thinning function \(\lambda_z\) is the current vertical thickness of an infinitesimal age layer divided by its ice-equivalent thickness at deposition. For an ordered layer, a positive age increment \(\mathop{}\!\mathrm{d}\tau\) corresponds to the present vertical thickness \(-\mathop{}\!\mathrm{d} z=-\mathop{}\!\mathrm{d}\tau/\tau_z\) and the initial thickness \(\dot a_0\mathop{}\!\mathrm{d}\tau\). Hence
 \begin{equation}
@@ -193,14 +210,14 @@ The correction of annual-layer thickness for cumulative ice deformation goes bac
 }
 \label{eq:thinningrelation}
 \end{equation}
-Thus \(\mathcal{J}\) is not a new independent state variable: in the ordered regime it is the inverse of the established vertical thinning function \citep{Parrenin2013,ParreninChungMartin2025}. Equation~\eqref{eq:Jage} provides its signed continuation through a vertical tangent. The standard positive thinning function diverges as \(\tau_z\rightarrow0\), whereas \(\mathcal{J}\) crosses zero regularly and records orientation reversal.
+Thus \(\mathcal{J}\) is not a new independent state variable: in the ordered regime it is the inverse of the established vertical thinning function \citep{Parrenin2013,ParreninChungMartin2025}. Equation~\ref{eq:Jage} provides its signed continuation through a vertical tangent. The standard positive thinning function diverges as \(\tau_z\rightarrow0\), whereas \(\mathcal{J}\) crosses zero regularly and records orientation reversal.
 
-At deposition, \(x=x_0\), \(u=u_{s0}\), and \(\mathcal{J}=1\). At the first vertical tangent, \(\tau_z=0\), but the material curve remains regular. Inverting Equation~\eqref{eq:agepsiJacobian} shows that
+At deposition, \(x=x_0\), \(u=u_{s0}\), and \(\mathcal{J}=1\). At the first vertical tangent, \(\tau_z=0\), but the material curve remains regular. Inverting Equation~\ref{eq:agepsiJacobian} shows that
 \begin{equation}
 \left.\frac{\partial z}{\partial x_0}\right|_{\tau}
 =\dot a_0\tau_x.
 \end{equation}
-When \(\mathcal{J}=0\), Equation~\eqref{eq:age} gives \(\tau_x=1/u\), and therefore
+When \(\mathcal{J}=0\), Equation~\ref{eq:age} gives \(\tau_x=1/u\), and therefore
 \begin{equation}
 \left.\frac{\partial z}{\partial x_0}\right|_{\tau,\mathcal{J}=0}
 =\frac{\dot a_0}{u}>0.
@@ -226,7 +243,7 @@ and the dimensionless cumulative contributions
 \int_{x_0}^{x}\frac{u_z^-}{u^3}\,\mathop{}\!\mathrm{d}\xi.
 \label{eq:Rdef}
 \end{align}
-Equation~\eqref{eq:Jexact} becomes
+Equation~\ref{eq:Jexact} becomes
 \begin{equation}
 \boxed{
 \mathcal{J}=\frac{u}{u_{s0}}\mathcal{B},
@@ -247,7 +264,7 @@ The first vertical tangent occurs at
 \end{equation}
 and overturning occurs when \(\mathcal{R}>1+\mathcal{P}\).
 
-The unit term in Equations~\eqref{eq:JPR}--\eqref{eq:verticalcondition} represents the initial ordering imposed at deposition. Positive \(u_z\), the usual surface-fast glacier profile, adds to the budget. Reverse shear must remove both contributions. Thus a local region with \(u_z<0\) is not itself a fold criterion.
+The unit term in Equations~\ref{eq:JPR}--\ref{eq:verticalcondition} represents the initial ordering imposed at deposition. Positive \(u_z\), the usual surface-fast glacier profile, adds to the budget. Reverse shear must remove both contributions. Thus a local region with \(u_z<0\) is not itself a fold criterion.
 
 In travel-time coordinates, \(\mathop{}\!\mathrm{d} x=u\,\mathop{}\!\mathrm{d} t\), so
 \begin{equation}
@@ -262,7 +279,7 @@ where \(T\) is the travel time from deposition to the point of interest. Reverse
 \noindent\textbf{Corollary 1 (Monotonic-shear result).}
 If \(u_z\geq0\) everywhere along a trajectory, then \(\mathcal{R}=0\), \(\mathcal{J}>0\), and the steady isochrone cannot overturn.
 
-This corollary is the physical-coordinate statement of the no-overturning result in Appendix A of \citet{ParreninHindmarsh2007}. It is sufficient, not necessary. Equation~\eqref{eq:ordercondition} permits finite intervals of reverse shear provided their cumulative weighted contribution remains below the order budget. Figure~\ref{fig:budget} summarizes the three contributions and the point at which the budget reaches zero.
+This corollary is the physical-coordinate statement of the no-overturning result in Appendix A of \citet{ParreninHindmarsh2007}. It is sufficient, not necessary. Equation~\ref{eq:ordercondition} permits finite intervals of reverse shear provided their cumulative weighted contribution remains below the order budget. Figure~\ref{fig:budget} summarizes the three contributions and the point at which the budget reaches zero.
 
 \begin{figure}[t]
 \centering
@@ -283,7 +300,7 @@ Steady trajectories satisfy \(\mathop{}\!\mathrm{d}\theta/\mathop{}\!\mathrm{d}\
 \begin{equation}
 \delta\pi=(1-\alpha)\,\delta\pi_0,
 \end{equation}
-where the path-sign parameter \(\alpha\) accumulates changes in the velocity profile along the trajectory. Thus \(1-\alpha\) is the signed deformation of neighboring surface origins in logarithmic flux coordinates, and an isochrone exceeds vertical when \(\alpha>1\). Their present and surface-origin coordinates are monotone functions of \(x\) and \(x_0\) wherever assumptions (A2)--(A3) hold. Consequently,
+where the path-sign parameter \(\alpha\) accumulates changes in the velocity profile along the trajectory. Thus \(1-\alpha\) is the signed deformation of neighboring surface origins in logarithmic flux coordinates, and an isochrone exceeds vertical when \(\alpha>1\). Their present and surface-origin coordinates are monotone functions of \(x\) and \(x_0\) wherever Equations~\ref{eq:forwardflow} and \ref{eq:surfaceorigin} hold. Consequently,
 \begin{equation}
 \operatorname{sgn}(1-\alpha)
 =\operatorname{sgn}\!\left(
@@ -293,13 +310,13 @@ where the path-sign parameter \(\alpha\) accumulates changes in the velocity pro
 =\operatorname{sgn}(-\tau_z).
 \label{eq:PHsign}
 \end{equation}
-The order Jacobian is therefore the physical-coordinate form of the sign information already contained in \(1-\alpha\), not an independent no-overturning theorem. Nor is \(\mathcal{J}\) independent of the established thinning variable: Equation~\eqref{eq:thinningrelation} identifies it as the signed inverse vertical-thinning factor. The contribution of the physical-space representation is that it exposes the positive and negative parts of vertical shear, remains regular at the first vertical tangent and can be evaluated directly from a numerical velocity field.
+The order Jacobian is therefore the physical-coordinate form of the sign information already contained in \(1-\alpha\), not an independent no-overturning theorem. Nor is \(\mathcal{J}\) independent of the established thinning variable: Equation~\ref{eq:thinningrelation} identifies it as the signed inverse vertical-thinning factor. The contribution of the physical-space representation is that it exposes the positive and negative parts of vertical shear, remains regular at the first vertical tangent and can be evaluated directly from a numerical velocity field.
 
 \section{Full-Stokes constraints on isochrone order}
 
 \subsection{Exact stress decomposition of vertical shear}
 
-The order theorem is kinematic. To determine whether glacier mechanics forces Equation~\eqref{eq:ordercondition} to hold, consider steady, isothermal or thermomechanically prescribed, isotropic generalized-Newtonian Stokes flow,
+The order theorem is kinematic. To determine whether glacier mechanics forces Equation~\ref{eq:ordercondition} to hold, consider steady, isothermal or thermomechanically prescribed, isotropic generalized-Newtonian Stokes flow,
 \begin{align}
 \nabla\cdot\bm{u}&=0,
 \label{eq:mass}\\
@@ -322,7 +339,7 @@ Write
 \begin{equation}
 p=p_{\mathrm{atm}}+\rho g(s-z)+p_{\mathrm{nh}},
 \end{equation}
-where \(g=|\bm{g}|\), \(p_{\mathrm{atm}}\) is atmospheric pressure and \(p_{\mathrm{nh}}\) contains all nonhydrostatic pressure, including the finite-slope surface correction. Integrating Equation~\eqref{eq:xmomentum} downward from the free surface, with \(\zeta\) as the vertical coordinate of integration, gives
+where \(g=|\bm{g}|\), \(p_{\mathrm{atm}}\) is atmospheric pressure and \(p_{\mathrm{nh}}\) contains all nonhydrostatic pressure, including the finite-slope surface correction. Integrating Equation~\ref{eq:xmomentum} downward from the free surface, with \(\zeta\) as the vertical coordinate of integration, gives
 \begin{equation}
 \tau_{xz}(x,z)
 =\tau_{xz}^{s}
@@ -346,7 +363,7 @@ Because \(\tau_{xz}=\eta(u_z+w_x)\),
 \end{equation}
 where the superscript \(s\) denotes surface stress. For a surface descending downstream, \(s_x\leq0\), the gravity-driven term \(G\) is nonnegative and favors order preservation. The residual \(R_{\mathrm{FS}}\) contains the full-Stokes effects omitted from the shallow-ice shear balance: gradients of vertical velocity, longitudinal stress, nonhydrostatic pressure and the Cartesian surface shear-stress component.
 
-Substitution into Equation~\eqref{eq:Jexact} gives
+Substitution into Equation~\ref{eq:Jexact} gives
 \begin{equation}
 \mathcal{J}=\frac{u}{u_{s0}}
 \left(1+\mathcal{G}+\mathcal{F}\right),
@@ -385,7 +402,7 @@ Neither incompressibility nor the Stokes equations fixes the sign of \(u_z\). Th
 
 At stronger roughness, the one-way-flow assumption itself can fail. \citet{Gudmundsson1997nonlinear} found separated secondary circulation in troughs of sufficiently steep sinusoidal beds. \citet{Moffatt1964} considered the local similarity solution near a sharp corner. For two stationary rigid planes, the similarity exponent becomes complex when the included angle is less than approximately \(146^{\circ}\); the resulting oscillation with logarithmic radial distance gives a nested sequence of closed, counter-rotating streamlines. \citet{MeyerCreyts2017} extended this corner-flow mechanism to Glen-law ice in subglacial mountain valleys and showed that oblique flow can produce three-dimensional eddies.
 
-The conditions for Moffatt eddies and overturned steady isochrones are not the same. Moffatt eddies require a recirculating corner-flow mode. Isochrone overturning under assumptions (A1)--(A4) instead requires the open-trajectory order budget to reach zero. The circular-arc bed calculation in Figure~\ref{fig:positiveboundary} has \(u>0\) along every plotted trajectory and therefore overturns without an eddy. Conversely, a closed streamline cannot carry the steady, surface-sourced age field assumed here. Integrating Equation~\eqref{eq:age} around an orbit of period \(T>0\) would give
+The conditions for Moffatt eddies and overturned steady isochrones are not the same. Moffatt eddies require a recirculating corner-flow mode. Isochrone overturning under Equations~\ref{eq:incompressibility}--\ref{eq:age} instead requires the open-trajectory order budget to reach zero. The circular-arc bed calculation in Figure~\ref{fig:positiveboundary} has \(u>0\) along every plotted trajectory and therefore overturns without an eddy. Conversely, a closed streamline cannot carry the steady, surface-sourced age field assumed here. Integrating Equation~\ref{eq:age} around an orbit of period \(T>0\) would give
 \begin{equation*}
 \tau(T)-\tau(0)
 =
@@ -465,14 +482,14 @@ A sufficient condition for no overturning is that the right-hand side be less th
 
 \medskip
 \noindent\textit{Proof.}
-Substitute Equation~\eqref{eq:boundassumptions} into Equation~\eqref{eq:Rdef} and bound the integral by its maximum integrand multiplied by \(\ell\). \hfill\(\square\)
+Substitute Equation~\ref{eq:boundassumptions} into Equation~\ref{eq:Rdef} and bound the integral by its maximum integrand multiplied by \(\ell\). \hfill\(\square\)
 
 For an isolated obstacle whose horizontal and vertical influence scales are both \(O(H)\), with non-stagnant throughflow,
 \begin{equation}
 \mathcal{R}=O\left(\frac{\dot a}{U}\right).
 \label{eq:isolatedscale}
 \end{equation}
-In a typical interior or flank setting where \(U\gg\dot a\), an isolated fixed bump can create local extrusion and visible draping while remaining far from the reverse-shear value required for a vertical tangent. More generally, setting the right-hand side of Equation~\eqref{eq:obstaclebound} equal to one and solving for length gives
+In a typical interior or flank setting where \(U\gg\dot a\), an isolated fixed bump can create local extrusion and visible draping while remaining far from the reverse-shear value required for a vertical tangent. More generally, setting the right-hand side of Equation~\ref{eq:obstaclebound} equal to one and solving for length gives
 \begin{equation}
 \ell
 \gtrsim
@@ -480,9 +497,9 @@ In a typical interior or flank setting where \(U\gg\dot a\), an isolated fixed b
 {\dot a_0U_{\mathrm{dep}}\dot\gamma_{\mathrm{rev}}}.
 \label{eq:lengththreshold}
 \end{equation}
-Slow throughflow reduces this required length through the \(U_{\min}^{3}\) numerator. For scale, take \(\dot a_0=0.05~\mathrm{m\,yr^{-1}}\), \(U_{\mathrm{dep}}=10~\mathrm{m\,yr^{-1}}\), \(\dot\gamma_{\mathrm{rev}}=0.01~\mathrm{yr^{-1}}\) and \(\ell=1~\mathrm{km}\). Equation~\eqref{eq:obstaclebound} gives \(\mathcal{R}\leq0.005\) when \(U_{\min}=10~\mathrm{m\,yr^{-1}}\), which rules out overturning under these assumed bounds. With \(U_{\min}=1~\mathrm{m\,yr^{-1}}\), the bound is \(\mathcal{R}\leq5\) and no longer rules it out.
+Slow throughflow reduces this required length through the \(U_{\min}^{3}\) numerator. For scale, take \(\dot a_0=0.05~\mathrm{m\,yr^{-1}}\), \(U_{\mathrm{dep}}=10~\mathrm{m\,yr^{-1}}\), \(\dot\gamma_{\mathrm{rev}}=0.01~\mathrm{yr^{-1}}\) and \(\ell=1~\mathrm{km}\). Equation~\ref{eq:obstaclebound} gives \(\mathcal{R}\leq0.005\) when \(U_{\min}=10~\mathrm{m\,yr^{-1}}\), which rules out overturning under these assumed bounds. With \(U_{\min}=1~\mathrm{m\,yr^{-1}}\), the bound is \(\mathcal{R}\leq5\) and no longer rules it out.
 
-Equation~\eqref{eq:obstaclebound} makes precise why ``flow over a bump cannot fold an isochrone'' is often a good glacier approximation but not a universal Stokes theorem. The approximation depends on non-stagnant flow, a localized deformation zone and a small accumulation-to-speed ratio.
+Equation~\ref{eq:obstaclebound} makes precise why ``flow over a bump cannot fold an isochrone'' is often a good glacier approximation but not a universal Stokes theorem. The approximation depends on non-stagnant flow, a localized deformation zone and a small accumulation-to-speed ratio.
 
 \subsection{First-order cancellation over periodic roughness about plug flow}
 
@@ -503,9 +520,9 @@ Therefore, over one complete wavelength,
 \int_{x}^{x+2\pi/k}\frac{u_z}{u^3}\,\mathop{}\!\mathrm{d}\xi=O(\epsilon_b^2).
 \label{eq:periodiccancel}
 \end{equation}
-The appendix on first-order periodic cancellation gives the expansion leading to Equation~\eqref{eq:periodiccancel}. The perturbative frictionless rough-bed solution of \citet{Gudmundsson1997linear} has this plug-flow structure: local extrusion occurs, but its first-order stoss- and lee-side contributions cancel over a complete symmetric wavelength.
+The appendix on first-order periodic cancellation gives the expansion leading to Equation~\ref{eq:periodiccancel}. The perturbative frictionless rough-bed solution of \citet{Gudmundsson1997linear} has this plug-flow structure: local extrusion occurs, but its first-order stoss- and lee-side contributions cancel over a complete symmetric wavelength.
 
-Cancellation is not guaranteed for a sheared background, a solitary asymmetric obstacle, a finite path ending mid-cycle, strongly nonlinear roughness or near-stagnant trajectories. Equation~\eqref{eq:periodiccancel} is therefore a restricted asymptotic result, not a general symmetry theorem.
+Cancellation is not guaranteed for a sheared background, a solitary asymmetric obstacle, a finite path ending mid-cycle, strongly nonlinear roughness or near-stagnant trajectories. Equation~\ref{eq:periodiccancel} is therefore a restricted asymptotic result, not a general symmetry theorem.
 
 \section{Trajectory diagnostic for full-Stokes models}
 
@@ -541,9 +558,9 @@ The diagnostic is
 \label{eq:numericaltest}
 \end{equation}
 
-A robust implementation should include four checks. First, compare Equation~\eqref{eq:Jdiagnostic} with \(-\dot a_0\tau_z\) from an independently solved steady age equation. Second, advect at least one pair of neighboring particles to verify the sign of \(\partial x/\partial x_0|_{\tau}\). Third, stop the downstream-coordinate integration when \(u\) approaches zero and diagnose recirculation with the full trajectory topology. Fourth, compute \(u_z\) using the finite-element gradient rather than differencing noisy interpolated velocities. Separate storage of \(\mathcal{P}\) and \(\mathcal{R}\) is preferable to integrating their difference because large compensating contributions can otherwise obscure numerical error.
+A robust implementation should include four checks. First, compare Equation~\ref{eq:Jdiagnostic} with \(-\dot a_0\tau_z\) from an independently solved steady age equation. Second, advect at least one pair of neighboring particles to verify the sign of \(\partial x/\partial x_0|_{\tau}\). Third, stop the downstream-coordinate integration when \(u\) approaches zero and diagnose recirculation with the full trajectory topology. Fourth, compute \(u_z\) using the finite-element gradient rather than differencing noisy interpolated velocities. Separate storage of \(\mathcal{P}\) and \(\mathcal{R}\) is preferable to integrating their difference because large compensating contributions can otherwise obscure numerical error.
 
-For transient flow, Equation~\eqref{eq:Jdiagnostic} is not valid because the steady travel-time representation fails. The corresponding calculation should integrate the deformation of the two-parameter deposition map through time. Nevertheless, the steady order budget remains useful as a baseline and as a diagnostic applied to quasi-steady snapshots.
+For transient flow, Equation~\ref{eq:Jdiagnostic} is not valid because the steady travel-time representation fails. The corresponding calculation should integrate the deformation of the two-parameter deposition map through time. Nevertheless, the steady order budget remains useful as a baseline and as a diagnostic applied to quasi-steady snapshots.
 
 \section{Full-Stokes numerical example}
 
@@ -562,7 +579,7 @@ u_n=0,
 \tau_b=-\bm{t}\mathbin{\cdot}\bm{\sigma}\bm{n},
 \label{eq:linearsliding}
 \end{equation}
-where \(u_t\) and \(u_n\) are the tangential and normal basal velocities, \(\bm{t}\) and \(\bm{n}\) are the bed tangent and outward normal, \(\bm{\sigma}\) is the full Cauchy stress, \(\tau_b\) is the resisting basal shear stress, and \(C=10^{-5}~\mathrm{m\,yr^{-1}\,Pa^{-1}}\) is the mobility. Because \(C>0\), Equation~\eqref{eq:linearsliding} dissipates mechanical energy. The surface is traction free. Each lateral boundary has the hydrostatic traction \(-\rho g\cos\beta(-z)\bm{n}\), where \(\beta\) is the mean surface slope. The accumulation rate required to keep the surface fixed is diagnosed as \(\dot a=-\left.w\right|_{z=0}\), and particles are introduced only where \(\dot a>0\).
+where \(u_t\) and \(u_n\) are the tangential and normal basal velocities, \(\bm{t}\) and \(\bm{n}\) are the bed tangent and outward normal, \(\bm{\sigma}\) is the full Cauchy stress, \(\tau_b\) is the resisting basal shear stress, and \(C=10^{-5}~\mathrm{m\,yr^{-1}\,Pa^{-1}}\) is the mobility. Because \(C>0\), Equation~\ref{eq:linearsliding} dissipates mechanical energy. The surface is traction free. Each lateral boundary has the hydrostatic traction \(-\rho g\cos\beta(-z)\bm{n}\), where \(\beta\) is the mean surface slope. The accumulation rate required to keep the surface fixed is diagnosed as \(\dot a=-\left.w\right|_{z=0}\), and particles are introduced only where \(\dot a>0\).
 
 The numerical isochrones are generated from the deposition boundary. At age zero, a particle labelled by \(x_0\) is placed at \([x_0,0]^{\mathsf T}\). Integrating the steady velocity for a common age \(\tau\) gives the material curve \([x(x_0,\tau),z(x_0,\tau)]^{\mathsf T}\). We do not initialize an internal layer, wrinkle or fold. A negative value of \(\left.\partial x/\partial x_0\right|_\tau\) therefore measures order reversal generated between deposition and the plotted isochrone.
 
@@ -585,7 +602,7 @@ The topographic relief is large and the rheology is linear viscous. The calculat
 
 \subsection{Limits of the steady coordinate construction}
 
-Within assumptions (A1)--(A4), cumulative reverse shear can overturn an isochrone when Equation~\eqref{eq:verticalcondition} is met. No boundary change is required. The extrusion-flow literature establishes local reverse shear, but does not evaluate this cumulative threshold. Variable density requires the mass-flux extension given in the appendix.
+For flow satisfying Equations~\ref{eq:incompressibility}--\ref{eq:age}, cumulative reverse shear can overturn an isochrone when Equation~\ref{eq:verticalcondition} is met. No boundary change is required. The extrusion-flow literature establishes local reverse shear, but does not evaluate this cumulative threshold. Variable density requires the mass-flux extension given in the appendix.
 
 Stagnation and recirculation instead violate the coordinate construction. If \(u\) vanishes or reverses, downstream position no longer parameterizes a trajectory and the \(1/u\) and \(1/u^3\) integrals become singular. Time integration remains possible, but a closed streamline cannot have the unique surface origin assumed here. The Allan Hills model of \citet{Manos2026} approaches this limit: its near-stagnant basal flow remains nonzero, yet makes the order integral sensitive to small velocities.
 
@@ -593,13 +610,13 @@ Material sources also restrict the theorem. A trajectory may enter through accum
 
 Changes in geometry or basal traction leave an inherited age field that differs from the steady age solution. Divide migration, traveling traction anomalies and former ice-stream configurations can therefore seed folds later amplified by shear \citep{JacobelBindschadler1993,JacobsonWaddington2005,Wolovick2014,WolovickCreyts2016,Franke2022,Jansen2024}. These mechanisms remain distinct from overturning generated continuously in a fixed velocity field.
 
-Finally, Equation~\eqref{eq:uzdecomp} assumes isotropic scalar viscosity and the order theorem is two-dimensional. Fabric and rheological heterogeneity can actively generate folds \citep{Alley1997,ThorsteinssonWaddington2002,Bons2016,Bons2025}, and convergent anisotropic flow occurs in both radar observations and models \citep{Ross2020,MartinGudmundssonPritchardGagliardini2009}. In three dimensions, the relevant quantity is the two-dimensional Jacobian mapping a surface deposition patch to an equal-age surface. The scalar \(\mathcal{J}\) applies only within a coherent flow tube with negligible cross-flow.
+Finally, Equation~\ref{eq:uzdecomp} assumes isotropic scalar viscosity and the order theorem is two-dimensional. Fabric and rheological heterogeneity can actively generate folds \citep{Alley1997,ThorsteinssonWaddington2002,Bons2016,Bons2025}, and convergent anisotropic flow occurs in both radar observations and models \citep{Ross2020,MartinGudmundssonPritchardGagliardini2009}. In three dimensions, the relevant quantity is the two-dimensional Jacobian mapping a surface deposition patch to an equal-age surface. The scalar \(\mathcal{J}\) applies only within a coherent flow tube with negligible cross-flow.
 
 \subsection{Implications for old-ice sites}
 
-Allan Hills approaches several limits of the two-dimensional calculation. Ice rises into an ablation zone above steep nunatak topography \citep{Spaulding2012,Kehrl2018,Stoll2026}. \citet{Manos2026} predict nearly stagnant basal ice upstream of the nunatak: the bottom \(20~\mathrm{m}\) averages \(0.4\)--\(0.5~\mathrm{mm\,yr^{-1}}\), with local speeds of order micrometres per year, compared with \(46\)--\(49~\mathrm{mm\,yr^{-1}}\) in the Cul-de-sac. Such small \(u\) makes the \(u^{-3}\) order integral numerically sensitive. The modeled flow is also three-dimensional, with bridging stresses represented in two dimensions by the \(-w_x\) term in Equation~\eqref{eq:uzdecomp}. Finally, Cul-de-sac transport and geochemistry indicate a distinct accumulation environment. A three-dimensional, multi-source material map is therefore required there.
+Allan Hills approaches several limits of the two-dimensional calculation. Ice rises into an ablation zone above steep nunatak topography \citep{Spaulding2012,Kehrl2018,Stoll2026}. \citet{Manos2026} predict nearly stagnant basal ice upstream of the nunatak: the bottom \(20~\mathrm{m}\) averages \(0.4\)--\(0.5~\mathrm{mm\,yr^{-1}}\), with local speeds of order micrometres per year, compared with \(46\)--\(49~\mathrm{mm\,yr^{-1}}\) in the Cul-de-sac. Such small \(u\) makes the \(u^{-3}\) order integral numerically sensitive. The modeled flow is also three-dimensional, with bridging stresses represented in two dimensions by the \(-w_x\) term in Equation~\ref{eq:uzdecomp}. Finally, Cul-de-sac transport and geochemistry indicate a distinct accumulation environment. A three-dimensional, multi-source material map is therefore required there.
 
-Observations constrain but do not determine this history. The \(69^{\circ}\) mean dip in ALHIC2302 remains below vertical \citep{Kirkpatrick2025}, and centimetre-scale folds in ALHIC1901 need not explain core-scale reversals \citep{Stoll2026}. The ALHIC1901 age--depth inversion implies \(\mathcal{J}<0\) through Equation~\eqref{eq:Jage} only if samples belong to one continuous surface-deposited layer family \citep{Shackleton2025}.
+Observations constrain but do not determine this history. The \(69^{\circ}\) mean dip in ALHIC2302 remains below vertical \citep{Kirkpatrick2025}, and centimetre-scale folds in ALHIC1901 need not explain core-scale reversals \citep{Stoll2026}. The ALHIC1901 age--depth inversion implies \(\mathcal{J}<0\) through Equation~\ref{eq:Jage} only if samples belong to one continuous surface-deposited layer family \citep{Shackleton2025}.
 
 At Beyond EPICA, radar and flow modelling indicate strong basal thinning and possibly stagnant or disturbed ice \citep{Lilien2021,Chung2025BeyondEPICA}. Evaluating \(\mathcal{J}\) along trajectories would test whether steady flow preserves order above this basal unit.
 
@@ -612,7 +629,7 @@ The equations suggest four tests of an observed fold or age reversal.
   \item \textbf{Active deformation.} If passive models underpredict folding, couple fabric and rheological heterogeneity to flow.
 \end{enumerate}
 
-In regular, shallow, non-stagnant flow, Equation~\eqref{eq:obstaclebound} favors a time-dependent or rheological mechanism. More general full-Stokes flow can overturn steady isochrones if reverse shear crosses the order threshold.
+In regular, shallow, non-stagnant flow, Equation~\ref{eq:obstaclebound} favors a time-dependent or rheological mechanism. More general full-Stokes flow can overturn steady isochrones if reverse shear crosses the order threshold.
 
 
 \subsection{Novelty and relationship to established theory}
@@ -633,13 +650,13 @@ The analysis assumes a smooth two-dimensional velocity, isotropic scalar viscosi
 
 \section{Conclusions}
 
-A steady two-dimensional isochrone preserves depositional order if and only if its signed order Jacobian remains positive (cf. Equation~\eqref{eq:Jexact}). The equivalent observable condition is \(\tau_z<0\) (Equation~\eqref{eq:Jage}), and in the ordered regime \(\mathcal{J}\) is the reciprocal of the established vertical thinning function (Equation~\eqref{eq:thinningrelation}). Pointwise surface-fast shear, \(u_z\geq0\), is sufficient but not necessary. The exact condition is the cumulative order budget \(\mathcal{R}<1+\mathcal{P}\) (Equation~\eqref{eq:ordercondition}).
+A steady two-dimensional isochrone preserves depositional order if and only if its signed order Jacobian remains positive (cf. Equation~\ref{eq:Jexact}). The equivalent observable condition is \(\tau_z<0\) (Equation~\ref{eq:Jage}), and in the ordered regime \(\mathcal{J}\) is the reciprocal of the established vertical thinning function (Equation~\ref{eq:thinningrelation}). Pointwise surface-fast shear, \(u_z\geq0\), is sufficient but not necessary. The exact condition is the cumulative order budget \(\mathcal{R}<1+\mathcal{P}\) (Equation~\ref{eq:ordercondition}).
 
-Full-Stokes mechanics does not guarantee this condition for arbitrary glacier geometry. Gravity-driven shear favors order, but longitudinal stress, nonhydrostatic pressure and horizontal gradients of vertical velocity can generate reverse shear (cf. Equation~\eqref{eq:uzdecomp}). The shallow-ice regime preserves order (Equation~\eqref{eq:SIAorder}); non-stagnant localized obstacles and small-amplitude periodic roughness obey the more restricted results in Equations~\eqref{eq:obstaclebound} and \eqref{eq:periodiccancel}. Stagnation and recirculation invalidate the one-way coordinate construction.
+Full-Stokes mechanics does not guarantee this condition for arbitrary glacier geometry. Gravity-driven shear favors order, but longitudinal stress, nonhydrostatic pressure and horizontal gradients of vertical velocity can generate reverse shear (cf. Equation~\ref{eq:uzdecomp}). The shallow-ice regime preserves order (Equation~\ref{eq:SIAorder}); non-stagnant localized obstacles and small-amplitude periodic roughness obey the more restricted results in Equations~\ref{eq:obstaclebound} and \ref{eq:periodiccancel}. Stagnation and recirculation invalidate the one-way coordinate construction.
 
 The numerical example generates a recumbent isochrone directly from ordered surface deposition (Figure~\ref{fig:positiveboundary}). Gravity drives the flow, the bed obeys a linear sliding law, and the ice has positive thickness at both lateral boundaries. The horizontal velocity remains positive along the relevant trajectories, so the rotational flow is not a Moffatt eddy. This calculation establishes that steady full-Stokes flow can cross the order threshold under glaciological boundary conditions, although it does not show that such overturning is common.
 
-For NSF COLDEX at Allan Hills, the next calculation is to integrate \(\mathcal{P}\), \(\mathcal{R}\) and \(\mathcal{J}\) along reconstructed source-to-core trajectories using Equations~\eqref{eq:trajectory}--\eqref{eq:Jdiagnostic}. A three-dimensional material map is required where cross-flow or multiple source regions are important. The same diagnostic can test stratigraphic order at continuous old-ice sites such as Beyond EPICA.
+For NSF COLDEX at Allan Hills, the next calculation is to integrate \(\mathcal{P}\), \(\mathcal{R}\) and \(\mathcal{J}\) along reconstructed source-to-core trajectories using Equations~\ref{eq:trajectory}--\ref{eq:Jdiagnostic}. A three-dimensional material map is required where cross-flow or multiple source regions are important. The same diagnostic can test stratigraphic order at continuous old-ice sites such as Beyond EPICA.
 
 \section*{Data availability statement}
 No new observational data are presented. The analytical results are fully specified by the equations in this manuscript. Executed notebooks contain the full-Stokes solves, trajectory calculations, numerical checks and figure generation and are available at \texttt{github.com/bradlipovsky/allan-hills-stratigraphy}.
@@ -785,7 +802,7 @@ This study & Has cumulative reverse shear erased depositional ordering? & Signed
 
 \section{Inverse-coordinate identities}
 
-Equation~\eqref{eq:agepsiJacobian} can be written
+Equation~\ref{eq:agepsiJacobian} can be written
 \begin{equation}
 \begin{bmatrix}
 \tau_x & \tau_z\\
@@ -839,11 +856,11 @@ Therefore
  \quad
  z_{\psi}|_{\tau}=\tau_x.
 \end{equation}
-The first two identities state that advancing one unit in age at fixed streamline follows the velocity for one unit of time. The latter two specify the equal-age tangent. Multiplication by \(\mathop{}\!\mathrm{d}\psi/\mathop{}\!\mathrm{d} x_0=\dot a_0\) yields Equation~\eqref{eq:Jage} and the corresponding vertical tangent component.
+The first two identities state that advancing one unit in age at fixed streamline follows the velocity for one unit of time. The latter two specify the equal-age tangent. Multiplication by \(\mathop{}\!\mathrm{d}\psi/\mathop{}\!\mathrm{d} x_0=\dot a_0\) yields Equation~\ref{eq:Jage} and the corresponding vertical tangent component.
 
 \section{Extension to steady variable-density flow}
 
-Below the firn, glacier ice is accurately treated as incompressible with nearly constant density. The coordinate construction extends to a steady variable-density flow satisfying
+Below the firn, glacier ice is commonly approximated as incompressible with nearly constant density \citep{lipovsky2022density}. The coordinate construction extends to a steady variable-density flow satisfying
 \begin{equation}
 \nabla\cdot(\rho\bm{u})=0.
 \end{equation}
@@ -884,6 +901,6 @@ Because the background integrand is identically zero, the \(O(\epsilon_b)\) disp
 +O(\epsilon_b^2)
 =O(\epsilon_b^2),
 \end{equation}
-because differentiation with respect to \(z\) preserves the zero horizontal mean of \(u_1\). This establishes Equation~\eqref{eq:periodiccancel}. For a vertically sheared background, trajectory displacement can act on the nonzero background integrand at first order, so the cancellation does not follow without additional assumptions.
+because differentiation with respect to \(z\) preserves the zero horizontal mean of \(u_1\). This establishes Equation~\ref{eq:periodiccancel}. For a vertically sheared background, trajectory displacement can act on the nonzero background integrand at first order, so the cancellation does not follow without additional assumptions.
 
 \end{document}
