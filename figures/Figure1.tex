@@ -2,66 +2,141 @@
 % latex -output-directory=figures figures/Figure1.tex
 % dvips -o figures/Figure1.ps figures/Figure1.dvi
 % ps2epsi figures/Figure1.ps figures/Figure1.eps
+% pdflatex -output-directory=figures figures/Figure1.tex
 
-\documentclass[tikz,border=2pt]{standalone}
+\documentclass{article}
+\usepackage[paperwidth=14.5cm,paperheight=6cm,margin=0.2cm]{geometry}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,intersections,positioning}
+\usetikzlibrary{arrows.meta}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
 
 \begin{document}
+\noindent
 
-\begin{tikzpicture}[x=1cm,y=1cm,>=Latex,labelbox/.style={fill=white,inner sep=1.5pt}]
+% The two panels use the incompressible coordinate map
+%   x = x_0 + tau U(x_0),  z = s(x_0) - 0.3 tau U(x_0),
+% where s(x_0)=5-0.15x_0 and
+% U(x_0)=3-0.7 tanh[(x_0-3)/0.7].
+% Its surface accumulation is 0.15U>0, its horizontal speed is positive,
+% and its coordinate determinant is 0.15U>0. The order Jacobian is
+% J=1+tau U'(x_0): it is positive at tau=0.8 and locally negative at tau=2.5.
 
-  % domain
-  \draw[thick] (0,4.5) -- (11,3.84) node[right] {surface $s(x)$};
+\pgfmathdeclarefunction{speed}{1}{%
+  \pgfmathparse{3 - 0.7*tanh((#1-3)/0.7)}%
+}
 
-  \draw[thick] (0,0.5) .. controls (2,0.45) and (3.4,0.55) .. (4.5,0.8)
-    .. controls (5.2,1.4) and (5.8,1.45) .. (6.6,0.85)
-    .. controls (7.4,0.45) and (9.5,0.45) .. (11,0.35) node[right] {bed};
+\begin{tikzpicture}[
+  x=0.52cm,
+  y=0.76cm,
+  >=Latex,
+  font=\small,
+  labelbox/.style={fill=white,inner sep=1.2pt},
+  trajectory/.style={->,thick},
+  isochrone/.style={dashed,very thick}
+]
 
-  % accumulation arrows
-  % Shifted further upward to clear x_0 and x_0 + delta x_0
-  \foreach \x in {0.6,1.4,2.0,2.8,3.6} {
-    \pgfmathsetmacro{\ys}{4.5-0.06*\x}
-    \draw[->] (\x,5.65) -- (\x,\ys+0.48);
-  }
+  \pgfmathsetmacro{\sourcea}{2.4}
+  \pgfmathsetmacro{\sourceb}{3.6}
+  \pgfmathsetmacro{\speeda}{speed(\sourcea)}
+  \pgfmathsetmacro{\speedb}{speed(\sourceb)}
 
-  \node[labelbox] at (2.0,6.05) {$\dot a>0$};
+  % Panel (a): the same flow before the order Jacobian changes sign.
+  \begin{scope}
+    \node[anchor=west,font=\bfseries] at (0,6.35) {(a) Ordered};
 
-  % neighboring trajectories, each beginning at the accumulation surface
-  \draw[name path=streamline0,->,very thick]
-    (1.4,4.416) .. controls (2.8,3.75) and (4.4,2.35) .. (5.7,1.82)
-    .. controls (7.2,1.25) and (9.0,1.55) .. (10.4,1.18);
+    \draw[thick] (0,5) -- (12,3.2) node[above left] {surface $s(x)$};
+    \draw[thick] (0,0.55) .. controls (2.2,0.48) and (4.0,0.62) .. (5.2,0.88)
+      .. controls (6.0,1.08) and (7.0,0.62) .. (8.0,0.50)
+      .. controls (9.2,0.38) and (11.0,0.44) .. (12,0.34) node[above left] {bed};
 
-  \draw[name path=streamline1,->,thick]
-    (2.0,4.38) .. controls (3.4,3.85) and (4.9,2.75) .. (6.1,2.18)
-    .. controls (7.5,1.65) and (9.2,1.92) .. (10.6,1.58);
+    \foreach \q in {0.7,1.5,2.2,4.2,5.1} {
+      \pgfmathsetmacro{\surfacez}{5-0.15*\q}
+      \draw[->] (\q,5.75) -- (\q,\surfacez+0.18);
+    }
+    \node[labelbox] at (5.45,5.55) {$\dot a>0$};
 
-  % Moved slightly upward and white background removed
-  \node at (8.2,1.68) {streamlines};
+    \draw[isochrone]
+      plot[domain=0:6,samples=100,smooth,variable=\q]
+      ({\q+0.8*speed(\q)},{5-0.15*\q-0.24*speed(\q)});
 
-  % an equal-age surface intersecting both trajectories once
-  \draw[name path=agecurve,dashed,very thick]
-    (0.35,3.22) .. controls (3.0,3.06) and (4.8,2.72) .. (6.0,2.88)
-    .. controls (7.4,3.02) and (9.2,2.65) .. (10.75,2.42);
+    \coordinate (aorigin0) at (\sourcea,{5-0.15*\sourcea});
+    \coordinate (aorigin1) at (\sourceb,{5-0.15*\sourceb});
+    \coordinate (apoint0) at ({\sourcea+0.8*\speeda},{5-0.15*\sourcea-0.24*\speeda});
+    \coordinate (apoint1) at ({\sourceb+0.8*\speedb},{5-0.15*\sourceb-0.24*\speedb});
 
-  \node[labelbox,right] at (10.3,2.7) {isochrone $\tau$};
+    \draw[trajectory] (aorigin0) -- (apoint0);
+    \draw[trajectory] (aorigin1) -- (apoint1);
 
-  % deposition and equal-age positions
-  \fill (1.4,4.416) circle (1.8pt);
-  \fill (2.0,4.38) circle (1.8pt);
+    \fill (aorigin0) circle (1.7pt);
+    \fill (aorigin1) circle (1.7pt);
+    \node[labelbox,above left] at (aorigin0) {$x_0$};
+    \node[labelbox,above right] at (aorigin1) {$x_0+\delta x_0$};
 
-  \node[labelbox,above left] at (1.35,4.45) {$x_0$};
-  \node[labelbox,above right] at (2.0,4.4) {$x_0+\delta x_0$};
+    \fill (apoint0) circle (1.7pt);
+    \fill (apoint1) circle (1.7pt);
+    \node[labelbox,below left] at (apoint0) {$x$};
+    \node[labelbox,above right] at (apoint1) {$x+\delta x$};
 
-  \path[name intersections={of=streamline0 and agecurve,by=p0}];
-  \path[name intersections={of=streamline1 and agecurve,by=p1}];
+    \node[labelbox] at (7.8,3.05) {isochrone $\tau$};
+    \node[labelbox] at (5.5,2.35)
+      {$\displaystyle \mathcal{J}=\left.\frac{\partial x}{\partial x_0}\right|_\tau>0$};
 
-  \fill (p0) circle (1.8pt) node[labelbox,below left=2pt] {$x$};
-  \fill (p1) circle (1.8pt) node[labelbox,above right=2pt] {$x+\delta x$};
+    \draw[->] (0.15,0.18) -- (1.35,0.18) node[right] {$x$};
+    \draw[->] (0.15,0.18) -- (0.15,1.30) node[above] {$z$};
+  \end{scope}
 
-  % axes
-  \draw[->] (-0.25,0.25) -- (1.1,0.25) node[right] {$x$};
-  \draw[->] (-0.25,0.25) -- (-0.25,1.55) node[above] {$z$};
+  % Panel (b): later in the same steady flow, neighboring origins reverse
+  % their horizontal order along the isochrone.
+  \begin{scope}[xshift=7.10cm]
+    \node[anchor=west,font=\bfseries] at (0,6.35) {(b) Overturned};
+
+    \draw[thick] (0,5) -- (12,3.2) node[above left] {surface $s(x)$};
+    \draw[thick] (0,0.55) .. controls (2.2,0.48) and (4.0,0.62) .. (5.2,0.88)
+      .. controls (6.0,1.08) and (7.0,0.62) .. (8.0,0.50)
+      .. controls (9.2,0.38) and (11.0,0.44) .. (12,0.34) node[above left] {bed};
+
+    \foreach \q in {0.7,1.5,2.2,4.2,5.1} {
+      \pgfmathsetmacro{\surfacez}{5-0.15*\q}
+      \draw[->] (\q,5.75) -- (\q,\surfacez+0.18);
+    }
+    \node[labelbox] at (5.45,5.55) {$\dot a>0$};
+
+    \draw[isochrone]
+      plot[domain=0:6,samples=120,smooth,variable=\q]
+      ({\q+2.5*speed(\q)},{5-0.15*\q-0.75*speed(\q)});
+
+    \coordinate (borigin0) at (\sourcea,{5-0.15*\sourcea});
+    \coordinate (borigin1) at (\sourceb,{5-0.15*\sourceb});
+    \coordinate (bpoint0) at ({\sourcea+2.5*\speeda},{5-0.15*\sourcea-0.75*\speeda});
+    \coordinate (bpoint1) at ({\sourceb+2.5*\speedb},{5-0.15*\sourceb-0.75*\speedb});
+
+    \draw[trajectory] (borigin0) -- (bpoint0);
+    \draw[trajectory] (borigin1) -- (bpoint1);
+
+    \fill (borigin0) circle (1.7pt);
+    \fill (borigin1) circle (1.7pt);
+    \node[labelbox,above left] at (borigin0) {$x_0$};
+    \node[labelbox,above right] at (borigin1) {$x_0+\delta x_0$};
+
+    \foreach \q in {2.3,2.6,3.0,3.4,3.7} {
+      \pgfmathsetmacro{\uq}{speed(\q)}
+      \draw[red,very thick] ({\q+2.5*\uq},{5-0.15*\q-0.75*\uq}) circle (2.3pt);
+    }
+    \fill (bpoint0) circle (1.7pt);
+    \fill (bpoint1) circle (1.7pt);
+    \draw[red,very thick] (bpoint0) circle (2.3pt);
+    \draw[red,very thick] (bpoint1) circle (2.3pt);
+    \node[labelbox,below right] at (bpoint0) {$x$};
+    \node[labelbox,above left] at (bpoint1) {$x+\delta x$};
+
+    \node[labelbox] at (8.2,1.45) {isochrone $\tau$};
+    \node[labelbox,text=red!75!black] at (5.7,2.45)
+      {$\displaystyle \mathcal{J}=\left.\frac{\partial x}{\partial x_0}\right|_\tau<0$};
+
+    \draw[->] (0.15,0.18) -- (1.35,0.18) node[right] {$x$};
+    \draw[->] (0.15,0.18) -- (0.15,1.30) node[above] {$z$};
+  \end{scope}
 
 \end{tikzpicture}
 

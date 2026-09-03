@@ -92,12 +92,12 @@ Combining Equations~\ref{eq:age} and \ref{eq:streamfunction} gives the exact Jac
 =1.
 \label{eq:agepsiJacobian}
 \end{equation}
-Thus age and streamfunction form local area-preserving coordinates. Isochrones and streamlines intersect transversely wherever the assumptions hold. Equivalently, \((\tau,\psi)\) are local canonical coordinates in the sense of Hamiltonian mechanics: \(\psi\) is the Hamiltonian for particle trajectories and \(\{\tau,\psi\}=1\). The inverse transformation directly measures stratigraphic order. The appendix on inverse-coordinate identities gives the relations used below. Figure~\ref{fig:geometry} shows the deposition coordinate, two neighboring trajectories and their positions on an equal-age surface.
+Thus age and streamfunction form local area-preserving coordinates. Isochrones and streamlines intersect transversely wherever the assumptions hold. Equivalently, \((\tau,\psi)\) are local canonical coordinates in the sense of Hamiltonian mechanics: \(\psi\) is the Hamiltonian for particle trajectories and \(\{\tau,\psi\}=1\). The inverse transformation directly measures stratigraphic order. The appendix on inverse-coordinate identities gives the relations used below. Figure~\ref{fig:geometry} shows how the horizontal separation of neighboring material origins changes when an isochrone overturns.
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\textwidth]{../figures/Figure1.pdf}
-\caption{Material map for steady plane flow. Neighboring particles enter through the surface accumulation zone at \(x_0\) and \(x_0+\delta x_0\), follow distinct streamlines and reach positions separated by \(\delta x\) at the same age \(\tau\). The order Jacobian is the limit of \(\delta x/\delta x_0\). The curves enforce the kinematic requirements used in the derivation---surface origin, non-intersecting streamlines and transverse intersections with the isochrone---but are not a calculated Stokes solution.}
+\caption{Material map for steady plane flow. In both panels, neighboring particles enter through the surface accumulation zone at \(x_0\) and \(x_0+\delta x_0\), follow distinct trajectories and reach positions separated by \(\delta x\) at the same age \(\tau\). (a) Depositional order is preserved: \(\delta x>0\) and \(\mathcal{J}>0\). (b) The isochrone has overturned, so the particle deposited at \(x_0+\delta x_0\) lies upstream of the particle deposited at \(x_0\): \(\delta x<0\) and \(\mathcal{J}<0\). Open red circles mark the overturned segment. The order Jacobian is the limit of \(\delta x/\delta x_0\). The curves satisfy surface origin, positive accumulation, non-intersecting trajectories and transverse intersections with the isochrone, but are not a calculated Stokes solution.}
 \label{fig:geometry}
 \end{figure}
 
@@ -670,7 +670,7 @@ None.
 \section*{Acknowledgements}
 The author received no funding from The Center for Old Ice Exploration (COLDEX), an NSF Science and Technology Center (NSF-2019719), for this work. The author nevertheless benefited from the Center's generous intellectual environment and is grateful for conversations with colleagues across its community.
 
-OpenAI Codex using GPT-5 and \texttt{5.6-sol} (available at \texttt{openai.com/codex}) was used from 3 August to 1 September 2026 to assist with literature searches, drafting and revising manuscript text, LaTeX formatting, numerical-code development and the search for illustrative model geometries and boundary conditions. The author reviewed and revised all AI-assisted material, verified the cited sources, equations, code and numerical results, and takes full responsibility for the manuscript.
+OpenAI Codex using GPT-5 and \texttt{5.6-sol} (available at \texttt{openai.com/codex}) was used from 3 August to 2 September 2026 to assist with literature searches, drafting and revising manuscript text, LaTeX formatting, numerical-code development and the search for illustrative model geometries and boundary conditions. The author reviewed and revised all AI-assisted material, verified the cited sources, equations, code and numerical results, and takes full responsibility for the manuscript.
 
 \bibliographystyle{igs}
 \bibliography{references}
