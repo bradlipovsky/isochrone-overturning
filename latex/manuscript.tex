@@ -28,6 +28,15 @@ Recovering old ice is useful only where its age and stratigraphic context can be
 
 Allan Hills ice is locally out of order: ALHIC1901 contains multiple age reversals \citep{Shackleton2025}; two recent cores have mean layer dips of approximately \(29^{\circ}\) and \(69^{\circ}\) \citep{Kirkpatrick2025}; and ALHIC1901 microstructure records simple shear, crystal-orientation stripes and centimetre-scale folds \citep{Stoll2026}. Radar and flow modelling show strong spatial variation in archive continuity and transport history \citep{Kehrl2018,Manos2026}. Layer deformation therefore affects the interpretation of the recovered ages.
 
+ALHIC1901 and ALHIC1902 lie only \(1.5~\mathrm{km}\) apart but sample different local flow regimes. ALHIC1901 lies in faster flow across a buried extension of the nunatak, whereas ALHIC1902 lies beside the nunatak in a modelled zone of slow basal flow \citep{Manos2026}. Their \(^{40}\mathrm{Ar}_{\mathrm{atm}}\) chronologies are nonmonotonic with depth (Figure~\ref{fig:allan-hills-context}): ALHIC1901 contains several metre-scale decreases in age with increasing depth, and ALHIC1902 contains a resolved reversal between approximately \(142\) and \(145~\mathrm{m}\) \citep{Shackleton2025,MarksPeterson2026}. These age reversals are a direct core-scale signature of disturbed order. They imply an overturned continuous isochrone only where the samples belong to one continuous surface-deposited layer family.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{../figures/allan_hills_context.pdf}
+\caption{Allan Hills setting and published age--depth reversals. (a) Contrast-enhanced \(10~\mathrm{m}\) Copernicus Sentinel-2 L2A image acquired on 30 December 2025, with the locations of the two cores whose chronologies are plotted at right. The inset locates Allan Hills in Antarctica. (b) ALHIC1901 \(^{40}\mathrm{Ar}_{\mathrm{atm}}\) ages used in Figure~1b of \citet{MarksPeterson2026}. (c) ALHIC1902 \(^{40}\mathrm{Ar}_{\mathrm{atm}}\) ages from \citet{Shackleton2025}. Curves connect measurements in order of increasing depth; orange segments mark intervals where reported age decreases with depth. A decrease in age with depth establishes nonmonotonic core stratigraphy, but it implies an overturned continuous isochrone only if the samples belong to one continuous surface-deposited layer family. Core coordinates are from \citet{Shackleton2025}.}
+\label{fig:allan-hills-context}
+\end{figure}
+
 It remains unclear whether fixed topography in a steady glacier can generate a recumbent fold. Flow over topography produces layer draping or overriding \citep{Hindmarsh2006}, while rough-bed Stokes solutions can contain local extrusion (i.e., faster flow at depth) or, at greater slopes, separated circulation \citep{Gudmundsson1997linear,Gudmundsson1997nonlinear,Waddington2010}. Whether these motions reverse stratigraphic order is less clear.
 
 Observed basal folds motivated a distinction between initiation and passive amplification. \citet{Hudleston1976} attributed Barnes Ice Cap folds to flow changes during minor advances or retreats, followed by bed-related shear. \citet{WhillansJohnsen1983} reproduced Byrd Station layer undulations using steady linear-viscous flow over basal variations, but did not obtain recumbent order reversal.
@@ -659,7 +668,7 @@ The numerical example generates a recumbent isochrone directly from ordered surf
 The order budget at old ice sites provides a common test of whether local flow preserves deposition order. Applying it requires reconstructed trajectories and, where cross-flow or multiple source regions are important, a three-dimensional material map. A fold complicates a climate archive, but it also preserves a mechanical record of the flow that brought ancient ice within reach.
 
 \section*{Data availability statement}
-No new observational data are presented. The analytical results are fully specified by the equations in this manuscript. Executed notebooks contain the full-Stokes solves, trajectory calculations, numerical checks and figure generation and are available at \texttt{github.com/bradlipovsky/allan-hills-stratigraphy}.
+No new observational data are presented. The published age--depth data in Figure~\ref{fig:allan-hills-context} are from the source data of \citet{Shackleton2025} and \citet{MarksPeterson2026}; the map uses Copernicus Sentinel-2 L2A imagery. The analytical results are fully specified by the equations in this manuscript. Executed notebooks and figure scripts contain the full-Stokes solves, trajectory calculations, numerical checks and figure generation and are available at \texttt{github.com/bradlipovsky/allan-hills-stratigraphy}.
 
 \section*{Author contributions}
 Bradley Paul Lipovsky developed the analysis and wrote the manuscript draft.
