@@ -1,7 +1,7 @@
 \documentclass[review]{igs}
 %DIF LATEXDIFF DIFFERENCE FILE
 %DIF DEL main_v0.tex   Sun Oct 25 08:11:36 2026
-%DIF ADD main_v1.tex   Sun Oct 25 08:13:31 2026
+%DIF ADD main_v1.tex   Sun Oct 25 08:33:41 2026
 
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
@@ -173,7 +173,10 @@ where \(\dot a\) is the ice-equivalent accumulation rate. Stratigraphic age is a
 \end{equation}
 The Eulerian age field is steady, so \(\tau_t=0\), although the age of a moving particle increases at one unit of time per unit time.
 
-Equations~\ref{eq:incompressibility} and \ref{eq:age} give the age--streamfunction Jacobian identity below. Equation~\ref{eq:forwardflow} permits integration in the downstream coordinate and excludes recirculation. Equation~\ref{eq:surfaceorigin} assigns every trajectory a unique deposition coordinate \(x_0\). Together they define a unique map from surface deposition to position on an isochrone and make the horizontal order Jacobian \(\left.\partial x/\partial x_0\right|_\tau\) well-defined. The discussion of steady overturning and limitations considers surface and basal sources, stagnation and other cases in which these conditions are not satisfied.
+\DIFaddbegin \DIFadd{Equation~\ref{eq:age} is a first-order transport equation whose characteristics are particle trajectories. Along each characteristic, \(\mathop{}\!\mathrm{d}x/\mathop{}\!\mathrm{d}t=u\), \(\mathop{}\!\mathrm{d}z/\mathop{}\!\mathrm{d}t=w\) and \(\mathop{}\!\mathrm{d}\tau/\mathop{}\!\mathrm{d}t=1\), so age is the elapsed travel time from the deposition boundary. The surface coordinate \(x_0\) labels these characteristics, and the order Jacobian measures the sensitivity of their equal-age horizontal position to that initial label. The Jacobian analysis below is therefore the characteristic sensitivity of the steady age solution.
+}
+
+\DIFaddend Equations~\ref{eq:incompressibility} and \ref{eq:age} give the age--streamfunction Jacobian identity below. Equation~\ref{eq:forwardflow} permits integration in the downstream coordinate and excludes recirculation. Equation~\ref{eq:surfaceorigin} assigns every trajectory a unique deposition coordinate \(x_0\). Together they define a unique map from surface deposition to position on an isochrone and make the horizontal order Jacobian \(\left.\partial x/\partial x_0\right|_\tau\) well-defined. The discussion of steady overturning and limitations considers surface and basal sources, stagnation and other cases in which these conditions are not satisfied.
 
 Equation~\ref{eq:incompressibility} permits the velocity to be represented by a scalar streamfunction \(\psi\). Curves of constant \(\psi\) are streamlines because \(\bm{u}\cdot\nabla\psi=0\), and the difference in \(\psi\) between two streamlines is their volume flux per unit width. The streamfunction is defined up to an arbitrary additive constant and requires no rheological assumption. We choose the orientation
 \begin{equation}
@@ -646,7 +649,10 @@ with \(\mathcal{P}(0)=\mathcal{R}(0)=0\). Then
 }
 \label{eq:Jdiagnostic}
 \end{equation}
-The diagnostic is
+\DIFaddbegin \DIFadd{Equations~\ref{eq:trajectory}--\ref{eq:Jdiagnostic} give a method-of-characteristics implementation of the age transport and its order sensitivity. Equation~\ref{eq:trajectory} traces a characteristic from the deposition boundary, Equation~\ref{eq:PRode} accumulates the signed shear history that controls separation from neighboring surface origins, and Equation~\ref{eq:Jdiagnostic} gives the resulting Jacobian without finite differencing neighboring trajectories.
+}
+
+\DIFaddend The diagnostic is
 \begin{equation}
 \min_t\left[1+\mathcal{P}(t)-\mathcal{R}(t)\right]
 \begin{cases}
@@ -713,7 +719,8 @@ Finally, Equation~\ref{eq:uzdecomp} assumes isotropic scalar viscosity and the o
 
 \subsection{Implications for old-ice sites}
 
-Allan Hills approaches several limits of the two-dimensional calculation. Ice rises into an ablation zone above steep nunatak topography \citep{Spaulding2012,Kehrl2018,Stoll2026}. \citet{Manos2026} predict nearly stagnant basal ice upstream of the nunatak: the bottom \(20~\mathrm{m}\) averages \(0.4\)--\(0.5~\mathrm{mm\,yr^{-1}}\), with local speeds of order micrometres per year, compared with \(46\)--\(49~\mathrm{mm\,yr^{-1}}\) in the Cul-de-sac. Such small \(u\) makes the \(u^{-3}\) order integral numerically sensitive. The modeled flow is also three-dimensional, with bridging stresses represented in two dimensions by the \(-w_x\) term in Equation~\ref{eq:uzdecomp}. Finally, Cul-de-sac transport and geochemistry indicate a distinct accumulation environment. A three-dimensional, multi-source material map is therefore required there.
+Allan Hills approaches several limits of the two-dimensional calculation. Ice rises into an ablation zone above steep nunatak topography \citep{Spaulding2012,Kehrl2018,Stoll2026}. \citet{Manos2026} predict nearly stagnant basal ice upstream of the nunatak: the bottom \(20~\mathrm{m}\) averages \(0.4\)--\(0.5~\mathrm{mm\,yr^{-1}}\), with local speeds of order micrometres per year, compared with \(46\)--\(49~\mathrm{mm\,yr^{-1}}\) in the Cul-de-sac. Such small \(u\) makes the \(u^{-3}\) order integral numerically sensitive. The modeled flow is also three-dimensional, with bridging stresses represented in two dimensions by the \(-w_x\) term in Equation~\ref{eq:uzdecomp}. Finally, Cul-de-sac transport and geochemistry indicate a distinct accumulation environment. A three-dimensional, multi-source material map is therefore required there. \DIFaddbegin \DIFadd{Such a site calculation would launch characteristics from each candidate accumulation source, follow them through a reconstructed velocity field to the core or radar transect, and evolve the two-dimensional Jacobian of the source patch. The scalar diagnostic in Equations~\ref{eq:trajectory}--\ref{eq:Jdiagnostic} is the two-dimensional version of this calculation.
+}\DIFaddend
 
 Observations constrain but do not determine this history. The \(69^{\circ}\) mean dip in ALHIC2302 remains below vertical \citep{Kirkpatrick2025}, and centimetre-scale folds in ALHIC1901 need not explain core-scale reversals \citep{Stoll2026}. The ALHIC1901 age--depth inversion implies \(\mathcal{J}<0\) through Equation~\ref{eq:Jage} only if samples belong to one continuous surface-deposited layer family \citep{Shackleton2025}.
 

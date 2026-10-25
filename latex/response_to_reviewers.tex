@@ -36,4 +36,17 @@ Although this work is glaciologically focused, I am not sure that there are suff
 
 \noindent\textcolor{responseblue}{We also did not add an Allan Hills-specific two-dimensional calculation. Existing reconstruction indicates strongly three-dimensional flow, so a two-dimensional site calculation could give a misleading test. The revised text states that evaluating steady overturning at Allan Hills requires a three-dimensional, multi-source material map.}
 
+\subsection*{R1C2: Method of characteristics}
+
+\noindent\textbf{Comment.}
+\begin{quote}
+It would be interesting to see an interpretation of the results that leans on the method of characteristics, e.g., along the lines of equations (57) and (58). It is operating in the background through the analysis of the Jacobian. I think that highlighting the connection could facilitate the discussion of the applicability of the results to a specific glacier system.
+\end{quote}
+
+\noindent\textcolor{responseblue}{\textbf{Response.} Thank you. We agree that the method of characteristics was already present in the analysis but was not identified clearly. We added text after the steady age equation to state that particle trajectories are its characteristics, age is elapsed travel time along them, and the deposition coordinate \(x_0\) labels them. In this interpretation, the order Jacobian is the sensitivity of the equal-age characteristic map to its initial surface label. No new governing equations are required because the existing Jacobian analysis already gives this characteristic sensitivity.}
+
+\medskip
+
+\noindent\textcolor{responseblue}{We also revised the trajectory-diagnostic section to identify Equations~(57) and (58) explicitly as a method-of-characteristics implementation. Equation~(57) traces a characteristic from the deposition boundary, Equation~(58) accumulates the signed shear history that controls separation from neighboring surface origins, and Equation~(59) gives the resulting Jacobian without finite differencing neighboring trajectories. The revised Discussion then states how this construction would be applied to a glacier: launch characteristics from candidate accumulation sources, follow them through a reconstructed velocity field to the core or radar transect, and evolve the source-patch Jacobian. At Allan Hills this application must be three-dimensional and allow multiple source regions.}
+
 \end{document}
