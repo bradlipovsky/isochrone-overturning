@@ -1,126 +1,150 @@
-# Two-sided stagnation-flow test
+# Convergent-flow tests
 
-## Question and model lineage
+## Question and models
 
-The public `bradlipovsky/wedge` notebook prescribes the analytical field
+These calculations test whether two steady flows converging into an ablation
+zone can overturn a surface-deposited isochrone. The diagnostic is the
+horizontal material-map tangent
+
+\[
+J_x=\left.\frac{\partial x}{\partial x_0}\right|_\tau .
+\]
+
+An initially ordered curve has passed through vertical when (J_x=0), and an
+overturned segment has (J_x<0). Two mechanically distinct models are useful:
+
+- an exact analytical convergent flow, which provides a clean positive
+  kinematic benchmark but has free-slip straight boundaries; and
+- a gravity-driven finite glacier with the manuscript's linear sliding law,
+  (u_t=C\tau_b), (C=10^{-5}\ \mathrm{m\,yr^{-1}\,Pa^{-1}}).
+
+## Analytical convergent-flow benchmark
+
+The analytical field is
 
 \[
 \psi=-r^\lambda\sin(\lambda\theta),\qquad
 \lambda=2\pi/\alpha,\qquad \alpha=3\pi/4.
 \]
 
-The two wedge arms are impermeable, flow enters through two parts of an outer
-circular boundary, and it leaves through the middle of that boundary.  This is
-the stagnation-flow construction used in the public JM/Allan Hills temperature
-repository.  I tested its material map directly, then constructed a separate
-gravity-driven glacier that retains a finite linear basal sliding law.
+The circular outer boundary contains two disconnected accumulation arcs,
+separated by a central ablation/outflow arc. The right, shallow-arm source
+first reaches (J_x=0) at the dimensionless age
+(tU_R/R=0.34417); its source-arc midpoint reaches zero at 0.35715. The
+left, steep-arm source remains ordered through (tU_R/R=0.6), with
+(J_{x,\min}=0.99273). The right-branch crossing converges to 0.344197,
+0.344179, and 0.344169 for 601, 1201, and 2401 source markers with
+corresponding time-step refinement.
 
-## Analytical wedge: overturning, but free slip
+The result is not a corner-only numerical sign change. In the original
+(R=2, A=-1) scaling, active right-branch markers deposited at least
+(15^\circ) from the arm have (-0.2415\le J_x\le-0.1836) at (t=0.10).
+The trajectories are open and the diagnosed crossing remains inside the
+outer boundary.
 
-The outer circular boundary was treated as a fixed surface.  Its two inward
-flow arcs are separate accumulation sources, and markers were removed at their
-first outward crossing.  Equal-age curves were evaluated with
-\(J_x=\partial x/\partial x_0\); layer relief or dip was not used as the
-criterion.
+The redesigned benchmark figure makes each visual encoding explicit:
 
-The shallow/right source develops a vertical tangent at
-\(tU_R/R=0.34417\).  In the original notebook scaling \(R=2\), \(A=-1\), this
-is \(t=0.081305\).  The source-arc midpoint passes through vertical at
-\(tU_R/R=0.35715\).  The sign change is not confined to the surface--bed
-corner: at original time \(t=0.10\), the active markers deposited at least
-\(15^\circ\) from that corner have \(-0.2415\leq J_x\leq-0.1836\).  The
-shallow/right curve is therefore genuinely overturned.  The steep/left source
-does not overturn through \(tU_R/R=0.6\); its minimum is \(J_x=0.99273\).
+- panel (a) uses blue and orange only to identify the two accumulation
+  sources; the black middle arc is ablation/outflow and grey curves are
+  streamlines;
+- panel (b) uses color for age and line style for source branch; curves are
+  shown through (tU_R/R=3); and
+- panel (c) uses an open marker for the first (J_x=0) event and shading for
+  (J_x<0).
 
-The threshold is converged in source count and time step: 601, 1201, and 2401
-source markers give \(tU_R/R=0.344197\), 0.344179, and 0.344169.
+There is no deposition source on the middle outer arc, so no forward-time
+equal-age curve starts there. Older curves from the two side sources fill most
+of the apparent central gap. The small region that remains close to the exact
+stagnation point requires ages beyond the plotted range; travel time to that
+point diverges.
 
-This is an open-trajectory result, not recirculation.  The overturned markers
-remain inside the outer boundary, and the diagnosed crossing lies away from
-the zero-speed wedge corner.  The two source arcs nevertheless define two
-separate material families rather than one global deposition coordinate.
+The mechanical caveat is exact: tangential traction is zero while tangential
+velocity is nonzero on both straight arms. This is free slip
+((B=0, C=\infty)), not the finite linear sliding law. It is therefore a
+kinematic benchmark rather than the requested finite-sliding counterexample.
 
-The important mechanical caveat is exact.  On both wedge arms the analytical
-solution has nonzero tangential velocity but zero tangential traction.  It is
-therefore a free-slip solution (basal drag \(B=0\), mobility \(C=\infty\)), not
-a solution of the requested finite law \(u_t=C\tau_b\).  It is a useful
-positive kinematic benchmark, but it cannot by itself answer the finite-sliding
-question.
+## Finite-sliding convergent glacier
 
-## Finite-mobility V basin: no overturning found
+The baseline glacier has a 1 km left flank and a 5 km right flank. Both rise
+150 m from the confluence, the ice is 200 m thick, and the bed and surface are
+parallel. The upper surface is traction free, the outer boundaries are
+symmetry divides, and the fixed-surface mass balance is diagnosed as
+(\dot a=u_s s_x-w_s). This produces accumulation on the two outer flanks and
+ablation over the central upwelling zone.
 
-The finite model has a 1 km left flank and a 5 km right flank.  Both rise 150 m
-from the confluence, giving maximum absolute slopes 0.236 and 0.047.  Bed and
-surface are parallel, ice thickness is 200 m, and gravity drives both flows
-toward the central low point.  Ice is linear viscous with
-\(\eta=2.5\times10^8\ \mathrm{Pa\,yr}\).  The bed is impermeable and obeys
-\(u_t=C\tau_b\) with \(C=10^{-5}\ \mathrm{m\,yr^{-1}\,Pa^{-1}\).  The upper
-surface is traction free, the outer vertical boundaries are symmetry divides,
-and the fixed-surface mass balance is diagnosed as
-\(\dot a=u_s s_x-w_s\).
+The primary material tangent is now integrated along every trajectory from
 
-The solved balance has two accumulation zones and one broad central ablation
-zone.  On the finest mesh it ranges from -0.08383 to 0.16563 m/yr.  Integrated
-positive and negative balances are 147.870 and -147.981 m²/yr; their 0.08%
-mismatch measures boundary sampling error.  Surface markers were drawn from
-the central 5--95% of accumulation flux on each source and removed
-individually at first exit.
+\[
+\dot{\mathbf F}=\nabla\mathbf u\,\mathbf F,
+\]
 
-No surface-source curve reaches a vertical tangent.  Derivatives at the two
-ends of every active marker interval are excluded because they become
-one-sided when neighboring markers exit.  On 120x12, 180x18, and 240x24
-meshes, the minimum \(J_x\) is 0.923588, 0.923549, and 0.923529.  It occurs on
-the short, steep source at about 3.0 kyr.  The gentle/right family remains at
-or above one in the baseline material map.  Horizontal flow reverses across
-the confluence and turns into central upwelling as intended, but speed along
-all evaluated open trajectories stays above 0.0507 m/yr.  There are no closed
-trajectories in the evaluated families.
+with the initial tangent taken along the source curve. This avoids estimating
+(J_x) from the spacing between the last two markers near an exit. Neighbor
+finite differences are retained only as an independent comparison.
 
-Source-count and time-step effects were tested separately on the finest Stokes
-mesh.  At 161 source markers, steps of 100, 50, and 25 yr give lifetime minima
-0.88860, 0.88858, and 0.88740.  At the same interior marker
-\((x_0=-800\ \mathrm{m},t=3.0\ \mathrm{kyr})\), they give 1.23391, 1.23404,
-and 1.23387.  With the step fixed at 25 yr, 41, 81, and 161 markers give
-lifetime minima 0.99465, 0.92269, and 0.88740.  The lifetime minimum shifts as
-a denser map retains points closer to a newly truncated active interval; at the
-same interior marker and age the corresponding values are 1.21070, 1.20928,
-and 1.23387.  Thus the lifetime minimum is exit-edge and source-density
-sensitive, whereas the sign and fixed-interior value are stable at the
-few-percent level.  Every test remains positive and contains zero overturned
-samples.
+The baseline remains ordered. On 120 by 16, 180 by 24, and 240 by 32 meshes,
+the variational minima are 0.85428, 0.85409, and 0.85406. The corresponding
+neighbor-difference minima are about 0.9236, agreeing on the sign but not
+serving as the primary diagnostic. The finest solve has relative mechanical
+energy residual (7.0\times10^{-8}) and rms basal-normal speed
+(8.0\times10^{-8}\ \mathrm{m\,yr^{-1}}).
 
-The finest Stokes solve has a
-relative mechanical-energy residual of \(7.1\times10^{-8}\) and an rms basal
-normal speed of \(8.0\times10^{-8}\) m/yr.
+The summary figure now uses 45 normalized arrows on a 9 by 5 grid in panel
+(a), with speed contours carrying the magnitude information. Panel (b) shows
+the diagnosed accumulation and ablation, and panel (c) shows equal-age curves.
 
-The confluence separatrix is a material-origin boundary between the two source
-families.  A single downstream \(x\)-coordinate is invalid across the flow
-reversal, but time integration of each open family remains admissible.  The
-separatrix itself is not assigned a finite surface-source age, and no claim is
-made about inherited ice placed exactly on it.
+## Two-dimensional geometry study
 
-## Interpretation and prediction
+The useful first parameterization separates asymmetry from roughness:
 
-The JM analytical field does overturn a connected equal-age curve, but its
-basal condition is free slip.  Replacing it with a smooth, gravity-driven
-two-slope glacier with the manuscript's finite linear sliding mobility produces
-strong bending but preserves order by a clear margin.
-Convergence and upwelling are therefore not sufficient by themselves; this
-finite-C calculation is a negative example, not a no-overturning theorem.
+\[
+q=L_R/L_L,\qquad R_b=\Delta b/H.
+\]
 
-The finite-C model predicts steep but order-preserving reflectors from the
-short flank into the ablation zone.  The free-slip benchmark instead predicts
-a connected shallow-flank reflector that passes through vertical and has an
-overturned segment away from the basal corner.
+The screen varies (q=1,\ldots,9) and (R_b=0.25,0.50,\ldots,2.50), while
+holding total length at 6 km, thickness at 200 m, viscosity, sliding mobility,
+boundary treatment, mesh, marker count, and marker time step fixed. All 90
+cells pass the mechanical diagnostics. Eight cells overturn, all in the
+high-relief, strongly asymmetric part of the slice. The plotted (J=0)
+contour is therefore evidence for a transition within this specified slice,
+not a universal boundary for convergent glaciers.
+
+A mesh-stable bracket occurs at (q=7):
+
+| (\Delta b/H) | (J_{\min}), coarse | medium | fine | refined map |
+|---:|---:|---:|---:|---:|
+| 2.25 | 0.0821 | 0.0603 | 0.0790 | 0.0766 |
+| 2.50 | -0.1773 | -0.1744 | -0.1606 | -0.1548 |
+
+The extreme sampled case, (q=9\), (\Delta b/H=2.5), gives
+(J_{\min}=-1.849,-1.877,-1.871) over the three meshes. At fixed ages its
+minimum is about -0.151 at 3 kyr and -0.647 at 4 kyr. At 3 kyr, negative
+material tangents extend about 49.1 m below the surface. The 3 kyr value is
+stable to gradient-sampling refinement
+(-0.15132, -0.15095, and -0.15112), and the sign also persists under source
+count and time-step refinement. The first negative tangent at least 10 m
+below the surface appears at about 2.66--2.70 kyr.
+
+The next useful parameter studies would add one axis at a time: sliding
+mobility (C), total aspect ratio (L/H), smoothing radius at the confluence,
+or the accumulation/ablation distribution. Those tests would distinguish a
+geometric threshold from a boundary-condition or residence-time effect
+without immediately creating an uninterpretable high-dimensional sweep.
 
 ## Reproduction
 
-Run from the repository root with the Firedrake environment:
+Run from the repository root in the Firedrake environment:
 
 ```bash
-OMP_NUM_THREADS=1 /Users/bradlipovsky/firedrake/bin/python notebooks/stagnation_flow_linear_sliding.py
-/Users/bradlipovsky/firedrake/bin/python notebooks/stagnation_flow_wedge_benchmark.py
+OMP_NUM_THREADS=1 /Users/bradlipovsky/firedrake/bin/python \
+  notebooks/stagnation_flow_linear_sliding.py
+
+OMP_NUM_THREADS=1 /Users/bradlipovsky/firedrake/bin/python \
+  notebooks/stagnation_flow_parameter_study.py --workers 3
+
+/Users/bradlipovsky/firedrake/bin/python \
+  notebooks/analytical_convergent_flow_benchmark.py
 ```
 
-The scripts write flattened CSV diagnostics and PNG figures to
+Flattened diagnostics and PNG/PDF figures are written to
 `notebooks/stagnation_flow_results/`.

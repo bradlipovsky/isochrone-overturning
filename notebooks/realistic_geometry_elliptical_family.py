@@ -24,7 +24,6 @@ import gmsh
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.lines import Line2D
-from matplotlib.patches import Rectangle
 import numpy as np
 import pandas as pd
 from scipy.interpolate import RegularGridInterpolator
@@ -122,6 +121,8 @@ def half_width(geometry, side):
 
 
 def side_locations(geometry):
+    if "half domain" in geometry:
+        return -geometry["half domain"], geometry["half domain"]
     cut = geometry["cut fraction"]
     return -cut * half_width(geometry, "left"), cut * half_width(
         geometry, "right"
@@ -362,7 +363,14 @@ def trace_surface_map(
     source_count=401,
     minimum_valid_sources=21,
 ):
-    """Advect one accumulating cohort and test loss of horizontal order."""
+    """Advect one accumulating cohort and test loss of horizontal order.
+
+    In addition to the lifetime minimum over all currently valid markers, the
+    function reports a fixed-interior minimum.  That diagnostic uses the
+    central 80% of the original deposition origins and stops as soon as any
+    marker in that fixed set exits.  It therefore cannot follow a moving exit
+    edge into the source family.
+    """
     left_side, right_side = side_locations(geometry)
     sources = np.linspace(0.96 * left_side, 0.04 * left_side, source_count)
     state = np.column_stack((sources, np.full_like(sources, -0.05)))
@@ -385,7 +393,16 @@ def trace_surface_map(
             "deposition source span (m)": None,
             "accumulation min (m/yr)": None,
             "accumulation max (m/yr)": None,
+            "minimum fixed-interior J": None,
+            "age of minimum fixed-interior J (yr)": None,
+            "fixed-interior source count": 0,
+            "fixed-interior source span (m)": None,
+            "fixed-interior evaluation end age (yr)": None,
         }
+
+    margin = int(np.ceil(0.10 * len(sources)))
+    fixed_interior = np.zeros(len(sources), dtype=bool)
+    fixed_interior[margin : len(sources) - margin] = True
 
     def velocity(values):
         return np.column_stack(
@@ -404,6 +421,12 @@ def trace_surface_map(
     first_negative = None
     first_resolved = None
     minimum_path_u = np.inf
+    interior_best = {
+        "minimum fixed-interior J": np.inf,
+        "age of minimum fixed-interior J (yr)": np.nan,
+    }
+    interior_open = True
+    interior_end_age = 0.0
     for step_index in range(int(np.ceil(maximum_age / time_step)) + 1):
         age = step_index * time_step
         local_bed = bed_height(state[:, 0], geometry)
@@ -413,11 +436,27 @@ def trace_surface_map(
             & (state[:, 0] > 0.994 * left_side)
             & (state[:, 0] < 0.994 * right_side)
             & (sigma > 0.006)
-            & (sigma < 0.9998)
+            & (sigma < 0.99994)
         )
         jacobian = centered_jacobian(sources, state, valid)
         finite = np.isfinite(jacobian)
         valid_count = int(np.count_nonzero(valid))
+        if interior_open and np.all(valid[fixed_interior]):
+            interior_jacobian = np.where(fixed_interior, jacobian, np.nan)
+            interior_finite = np.isfinite(interior_jacobian)
+            if np.any(interior_finite):
+                interior_minimum = float(np.nanmin(interior_jacobian))
+                if (
+                    interior_minimum
+                    < interior_best["minimum fixed-interior J"]
+                ):
+                    interior_best = {
+                        "minimum fixed-interior J": interior_minimum,
+                        "age of minimum fixed-interior J (yr)": age,
+                    }
+            interior_end_age = age
+        else:
+            interior_open = False
         if np.any(finite) and valid_count >= minimum_valid_sources:
             minimum = float(np.nanmin(jacobian))
             span = float(np.ptp(sources[valid]))
@@ -456,6 +495,23 @@ def trace_surface_map(
             "deposition source span (m)": float(np.ptp(sources)),
             "accumulation min (m/yr)": float(np.min(accumulation)),
             "accumulation max (m/yr)": float(np.max(accumulation)),
+            "minimum fixed-interior J": (
+                interior_best["minimum fixed-interior J"]
+                if np.isfinite(interior_best["minimum fixed-interior J"])
+                else None
+            ),
+            "age of minimum fixed-interior J (yr)": (
+                interior_best["age of minimum fixed-interior J (yr)"]
+                if np.isfinite(
+                    interior_best["age of minimum fixed-interior J (yr)"]
+                )
+                else None
+            ),
+            "fixed-interior source count": int(np.count_nonzero(fixed_interior)),
+            "fixed-interior source span (m)": float(
+                np.ptp(sources[fixed_interior])
+            ),
+            "fixed-interior evaluation end age (yr)": interior_end_age,
         }
     )
     return best
@@ -513,15 +569,14 @@ def flatten_result(result):
     return flat
 
 
-def first_resolved_snapshot(
+def material_curve_snapshots(
     geometry,
     sample,
-    threshold=-0.20,
-    maximum_age=4_000.0,
+    ages=(0.0, 700.0, 1_400.0, 2_100.0, 2_800.0),
     time_step=1.0,
     source_count=401,
 ):
-    """Return particle positions when a well-resolved map first crosses a threshold."""
+    """Return common-age material curves, removing markers at first exit."""
     left_side, right_side = side_locations(geometry)
     sources = np.linspace(0.96 * left_side, 0.04 * left_side, source_count)
     state = np.column_stack((sources, np.full_like(sources, -0.05)))
@@ -529,6 +584,12 @@ def first_resolved_snapshot(
     keep = accumulation > 1.0e-6
     sources = sources[keep]
     state = state[keep]
+    active = np.ones(len(sources), dtype=bool)
+    requested_steps = {
+        int(round(age / time_step)): float(age) for age in ages
+    }
+    maximum_step = max(requested_steps)
+    snapshots = []
 
     def velocity(values):
         return np.column_stack(
@@ -538,147 +599,178 @@ def first_resolved_snapshot(
             )
         )
 
-    for step_index in range(int(np.ceil(maximum_age / time_step)) + 1):
+    for step_index in range(maximum_step + 1):
         age = step_index * time_step
         local_bed = bed_height(state[:, 0], geometry)
         sigma = (state[:, 1] - local_bed) / (-local_bed)
-        valid = (
+        inside = (
             np.isfinite(state[:, 0])
             & (state[:, 0] > 0.994 * left_side)
             & (state[:, 0] < 0.994 * right_side)
             & (sigma > 0.006)
-            & (sigma < 0.9998)
+            & (sigma < 0.99994)
         )
-        jacobian = centered_jacobian(sources, state, valid)
-        if (
-            np.count_nonzero(valid) >= 21
-            and np.any(np.isfinite(jacobian))
-            and np.nanmin(jacobian) < threshold
-        ):
-            return {
+        active &= inside
+        if step_index in requested_steps:
+            jacobian = centered_jacobian(sources, state, active)
+            snapshots.append({
                 "age": age,
-                "minimum J": float(np.nanmin(jacobian)),
                 "sources": sources,
                 "states": state.copy(),
-                "valid": valid,
+                "valid": active.copy(),
                 "jacobian": jacobian,
-            }
-        if step_index * time_step >= maximum_age or np.count_nonzero(valid) < 9:
+            })
+        if step_index == maximum_step:
             break
-        k1 = velocity(state)
-        k2 = velocity(state + 0.5 * time_step * k1)
-        k3 = velocity(state + 0.5 * time_step * k2)
-        k4 = velocity(state + time_step * k3)
-        state += time_step * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0
-    raise RuntimeError(f"{geometry['name']} did not cross J={threshold:g}")
+        indices = np.flatnonzero(active)
+        if len(indices) == 0:
+            continue
+        current = state[indices]
+        k1 = velocity(current)
+        k2 = velocity(current + 0.5 * time_step * k1)
+        k3 = velocity(current + 0.5 * time_step * k2)
+        k4 = velocity(current + time_step * k3)
+        finite_step = np.all(
+            np.isfinite(np.column_stack((k1, k2, k3, k4))), axis=1
+        )
+        state[indices[finite_step]] += time_step * (
+            k1[finite_step]
+            + 2.0 * k2[finite_step]
+            + 2.0 * k3[finite_step]
+            + k4[finite_step]
+        ) / 6.0
+        active[indices[~finite_step]] = False
+    return snapshots
 
 
 def save_map_figure(path, resolution=7.5):
-    """Plot two geometrically distinct maps at their first resolved overturn."""
+    """Plot common-age material curves for two overturning troughs."""
     selected = (GEOMETRIES[1], GEOMETRIES[4])
+    ages = (0.0, 700.0, 1_400.0, 2_100.0, 2_800.0)
     figure, axes = plt.subplots(
-        3,
+        len(ages),
         2,
-        figsize=(10.5, 10.8),
+        figsize=(10.6, 12.5),
         constrained_layout=True,
-        gridspec_kw={"height_ratios": (1.05, 0.85, 0.75)},
+        sharex="col",
+        sharey=True,
     )
+    all_snapshots = []
     for column, geometry in enumerate(selected):
-        full_axis = axes[0, column]
-        zoom_axis = axes[1, column]
-        order_axis = axes[2, column]
         velocity, _ = solve_stokes(geometry, resolution)
         sample, _ = make_sampler(geometry, velocity)
-        snapshot = first_resolved_snapshot(geometry, sample)
+        snapshots = material_curve_snapshots(geometry, sample, ages=ages)
+        all_snapshots.append(snapshots)
+    source_min = min(
+        np.min(snapshot["sources"])
+        for snapshots in all_snapshots
+        for snapshot in snapshots
+    )
+    source_max = max(
+        np.max(snapshot["sources"])
+        for snapshots in all_snapshots
+        for snapshot in snapshots
+    )
+    source_norm = plt.Normalize(source_min, source_max)
+    cmap = plt.get_cmap("viridis")
+
+    for column, (geometry, snapshots) in enumerate(zip(selected, all_snapshots)):
         left_side, right_side = side_locations(geometry)
         x = np.linspace(left_side, right_side, 801)
         bed = bed_height(x, geometry)
-        full_axis.fill_between(x, bed, np.min(bed) - 12.0, color="0.85")
-        full_axis.plot(x, bed, color="0.25", linewidth=0.9)
-        full_axis.axhline(0.0, color="0.25", linewidth=0.9)
-
-        states = snapshot["states"]
-        valid_pairs = snapshot["valid"][:-1] & snapshot["valid"][1:]
-        segments = np.stack((states[:-1], states[1:]), axis=1)[valid_pairs]
-        pair_jacobian = 0.5 * (
-            snapshot["jacobian"][:-1] + snapshot["jacobian"][1:]
-        )[valid_pairs]
-        colors = np.where(pair_jacobian < 0.0, "#b2182b", "#2166ac")
-        full_axis.add_collection(
-            LineCollection(segments, colors=colors, linewidth=2.0)
-        )
-        zoom_axis.add_collection(
-            LineCollection(segments, colors=colors, linewidth=2.4)
-        )
-        full_axis.set(
-            xlim=(left_side, right_side),
-            ylim=(np.min(bed) - 5.0, 5.0),
-            ylabel="Elevation (m)",
-            title=(
-                f"{geometry['name']}\n"
-                f"{snapshot['age'] / 1000:.3f} kyr, "
-                f"$J_{{min}}={snapshot['minimum J']:.3f}$"
-            ),
-        )
-        plotted = states[snapshot["valid"]]
-        x_padding = max(0.08, 0.12 * np.ptp(plotted[:, 0]))
-        z_padding = max(0.4, 0.08 * np.ptp(plotted[:, 1]))
-        zoom_limits = (
-            np.min(plotted[:, 0]) - x_padding,
-            np.max(plotted[:, 0]) + x_padding,
-            np.min(plotted[:, 1]) - z_padding,
-            np.max(plotted[:, 1]) + z_padding,
-        )
-        full_axis.add_patch(
-            Rectangle(
-                (zoom_limits[0], zoom_limits[2]),
-                zoom_limits[1] - zoom_limits[0],
-                zoom_limits[3] - zoom_limits[2],
-                fill=False,
-                edgecolor="0.15",
-                linewidth=1.0,
-                linestyle=":",
+        for row, snapshot in enumerate(snapshots):
+            axis = axes[row, column]
+            axis.fill_between(x, bed, np.min(bed) - 10.0, color="0.88")
+            axis.plot(x, bed, color="0.25", linewidth=0.8)
+            axis.axhline(0.0, color="0.25", linewidth=0.8)
+            states = snapshot["states"]
+            valid = snapshot["valid"]
+            valid_pairs = valid[:-1] & valid[1:]
+            segments = np.stack((states[:-1], states[1:]), axis=1)[valid_pairs]
+            source_midpoints = 0.5 * (
+                snapshot["sources"][:-1] + snapshot["sources"][1:]
+            )[valid_pairs]
+            if len(segments):
+                axis.add_collection(
+                    LineCollection(
+                        segments,
+                        array=source_midpoints,
+                        cmap=cmap,
+                        norm=source_norm,
+                        linewidth=2.0,
+                    )
+                )
+            overturned = valid & np.isfinite(snapshot["jacobian"])
+            overturned &= snapshot["jacobian"] < 0.0
+            overturned_indices = np.flatnonzero(overturned)[::10]
+            axis.scatter(
+                states[overturned_indices, 0],
+                states[overturned_indices, 1],
+                s=10,
+                facecolors="none",
+                edgecolors="#e41a1c",
+                linewidths=0.6,
+                zorder=4,
             )
-        )
-        zoom_axis.set(
-            xlim=zoom_limits[:2],
-            ylim=zoom_limits[2:],
-            xlabel="Horizontal coordinate (m)",
-            ylabel="Elevation (m)",
-            title=(
-                "Tight material-map view "
-                f"({np.ptp(snapshot['sources'][snapshot['valid']]):.1f} m source span)"
-            ),
-        )
-        source_pairs = np.stack(
-            (
-                np.column_stack((snapshot["sources"][:-1], states[:-1, 0])),
-                np.column_stack((snapshot["sources"][1:], states[1:, 0])),
-            ),
-            axis=1,
-        )[valid_pairs]
-        order_axis.add_collection(
-            LineCollection(source_pairs, colors=colors, linewidth=2.4)
-        )
-        valid_sources = snapshot["sources"][snapshot["valid"]]
-        valid_x = states[snapshot["valid"], 0]
-        source_padding = 0.03 * np.ptp(valid_sources)
-        current_padding = 0.08 * np.ptp(valid_x)
-        order_axis.set(
-            xlim=(
-                np.min(valid_sources) - source_padding,
-                np.max(valid_sources) + source_padding,
-            ),
-            ylim=(np.min(valid_x) - current_padding, np.max(valid_x) + current_padding),
-            xlabel=r"Deposition origin $x_0$ (m)",
-            ylabel=r"Current $x$ (m)",
-            title=r"Order diagnostic: red has $\partial x/\partial x_0<0$",
-        )
-    legend_handles = [
-        Line2D([0], [0], color="#2166ac", linewidth=2.4, label="order retained"),
-        Line2D([0], [0], color="#b2182b", linewidth=2.4, label="overturned limb"),
-    ]
-    axes[0, 0].legend(handles=legend_handles, frameon=False, loc="upper left")
+            finite_j = snapshot["jacobian"][np.isfinite(snapshot["jacobian"])]
+            j_text = ""
+            if len(finite_j):
+                displayed_j = float(np.min(finite_j))
+                if abs(displayed_j) < 0.005:
+                    sign = "-" if displayed_j < 0.0 else "+"
+                    j_text = rf", $J_{{min}}\approx 0^{{{sign}}}$"
+                else:
+                    j_text = rf", $J_{{min}}={displayed_j:.2f}$"
+            axis.text(
+                0.02,
+                0.06,
+                f"{snapshot['age'] / 1000:.1f} kyr{j_text}\n"
+                f"{np.count_nonzero(valid)} markers remain",
+                transform=axis.transAxes,
+                fontsize=8.5,
+                va="bottom",
+            )
+            axis.set(
+                xlim=(left_side, right_side),
+                ylim=(min(-160.0, np.min(bed) - 5.0), 4.0),
+            )
+            if column == 0:
+                axis.set_ylabel("Elevation (m)")
+            if row == 0:
+                axis.set_title(geometry["name"])
+            if row == len(ages) - 1:
+                axis.set_xlabel("Horizontal coordinate (m)")
+    scalar_mappable = plt.cm.ScalarMappable(norm=source_norm, cmap=cmap)
+    scalar_mappable.set_array([])
+    colorbar = figure.colorbar(
+        scalar_mappable,
+        ax=axes,
+        orientation="horizontal",
+        fraction=0.035,
+        pad=0.035,
+        aspect=45,
+    )
+    colorbar.set_label(r"Deposition coordinate $x_0$ (m)")
+    axes[0, 0].legend(
+        handles=[
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                linestyle="none",
+                markerfacecolor="none",
+                markeredgecolor="#e41a1c",
+                label=(
+                    r"open red circles: centered $J<0$; "
+                    "markers removed at first exit"
+                ),
+            )
+        ],
+        frameon=False,
+        loc="center",
+        bbox_to_anchor=(0.5, 0.62),
+        fontsize=8.5,
+    )
     figure.savefig(path, dpi=220)
     if str(path).lower().endswith(".png"):
         figure.savefig(str(path)[:-4] + ".pdf")

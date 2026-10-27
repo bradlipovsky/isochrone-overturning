@@ -1,4 +1,4 @@
-"""Two-sided glacier stagnation flow with passive linear basal sliding.
+"""Two-sided convergent glacier flow with passive linear basal sliding.
 
 The glacier occupies an asymmetric, finite V-shaped catchment.  Its left
 flank is short and steep, its right flank is five times longer and five
@@ -76,7 +76,22 @@ def make_mesh(nx, nz):
     base_mesh = fd.RectangleMesh(nx, nz, total_length, THICKNESS)
     coordinate_space = fd.VectorFunctionSpace(base_mesh, "CG", 2)
     reference_x, reference_z = fd.SpatialCoordinate(base_mesh)
-    x = reference_x - LEFT_LENGTH
+    # Put the catchment minimum exactly on a mesh column.  This matters when
+    # LEFT_LENGTH / total_length is not an integer multiple of 1 / nx in the
+    # parameter study.  The slight (< half-cell) redistribution of horizontal
+    # spacing avoids interpolating the piecewise flank formula across its join.
+    left_columns = max(
+        1,
+        min(nx - 1, int(round(nx * LEFT_LENGTH / total_length))),
+    )
+    reference_join = total_length * left_columns / nx
+    x = fd.conditional(
+        reference_x <= reference_join,
+        -LEFT_LENGTH + reference_x * LEFT_LENGTH / reference_join,
+        RIGHT_LENGTH
+        * (reference_x - reference_join)
+        / (total_length - reference_join),
+    )
     left_relief = RELIEF * fd.sin(
         0.5 * np.pi * (-x) / LEFT_LENGTH
     ) ** 2
@@ -205,6 +220,7 @@ def make_sampler(velocity, nx_sample=1201, nz_sample=101):
     bed_xy, _ = boundary_data(bed_nodes)
     surface_xy, surface_uv = boundary_data(surface_nodes)
     bed_interpolator = PchipInterpolator(bed_xy[:, 0], bed_xy[:, 1])
+    bed_slope_interpolator = bed_interpolator.derivative()
     surface_interpolator = PchipInterpolator(
         surface_xy[:, 0], surface_xy[:, 1]
     )
@@ -243,6 +259,26 @@ def make_sampler(velocity, nx_sample=1201, nz_sample=101):
         )
         for component, name in enumerate(("u", "w"))
     }
+    # Derivatives in the regular (sigma, x) coordinates.  These are converted
+    # to physical (x, z) derivatives in sample_gradient below and drive the
+    # variational material-map equation dF/dt = grad(u) F.  This avoids taking
+    # finite differences between the last few surviving markers at an exit.
+    values_dsigma = np.gradient(values, sigma, axis=0, edge_order=2)
+    values_dx_sigma = np.gradient(values, x, axis=1, edge_order=2)
+    derivative_interpolators = {}
+    for component, name in enumerate(("u", "w")):
+        derivative_interpolators[(name, "sigma")] = RegularGridInterpolator(
+            (sigma, x),
+            values_dsigma[..., component],
+            bounds_error=False,
+            fill_value=None,
+        )
+        derivative_interpolators[(name, "x_sigma")] = RegularGridInterpolator(
+            (sigma, x),
+            values_dx_sigma[..., component],
+            bounds_error=False,
+            fill_value=None,
+        )
 
     def sample(points):
         points = np.atleast_2d(points)
@@ -256,10 +292,40 @@ def make_sampler(velocity, nx_sample=1201, nz_sample=101):
             (interpolators["u"](coordinates), interpolators["w"](coordinates))
         )
 
+    def sample_gradient(points):
+        """Velocity gradient in physical coordinates at marker positions."""
+        points = np.atleast_2d(points)
+        local_bed = bed_interpolator(points[:, 0])
+        local_surface = surface_interpolator(points[:, 0])
+        local_thickness = local_surface - local_bed
+        local_sigma = (points[:, 1] - local_bed) / local_thickness
+        coordinates = np.column_stack((local_sigma, points[:, 0]))
+        bed_slope = bed_slope_interpolator(points[:, 0])
+        surface_slope = surface_slope_interpolator(points[:, 0])
+        sigma_x_at_fixed_z = -(
+            bed_slope + local_sigma * (surface_slope - bed_slope)
+        ) / local_thickness
+        sigma_z = 1.0 / local_thickness
+        gradient = np.empty((len(points), 2, 2))
+        for component, name in enumerate(("u", "w")):
+            derivative_sigma = derivative_interpolators[
+                (name, "sigma")
+            ](coordinates)
+            derivative_x_sigma = derivative_interpolators[
+                (name, "x_sigma")
+            ](coordinates)
+            gradient[:, component, 0] = (
+                derivative_x_sigma + derivative_sigma * sigma_x_at_fixed_z
+            )
+            gradient[:, component, 1] = derivative_sigma * sigma_z
+        return gradient
+
     geometry = {
         "bed": bed_interpolator,
         "surface": surface_interpolator,
+        "bed_slope": bed_slope_interpolator,
         "surface_slope": surface_slope_interpolator,
+        "velocity_gradient": sample_gradient,
         "surface_velocity": lambda x_value: np.column_stack(
             (
                 surface_u_interpolator(np.atleast_1d(x_value)),
@@ -295,29 +361,70 @@ def trace_source_family(
         source_velocity[:, 0] * geometry["surface_slope"](source_x)
         - source_velocity[:, 1]
     )
+    source_bed_slope = geometry["bed_slope"](source_x)
+    source_surface_slope = geometry["surface_slope"](source_x)
+    source_tangent = np.column_stack(
+        (
+            np.ones(len(source_x)),
+            source_bed_slope
+            + 0.995 * (source_surface_slope - source_bed_slope),
+        )
+    )
 
     # Fixed-step vector RK4 is much faster here than integrating hundreds of
     # marker coordinates as one adaptive system.  The 50 yr step is at least
     # twenty times shorter than the local H/U advection time.
     current = source_points.copy()
+    current_tangent = source_tangent.copy()
     active = np.ones(len(source_x), dtype=bool)
     position_history = [current.copy()]
+    tangent_history = [current_tangent.copy()]
     active_history = [active.copy()]
     time_history = [0.0]
     for step in range(int(np.ceil(maximum_age / time_step))):
         indices = np.flatnonzero(active)
-        if len(indices) < 5:
+        if not len(indices):
             break
         points = current[indices]
+        tangents = current_tangent[indices]
         k1 = sample(points)
-        k2 = sample(points + 0.5 * time_step * k1)
-        k3 = sample(points + 0.5 * time_step * k2)
-        k4 = sample(points + time_step * k3)
+        f1 = np.einsum(
+            "nij,nj->ni", geometry["velocity_gradient"](points), tangents
+        )
+        points_2 = points + 0.5 * time_step * k1
+        tangents_2 = tangents + 0.5 * time_step * f1
+        k2 = sample(points_2)
+        f2 = np.einsum(
+            "nij,nj->ni",
+            geometry["velocity_gradient"](points_2),
+            tangents_2,
+        )
+        points_3 = points + 0.5 * time_step * k2
+        tangents_3 = tangents + 0.5 * time_step * f2
+        k3 = sample(points_3)
+        f3 = np.einsum(
+            "nij,nj->ni",
+            geometry["velocity_gradient"](points_3),
+            tangents_3,
+        )
+        points_4 = points + time_step * k3
+        tangents_4 = tangents + time_step * f3
+        k4 = sample(points_4)
+        f4 = np.einsum(
+            "nij,nj->ni",
+            geometry["velocity_gradient"](points_4),
+            tangents_4,
+        )
         candidate = current.copy()
         candidate[indices] = points + time_step * (
             k1 + 2 * k2 + 2 * k3 + k4
         ) / 6
+        candidate_tangent = current_tangent.copy()
+        candidate_tangent[indices] = tangents + time_step * (
+            f1 + 2 * f2 + 2 * f3 + f4
+        ) / 6
         current = candidate
+        current_tangent = candidate_tangent
         age = (step + 1) * time_step
         local_bed = geometry["bed"](current[indices, 0])
         local_surface = geometry["surface"](current[indices, 0])
@@ -334,7 +441,10 @@ def trace_source_family(
         active[indices[~remains]] = False
         recorded = current.copy()
         recorded[~active] = np.nan
+        recorded_tangent = current_tangent.copy()
+        recorded_tangent[~active] = np.nan
         position_history.append(recorded)
+        tangent_history.append(recorded_tangent)
         active_history.append(active.copy())
         time_history.append(age)
 
@@ -342,28 +452,25 @@ def trace_source_family(
     raw_positions = np.asarray(position_history)
     output_times = raw_times
     positions = raw_positions
+    tangents = np.asarray(tangent_history)
     active_history = np.asarray(active_history)
-    jacobian_x = np.full(active_history.shape, np.nan)
-    jacobian_z = np.full(active_history.shape, np.nan)
+    jacobian_x = tangents[:, :, 0]
+    jacobian_z = tangents[:, :, 1]
+    neighbor_jacobian_x = np.full(active_history.shape, np.nan)
     speed = np.full(active_history.shape, np.nan)
     for time_index, is_active in enumerate(active_history):
         indices = np.flatnonzero(is_active)
         groups = np.split(indices, np.flatnonzero(np.diff(indices) > 1) + 1)
         for group in groups:
             if len(group) >= 5:
-                jacobian_x[time_index, group] = np.gradient(
+                neighbor_jacobian_x[time_index, group] = np.gradient(
                     positions[time_index, group, 0], source_x[group]
                 )
-                jacobian_z[time_index, group] = np.gradient(
-                    positions[time_index, group, 1], source_x[group]
-                )
-                # Once neighboring markers exit, np.gradient uses a
-                # one-sided difference at the truncated material-curve edge.
-                # Do not let those endpoint estimates set the overturn test.
-                jacobian_x[time_index, group[:2]] = np.nan
-                jacobian_x[time_index, group[-2:]] = np.nan
-                jacobian_z[time_index, group[:2]] = np.nan
-                jacobian_z[time_index, group[-2:]] = np.nan
+                # Keep a neighbor-difference check away from the moving
+                # endpoints, but use the variational tangent above for the
+                # actual overturn diagnostic.
+                neighbor_jacobian_x[time_index, group[:2]] = np.nan
+                neighbor_jacobian_x[time_index, group[-2:]] = np.nan
         if len(indices):
             speed[time_index, indices] = np.linalg.norm(
                 sample(positions[time_index, indices]), axis=1
@@ -380,8 +487,10 @@ def trace_source_family(
         "reached_maximum_age": output_times[-1] >= maximum_age,
         "times": output_times,
         "positions": positions,
+        "tangents": tangents,
         "Jx": jacobian_x,
         "Jz": jacobian_z,
+        "Jx_neighbor": neighbor_jacobian_x,
         "speed": speed,
         "sigma": sigma,
         "active": active_history,
@@ -506,24 +615,49 @@ def make_figure(result):
         levels=20,
         cmap="viridis",
     )
-    stride_x = 30
-    stride_z = 8
+    # A sparse direction field conveys convergence without obscuring the
+    # speed field.  Normalize the arrows because speed is already encoded by
+    # the background color.
+    x_indices = np.linspace(70, len(x) - 71, 9, dtype=int)
+    z_indices = np.array((12, 32, 52, 72, 92))
+    arrow_values = values[np.ix_(z_indices, x_indices)]
+    arrow_speed = np.linalg.norm(arrow_values, axis=2)
+    arrow_direction = arrow_values / np.maximum(arrow_speed[..., None], 1e-12)
     axes[0].quiver(
-        result["X"][::stride_z, ::stride_x] / 1000.0,
-        result["Z"][::stride_z, ::stride_x],
-        values[::stride_z, ::stride_x, 0],
-        values[::stride_z, ::stride_x, 1],
-        color="white",
-        scale=0.8,
-        width=0.002,
+        result["X"][np.ix_(z_indices, x_indices)] / 1000.0,
+        result["Z"][np.ix_(z_indices, x_indices)],
+        arrow_direction[..., 0],
+        arrow_direction[..., 1],
+        color="0.08",
+        edgecolor="white",
+        linewidth=0.35,
+        angles="uv",
+        scale=20.0,
+        width=0.0032,
+        headwidth=3.5,
+        zorder=6,
     )
     axes[0].fill_between(
         x / 1000.0, 0.0, flank_shape(x), color="0.45", zorder=5
     )
+    axes[0].plot(
+        x / 1000.0,
+        flank_shape(x),
+        color="0.1",
+        linewidth=1.0,
+        zorder=7,
+    )
+    axes[0].plot(
+        x / 1000.0,
+        flank_shape(x) + THICKNESS,
+        color="0.1",
+        linewidth=1.2,
+        zorder=7,
+    )
     fig.colorbar(color, ax=axes[0], label="speed (m yr$^{-1}$)")
     axes[0].set(
         ylabel="elevation (m)",
-        title="(a) Two-sided gravity-driven stagnation flow",
+        title="(a) Finite-sliding convergent flow",
     )
 
     axes[1].plot(x / 1000.0, result["surface_mass_balance"], color="black")
@@ -556,7 +690,7 @@ def make_figure(result):
     axes[2].plot(
         x / 1000.0, flank_shape(x) + THICKNESS, color="0.1", linewidth=1.0
     )
-    colors = ("#4477AA", "#EE7733", "#228833", "#AA3377")
+    colors = ("#4477AA", "#EE7733")
     for family, family_color in zip(result["families"], colors):
         times = np.linspace(0.0, family["times"][-1], 7)
         for time in times:
@@ -579,6 +713,10 @@ def make_figure(result):
             s=18,
             zorder=8,
         )
+    if result["families"]:
+        axes[2].plot([], [], color=colors[0], label="left-flank source")
+        axes[2].plot([], [], color=colors[1], label="right-flank source")
+        axes[2].legend(frameon=False, loc="lower right", ncol=2)
     axes[2].set(
         xlabel="horizontal coordinate (km)",
         ylabel="elevation (m)",
@@ -588,6 +726,8 @@ def make_figure(result):
         axis.set_xlim(-LEFT_LENGTH / 1000.0, RIGHT_LENGTH / 1000.0)
     figure_path = OUTPUT_DIRECTORY / "stagnation_flow_summary.png"
     fig.savefig(figure_path, dpi=220)
+    fig.savefig(OUTPUT_DIRECTORY / "stagnation_flow_summary.pdf")
+    plt.close(fig)
     return figure_path
 
 
