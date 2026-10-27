@@ -148,9 +148,13 @@ def solve_stokes(cut_fraction, traction_factor, resolution=7.5):
     velocity, pressure = solution.subfunctions
     bed_length = fd.assemble(fd.Constant(1.0) * fd.ds(1, domain=mesh))
     gravity_power = fd.assemble(fd.dot(body_force, velocity) * fd.dx)
-    boundary_power = fd.assemble(
-        fd.dot(side_traction, velocity) * side_measure
+    left_boundary_power = fd.assemble(
+        fd.dot(side_traction, velocity) * fd.ds(3, domain=mesh)
     )
+    right_boundary_power = fd.assemble(
+        fd.dot(side_traction, velocity) * fd.ds(4, domain=mesh)
+    )
+    boundary_power = left_boundary_power + right_boundary_power
     basal_dissipation = fd.assemble(
         BASAL_DRAG * fd.dot(velocity, tangent) ** 2 * fd.ds(1)
     )
@@ -163,6 +167,8 @@ def solve_stokes(cut_fraction, traction_factor, resolution=7.5):
     diagnostics = {
         "cells": mesh.num_cells(),
         "gravity power": gravity_power,
+        "left-boundary power": left_boundary_power,
+        "right-boundary power": right_boundary_power,
         "side-boundary power": boundary_power,
         "basal dissipation": basal_dissipation,
         "viscous dissipation": viscous_dissipation,
@@ -186,7 +192,9 @@ def solve_stokes(cut_fraction, traction_factor, resolution=7.5):
 def make_sampler(velocity, side):
     """Sample the unstructured solution in bed-following coordinates."""
     x = np.linspace(-0.995 * side, 0.995 * side, 501)
-    sigma = np.linspace(0.005, 0.9995, 181)
+    # Deposits start 0.05 m below the surface.  Extend the sampling grid above
+    # that level in the thick interior so near-surface queries remain valid.
+    sigma = np.linspace(0.005, 0.99995, 181)
     bed = bed_height(x)
     X = np.tile(x, (len(sigma), 1))
     Z = bed[None, :] * (1.0 - sigma[:, None])
@@ -256,8 +264,11 @@ def trace_map(
         groups = np.split(indices, np.where(np.diff(indices) > 1)[0] + 1)
         jacobian = np.full(len(sources), np.nan)
         for group in groups:
-            if len(group) >= 5:
-                jacobian[group] = np.gradient(state[group, 0], sources[group])
+            if len(group) >= 9:
+                interior = group[2:-2]
+                jacobian[interior] = (
+                    state[interior + 1, 0] - state[interior - 1, 0]
+                ) / (sources[interior + 1] - sources[interior - 1])
         finite_jacobian = np.isfinite(jacobian)
         if age in snapshot_ages:
             evolution_snapshots[age] = {
@@ -371,6 +382,8 @@ print(
             "valid source count when resolved",
             "valid source span when resolved (m)",
             "minimum path u (m/yr)",
+            "left-boundary power",
+            "right-boundary power",
             "side-boundary power",
             "gravity power",
             "relative energy residual",
@@ -492,7 +505,7 @@ axes[2].set(
 axes[2].text(
     0.04,
     0.05,
-    "All deposition origins remain in the domain",
+    "Markers are removed at first surface or side exit",
     transform=axes[2].transAxes,
     fontsize=9,
 )

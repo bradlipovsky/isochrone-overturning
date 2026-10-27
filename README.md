@@ -99,6 +99,21 @@ The executed [`dissipative_sliding_geometry_survey.ipynb`](notebooks/dissipative
 
 None of the four surface-deposition maps overturns before re-emergence. Their minimum order Jacobians are 0.742, 0.554, 0.512, and 0.863. The closest case is the U-shaped trough with 25 m boundary thickness; its three-mesh sequence is 0.512, 0.531, and 0.521. Horizontal speed remains positive along every contributing trajectory. The calculation therefore predicts strong layer rotation but no overturned limb for these geometries. This negative result shows that the passive circular-trough fold is geometrically special; it does not establish that finite-thickness glaciers cannot fold in steady flow.
 
+## Reviewer 2 steady-geometry survey
+
+The executed [`reviewer2_geometry_survey.ipynb`](notebooks/reviewer2_geometry_survey.ipynb) separates the logical role of a counterexample from the prevalence of its mechanism. One admissible steady-flow example is sufficient to disprove a universal preservation claim; the expanded survey asks whether the result is confined to one circular trough.
+
+It is not. A finite narrow elliptical trough with 150 m maximum thickness and 70 m at both hydrostatic open cuts reaches $J_{\min}\simeq-0.960$ on 15, 10, and 7.5 m meshes. The first resolved $J<-0.20$ occurs at 1.581--1.582 kyr, with 383 valid origins spanning 112.7 m. Source-count, time-step, and five cut-location tests retain the sign. The left and right boundary powers are individually large and nearly balanced, so this establishes robustness within the hydrostatic-open-boundary family rather than independence from that boundary condition. See [`realistic_geometry_results.md`](notebooks/realistic_geometry_results.md).
+
+The contrast cases are selective rather than universal no-folding results:
+
+- Fifteen periodic overdeepening, sill, riegel, and double-obstacle beds retain $J>0$ through 80 kyr; some markers remain active at that cutoff.
+- Six isolated spikes in a finite 1.2 km open reach retain $J>0$ through complete sampled residence. The finest near-pinch case has $J_{\min}=0.2583$, and even a source 0.01 m inside the accumulation boundary has $J_{\min}=0.2328$. In this fixed-surface solution, diagnosed accumulation is on the lee side and the surface-sourced layers flow away from the spike. See [`finite_spike_results.md`](notebooks/finite_spike_results.md).
+- A finite-mobility two-sided V basin with a short steep left flank, long gentle right flank, central upwelling, and diagnosed ablation remains ordered. Its endpoint-trimmed three-mesh sequence converges to $J_{\min}=0.9235$, and all source-count/time-step refinements remain positive, with a lowest lifetime value of $0.8874$. See [`stagnation_flow_report.md`](notebooks/stagnation_flow_report.md).
+- The exact analytical wedge used in the public JM stagnation-flow calculation does overturn its shallow-side source. It has zero tangential traction with nonzero basal speed, however, and is therefore free slip rather than the finite linear law used in the manuscript.
+
+The new scripts, flattened CSV diagnostics, and PNG/PDF figures are in [`notebooks`](notebooks), [`data`](data), and [`figures`](figures). All finite-mobility models retain $C=10^{-5}$ m yr$^{-1}$ Pa$^{-1}$.
+
 ## Existing notebooks
 
 The earlier notebooks remain in the repository as a record of model development. In particular, the original unified notebooks imposed a fitted basal packet and sharp interior boundary; their apparent matches are not evidence for the present mechanical hypothesis. The relevant positive control is [`full_stokes_waddington_fold.ipynb`](notebooks/full_stokes_waddington_fold.ipynb), which shows that resolved Glen flow can overturn a sufficiently steep prescribed seed. The next step is to create that seed dynamically in the transient free-surface model defined here.

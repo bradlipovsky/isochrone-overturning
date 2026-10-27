@@ -1,0 +1,5 @@
+geometry,mesh,surface origins,smallest source offset (m),time step (yr),minimum J,minimum neighboring J,age of minimum J (yr)
+near pinch steep,320 x 48,321,0.25,4.0,0.25833085691842583,0.2623683294444114,6892.0
+near pinch steep,320 x 48,321,0.25,2.0,0.2583308037831458,0.2623609592652375,6894.0
+near pinch steep,320 x 48,321,0.25,1.0,0.258330774977118,0.2623479562475203,6893.0
+near pinch steep,320 x 48,321,0.25,0.5,0.25833078211268307,0.2623528042841008,6893.0
