@@ -355,6 +355,24 @@ def centered_jacobian(sources, states, valid):
     return jacobian
 
 
+def fixed_interior_minimum_column(age):
+    """CSV column for a fixed-interior minimum through an age or exit."""
+    return f"minimum fixed-interior J through {float(age):g} yr or exit"
+
+
+def fixed_interior_end_age_column(age):
+    """CSV column for the corresponding fixed-interior evaluation age."""
+    return (
+        "fixed-interior evaluation end age through "
+        f"{float(age):g} yr or exit (yr)"
+    )
+
+
+def fixed_interior_censoring_column(age):
+    """CSV column for the competing event at a reporting horizon."""
+    return f"fixed-interior censoring through {float(age):g} yr or exit"
+
+
 def trace_surface_map(
     geometry,
     sample,
@@ -362,6 +380,7 @@ def trace_surface_map(
     time_step=1.0,
     source_count=401,
     minimum_valid_sources=21,
+    fixed_interior_report_ages=(),
 ):
     """Advect one accumulating cohort and test loss of horizontal order.
 
@@ -371,6 +390,25 @@ def trace_surface_map(
     marker in that fixed set exits.  It therefore cannot follow a moving exit
     edge into the source family.
     """
+    report_ages = tuple(
+        sorted({float(age) for age in fixed_interior_report_ages})
+    )
+    age_tolerance = 8.0 * np.finfo(float).eps * max(1.0, maximum_age)
+    if any(age < 0.0 or age > maximum_age for age in report_ages):
+        raise ValueError(
+            "fixed-interior report ages must lie between zero and maximum age"
+        )
+
+    def empty_report_values():
+        values = {}
+        for report_age in report_ages:
+            values[fixed_interior_minimum_column(report_age)] = None
+            values[fixed_interior_end_age_column(report_age)] = None
+            values[fixed_interior_censoring_column(report_age)] = (
+                "no accumulation sources"
+            )
+        return values
+
     left_side, right_side = side_locations(geometry)
     sources = np.linspace(0.96 * left_side, 0.04 * left_side, source_count)
     state = np.column_stack((sources, np.full_like(sources, -0.05)))
@@ -399,9 +437,10 @@ def trace_surface_map(
             "fixed-interior source span (m)": None,
             "fixed-interior evaluation end age (yr)": None,
             "first fixed-interior negative age (yr)": None,
+            "first fixed-interior zero-crossing age (yr)": None,
             "first fixed-interior negative minimum J": None,
             "fixed-interior censoring": "no accumulation sources",
-        }
+        } | empty_report_values()
 
     margin = int(np.ceil(0.10 * len(sources)))
     fixed_interior = np.zeros(len(sources), dtype=bool)
@@ -429,8 +468,12 @@ def trace_surface_map(
         "age of minimum fixed-interior J (yr)": np.nan,
     }
     interior_first_negative = None
+    previous_interior_minimum = None
+    previous_interior_age = None
     interior_open = True
     interior_end_age = 0.0
+    report_best = {age: np.inf for age in report_ages}
+    report_end_age = {age: 0.0 for age in report_ages}
     for step_index in range(int(np.ceil(maximum_age / time_step)) + 1):
         age = step_index * time_step
         local_bed = bed_height(state[:, 0], geometry)
@@ -451,8 +494,22 @@ def trace_surface_map(
             if np.any(interior_finite):
                 interior_minimum = float(np.nanmin(interior_jacobian))
                 if interior_first_negative is None and interior_minimum < 0.0:
+                    zero_crossing_age = age
+                    if (
+                        previous_interior_minimum is not None
+                        and previous_interior_minimum >= 0.0
+                        and previous_interior_age is not None
+                        and age > previous_interior_age
+                    ):
+                        fraction = previous_interior_minimum / (
+                            previous_interior_minimum - interior_minimum
+                        )
+                        zero_crossing_age = previous_interior_age + fraction * (
+                            age - previous_interior_age
+                        )
                     interior_first_negative = {
                         "age (yr)": age,
+                        "zero-crossing age (yr)": zero_crossing_age,
                         "minimum J": interior_minimum,
                     }
                 if (
@@ -463,6 +520,14 @@ def trace_surface_map(
                         "minimum fixed-interior J": interior_minimum,
                         "age of minimum fixed-interior J (yr)": age,
                     }
+                previous_interior_minimum = interior_minimum
+                previous_interior_age = age
+                for report_age in report_ages:
+                    if age <= report_age + age_tolerance:
+                        report_best[report_age] = min(
+                            report_best[report_age], interior_minimum
+                        )
+                        report_end_age[report_age] = age
             interior_end_age = age
         else:
             interior_open = False
@@ -495,6 +560,31 @@ def trace_surface_map(
         k4 = velocity(state + time_step * k3)
         state += time_step * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0
 
+    report_values = {}
+    for report_age in report_ages:
+        report_values[fixed_interior_minimum_column(report_age)] = (
+            report_best[report_age]
+            if np.isfinite(report_best[report_age])
+            else None
+        )
+        report_values[fixed_interior_end_age_column(report_age)] = (
+            report_end_age[report_age]
+            if np.isfinite(report_best[report_age])
+            else None
+        )
+        crossed_by_report_age = (
+            interior_first_negative is not None
+            and interior_first_negative["zero-crossing age (yr)"]
+            <= report_age + age_tolerance
+        )
+        report_values[fixed_interior_censoring_column(report_age)] = (
+            "J<0 observed"
+            if crossed_by_report_age
+            else "age ceiling"
+            if report_end_age[report_age] >= report_age - 0.5 * time_step
+            else "first interior exit"
+        )
+
     best.update(
         {
             "first negative": first_negative,
@@ -526,6 +616,11 @@ def trace_surface_map(
                 if interior_first_negative is None
                 else interior_first_negative["age (yr)"]
             ),
+            "first fixed-interior zero-crossing age (yr)": (
+                None
+                if interior_first_negative is None
+                else interior_first_negative["zero-crossing age (yr)"]
+            ),
             "first fixed-interior negative minimum J": (
                 None
                 if interior_first_negative is None
@@ -539,6 +634,7 @@ def trace_surface_map(
                 else "first interior exit"
             ),
         }
+        | report_values
     )
     return best
 
@@ -549,6 +645,7 @@ def run_case(
     maximum_age=4_000.0,
     time_step=1.0,
     source_count=401,
+    fixed_interior_report_ages=(),
 ):
     velocity, diagnostics = solve_stokes(geometry, resolution)
     sample, speed_range = make_sampler(geometry, velocity)
@@ -558,6 +655,7 @@ def run_case(
         maximum_age=maximum_age,
         time_step=time_step,
         source_count=source_count,
+        fixed_interior_report_ages=fixed_interior_report_ages,
     )
     left_side, right_side = side_locations(geometry)
     return {

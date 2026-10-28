@@ -1,4 +1,4 @@
-"""Map overturning across a two-dimensional slice of elliptical troughs.
+"""Map age-dependent overturning across elliptical trough geometries.
 
 The full symmetric finite-reach ellipse has four geometric parameters after
 translations: center and boundary thickness, half-domain length, and one
@@ -6,8 +6,9 @@ additional horizontal-curvature scale.  Here the last two are fixed at
 L = 128.3 m and horizontal diameter D = 350 m.  The varied parameters are
 therefore the ice thickness at the open boundaries and at the trough center.
 The production sweep uses a regular 10 m grid, H_b = 10--260 m and
-H_c = 60--320 m, so diagonal structure is resolved rather than inferred
-from a few cells.
+H_c = 60--320 m.  Each steady velocity field is integrated once to 8 kyr;
+the fixed-interior minimum J is retained at 2 and 8 kyr, or until the cohort
+first exits, together with the first zero-crossing age.
 """
 
 from __future__ import annotations
@@ -19,11 +20,37 @@ import multiprocessing
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap, ListedColormap, TwoSlopeNorm
+from matplotlib.colors import (
+    LinearSegmentedColormap,
+    ListedColormap,
+    Normalize,
+    TwoSlopeNorm,
+)
+from matplotlib.patches import Patch
 import numpy as np
 import pandas as pd
 
-from realistic_geometry_elliptical_family import flatten_result, run_case
+from realistic_geometry_elliptical_family import (
+    fixed_interior_censoring_column,
+    fixed_interior_end_age_column,
+    fixed_interior_minimum_column,
+    flatten_result,
+    run_case,
+)
+
+
+plt.rcParams.update(
+    {
+        "font.size": 9.0,
+        "axes.titlesize": 10.0,
+        "axes.labelsize": 9.0,
+        "xtick.labelsize": 8.0,
+        "ytick.labelsize": 8.0,
+        "legend.fontsize": 8.0,
+        "pdf.fonttype": 42,
+        "ps.fonttype": 42,
+    }
+)
 
 
 HORIZONTAL_RADIUS = 175.0  # m
@@ -40,6 +67,7 @@ REFERENCE_HALF_DOMAIN = (
 )
 BOUNDARY_THICKNESSES = np.arange(10.0, 261.0, 10.0)
 CENTER_THICKNESSES = np.arange(60.0, 321.0, 10.0)
+REPORT_AGES = (2_000.0, 8_000.0)
 
 
 def geometry_from_thicknesses(boundary_thickness, center_thickness):
@@ -111,6 +139,9 @@ def solve_parameter_case(task):
                 maximum_age=maximum_age,
                 time_step=time_step,
                 source_count=source_count,
+                fixed_interior_report_ages=tuple(
+                    age for age in REPORT_AGES if age <= maximum_age
+                ),
             )
         )
         return inputs | {"status": "success"} | result
@@ -174,16 +205,39 @@ def run_grid(
     rows = []
     reusable = {}
     if existing is not None and len(existing):
-        for _, row in existing.iterrows():
-            key = (
-                float(row["boundary thickness input (m)"]),
-                float(row["center thickness input (m)"]),
-                float(row["input target spacing (m)"]),
-                float(row["input maximum age (yr)"]),
-                float(row["input time step (yr)"]),
-                int(row["input source count"]),
+        report_ages = tuple(age for age in REPORT_AGES if age <= maximum_age)
+        required_columns = {
+            "first fixed-interior zero-crossing age (yr)",
+            *(
+                fixed_interior_minimum_column(age)
+                for age in report_ages
+            ),
+            *(
+                fixed_interior_end_age_column(age)
+                for age in report_ages
+            ),
+            *(
+                fixed_interior_censoring_column(age)
+                for age in report_ages
+            ),
+        }
+        if required_columns.issubset(existing.columns):
+            for _, row in existing.iterrows():
+                key = (
+                    float(row["boundary thickness input (m)"]),
+                    float(row["center thickness input (m)"]),
+                    float(row["input target spacing (m)"]),
+                    float(row["input maximum age (yr)"]),
+                    float(row["input time step (yr)"]),
+                    int(row["input source count"]),
+                )
+                reusable[key] = row.to_dict()
+        else:
+            print(
+                "Existing table lacks the requested time-checkpoint columns; "
+                "no rows will be reused.",
+                flush=True,
             )
-            reusable[key] = row.to_dict()
 
     pending = []
     for center_thickness in CENTER_THICKNESSES:
@@ -415,40 +469,88 @@ def draw_geometry_schematic(axis):
         ha="left",
         va="center",
     )
-    axis.text(
-        0.0,
-        -0.665,
-        r"$H_c=-z_b(0),\quad H_b=-z_b(\pm L),\quad$"
-        r"$z_b=c-b\sqrt{1-(x/a)^2}$",
-        ha="center",
-        va="top",
-        fontsize=9,
-    )
     axis.set(
         xlim=(-0.58, 0.58),
-        ylim=(-0.74, 0.16),
-        title="A   Geometry and fixed horizontal scales",
+        ylim=(-0.64, 0.16),
     )
+    axis.set_title("A   Geometry", loc="left")
     axis.set_aspect("equal", adjustable="box")
     axis.axis("off")
 
 
 def save_figure(table, path):
-    """Plot the age-conditioned map and its strain-exposure collapse."""
+    """Plot geometry, two time horizons, and first-overturn age."""
+    minimum_columns = {
+        age: fixed_interior_minimum_column(age) for age in REPORT_AGES
+    }
+    required_columns = {
+        "status",
+        "first fixed-interior zero-crossing age (yr)",
+        fixed_interior_censoring_column(REPORT_AGES[-1]),
+        *minimum_columns.values(),
+    }
+    missing = required_columns - set(table.columns)
+    if missing:
+        raise RuntimeError(
+            "parameter map lacks required 2/8 kyr diagnostics: "
+            + ", ".join(sorted(missing))
+        )
+
+    def pivot(column):
+        return table.pivot(
+            index="center thickness input (m)",
+            columns="boundary thickness input (m)",
+            values=column,
+        ).reindex(index=CENTER_THICKNESSES, columns=BOUNDARY_THICKNESSES)
+
     status = table.pivot(
         index="center thickness input (m)",
         columns="boundary thickness input (m)",
         values="status",
     ).reindex(index=CENTER_THICKNESSES, columns=BOUNDARY_THICKNESSES)
-    values = table.pivot(
-        index="center thickness input (m)",
-        columns="boundary thickness input (m)",
-        values="minimum fixed-interior J",
-    ).reindex(index=CENTER_THICKNESSES, columns=BOUNDARY_THICKNESSES)
-    array = values.to_numpy(dtype=float)
-    success = status.to_numpy() == "success"
-    finite_success = success & np.isfinite(array)
-    if not np.any(finite_success):
+    j_by_age = {
+        age: pivot(column).to_numpy(dtype=float)
+        for age, column in minimum_columns.items()
+    }
+    crossing_age = pivot(
+        "first fixed-interior zero-crossing age (yr)"
+    ).to_numpy(dtype=float)
+    censoring = pivot(
+        fixed_interior_censoring_column(REPORT_AGES[-1])
+    ).to_numpy(dtype=str)
+    status_array = status.fillna("").to_numpy(dtype=str)
+    success = status_array == "success"
+    geometric_invalid = np.char.startswith(status_array, "invalid:")
+    solver_failure = np.char.startswith(status_array, "failed:")
+    finite_cohort = success & np.isfinite(j_by_age[REPORT_AGES[-1]])
+    no_deposited_cohort = success & ~finite_cohort
+    crossed = (
+        finite_cohort
+        & np.isfinite(crossing_age)
+        & (crossing_age <= REPORT_AGES[-1])
+    )
+    exited_without_crossing = (
+        finite_cohort
+        & ~crossed
+        & (censoring == "first interior exit")
+    )
+    age_censored = (
+        finite_cohort & ~crossed & (censoring == "age ceiling")
+    )
+    classified = (
+        geometric_invalid
+        | solver_failure
+        | no_deposited_cohort
+        | crossed
+        | exited_without_crossing
+        | age_censored
+    )
+    if not np.all(classified):
+        unclassified = np.unique(status_array[~classified])
+        raise RuntimeError(
+            "unclassified parameter-map cells: " + ", ".join(unclassified)
+        )
+    if not np.any(finite_cohort):
         raise RuntimeError("parameter map contains no successful finite values")
 
     diameter = 2.0 * HORIZONTAL_RADIUS
@@ -456,171 +558,193 @@ def save_figure(table, path):
     normalized_center_thicknesses = CENTER_THICKNESSES / diameter
     x_edges = cell_edges(normalized_boundary_thicknesses)
     y_edges = cell_edges(normalized_center_thicknesses)
-    limit = max(0.25, float(np.nanmax(np.abs(array[finite_success]))))
-    norm = TwoSlopeNorm(vmin=-limit, vcenter=0.0, vmax=limit)
+    norm = TwoSlopeNorm(vmin=-1.01, vcenter=0.0, vmax=1.01)
     diverging = LinearSegmentedColormap.from_list(
         "negative_red_zero_white_positive_blue",
         ["#67001f", "#d6604d", "#ffffff", "#4393c3", "#053061"],
         N=257,
     )
-    figure, (schematic_axis, map_axis, exposure_axis) = plt.subplots(
-        1,
+    category_colors = {
+        "invalid": "#dedede",
+        "no cohort": "#e7dcec",
+        "exit": "#c9d5dc",
+        "age": "#f7f7f7",
+        "failure": "#efd0d0",
+    }
+
+    figure = plt.figure(figsize=(8.0, 6.6), constrained_layout=True)
+    grid = figure.add_gridspec(
+        4,
         3,
-        figsize=(16.8, 5.7),
-        gridspec_kw={"width_ratios": [1.0, 1.25, 1.0]},
-        constrained_layout=True,
+        width_ratios=(1.0, 1.0, 0.055),
+        height_ratios=(1.0, 0.12, 1.0, 0.075),
     )
+    schematic_axis = figure.add_subplot(grid[0, 0])
+    crossing_axis = figure.add_subplot(grid[0, 1])
+    time_colorbar_axis = figure.add_subplot(grid[0, 2])
+    category_axis = figure.add_subplot(grid[1, :2])
+    early_axis = figure.add_subplot(grid[2, 0])
+    late_axis = figure.add_subplot(grid[2, 1])
+    j_colorbar_axis = figure.add_subplot(grid[3, :2])
     draw_geometry_schematic(schematic_axis)
-    invalid = ~success
-    no_deposited_cohort = success & ~finite_success
-    map_axis.pcolormesh(
-        x_edges,
-        y_edges,
-        np.ma.masked_where(~invalid, np.ones_like(array)),
-        cmap=ListedColormap(["0.88"]),
-        shading="flat",
-        rasterized=True,
-    )
-    map_axis.pcolormesh(
-        x_edges,
-        y_edges,
-        np.ma.masked_where(
-            ~no_deposited_cohort, np.ones_like(array)
-        ),
-        cmap=ListedColormap(["#f1e5b8"]),
-        shading="flat",
-        rasterized=True,
-    )
-    image = map_axis.pcolormesh(
-        x_edges,
-        y_edges,
-        np.ma.masked_where(~finite_success, array),
-        cmap=diverging,
-        norm=norm,
-        shading="flat",
-        rasterized=True,
-    )
 
-    map_axis.text(
-        0.62,
-        0.41,
-        "geometrically\ninvalid",
-        color="0.25",
-        ha="center",
-        va="center",
-        rotation=43,
-        fontsize=9,
-    )
-    map_axis.text(
-        0.57,
-        0.86,
-        "no modeled surface\naccumulation\n(no deposited cohort)",
-        color="0.28",
-        ha="center",
-        va="center",
-        fontsize=8.5,
-        bbox={
-            "facecolor": "#f1e5b8",
-            "edgecolor": "none",
-            "alpha": 0.88,
-            "pad": 1.5,
-        },
-    )
-    colorbar = figure.colorbar(image, ax=map_axis, shrink=0.93)
-    colorbar.set_label(
-        r"Minimum fixed-interior $J=\partial x/\partial x_0$"
-        "\n(to 4 kyr or first interior exit)"
-    )
-    map_axis.set(
-        xlabel=r"Boundary (minimum) thickness, $H_b/D$",
-        ylabel=r"Center (maximum) thickness, $H_c/D$",
-        xlim=(x_edges[0], x_edges[-1]),
-        ylim=(y_edges[0], y_edges[-1]),
-        title=r"B   Age/exit-conditioned minimum $J$",
-    )
-
-    finite_table = table.loc[
-        (table["status"] == "success")
-        & np.isfinite(table["minimum fixed-interior J"])
-    ].copy()
-    exposure = finite_table[
-        "empirical strain exposure Smax*Umax*T/(2L)"
-    ].to_numpy(dtype=float)
-    minimum_j = finite_table["minimum fixed-interior J"].to_numpy(
-        dtype=float
-    )
-    groups = (
-        (
-            finite_table["fixed-interior censoring"] == "first interior exit",
-            "#777777",
-            "o",
-            "first interior exit",
-        ),
-        (
-            finite_table["fixed-interior censoring"] == "age ceiling",
-            "#4393c3",
-            "s",
-            "4 kyr ceiling",
-        ),
-        (
-            finite_table["fixed-interior censoring"] == "J<0 observed",
-            "#b2182b",
-            "o",
-            r"$J<0$ observed",
-        ),
-    )
-    for select, color, marker, label in groups:
-        select = np.asarray(select)
-        exposure_axis.scatter(
-            exposure[select],
-            minimum_j[select],
-            s=17,
-            marker=marker,
-            facecolor=color,
-            edgecolor="none",
-            alpha=0.68,
-            label=label,
+    def paint_mask(axis, mask, color):
+        axis.pcolormesh(
+            x_edges,
+            y_edges,
+            np.ma.masked_where(~mask, np.ones(mask.shape)),
+            cmap=ListedColormap([color]),
+            vmin=0.0,
+            vmax=1.0,
+            shading="flat",
             rasterized=True,
         )
-    correlation = np.corrcoef(exposure, minimum_j)[0, 1]
-    exposure_axis.axhline(0.0, color="0.45", linewidth=0.8, zorder=0)
-    exposure_axis.text(
-        0.96,
-        0.95,
-        rf"$r={correlation:.2f}$"
-        "\n(descriptive; fixed geometry slice)",
-        transform=exposure_axis.transAxes,
-        ha="right",
-        va="top",
-        fontsize=9,
+
+    def paint_common_categories(axis):
+        paint_mask(axis, geometric_invalid, category_colors["invalid"])
+        paint_mask(axis, no_deposited_cohort, category_colors["no cohort"])
+        if np.any(solver_failure):
+            paint_mask(axis, solver_failure, category_colors["failure"])
+
+    def format_map_axis(axis, title, show_ylabel=True):
+        axis.set(
+            xlabel=r"Boundary thickness, $H_b/D$",
+            ylabel=r"Center thickness, $H_c/D$" if show_ylabel else None,
+            xlim=(x_edges[0], x_edges[-1]),
+            ylim=(y_edges[0], y_edges[-1]),
+        )
+        axis.set_title(title, loc="left")
+        axis.set_aspect("equal", adjustable="box")
+        if not show_ylabel:
+            axis.tick_params(axis="y", labelleft=False)
+
+    def label_common_regions(axis, label_no_cohort=False):
+        axis.text(
+            0.62,
+            0.41,
+            "geometrically\ninvalid",
+            color="0.25",
+            ha="center",
+            va="center",
+            rotation=43,
+            fontsize=7.5,
+        )
+        if label_no_cohort:
+            axis.text(
+                0.52,
+                0.87,
+                "no deposited\ncohort",
+                color="0.28",
+                ha="center",
+                va="center",
+                fontsize=7.5,
+            )
+
+    paint_common_categories(crossing_axis)
+    paint_mask(
+        crossing_axis, exited_without_crossing, category_colors["exit"]
     )
-    exposure_axis.set(
-        xlabel=(
-            "Empirical strain-exposure proxy,\n"
-            r"$\Pi=s_{\max}U_{\max}T_{\rm eval}/(2L)$"
+    paint_mask(crossing_axis, age_censored, category_colors["age"])
+    time_image = crossing_axis.pcolormesh(
+        x_edges,
+        y_edges,
+        np.ma.masked_where(~crossed, crossing_age / 1_000.0),
+        cmap="viridis",
+        norm=Normalize(vmin=0.0, vmax=REPORT_AGES[-1] / 1_000.0),
+        shading="flat",
+        rasterized=True,
+    )
+    format_map_axis(
+        crossing_axis, "B   First fixed-interior overturn age"
+    )
+    label_common_regions(crossing_axis, label_no_cohort=True)
+    time_colorbar = figure.colorbar(
+        time_image, cax=time_colorbar_axis
+    )
+    time_colorbar.set_ticks(np.arange(0.0, 8.1, 2.0))
+    time_colorbar.set_label(r"First $J=0$ age, $t_{J=0}$ (kyr)")
+    outcome_handles = [
+        Patch(
+            facecolor=category_colors["invalid"],
+            edgecolor="0.65",
+            label="geometrically invalid",
         ),
-        ylabel=r"Minimum fixed-interior $J$",
-        xlim=(0.0, max(3.5, 1.03 * np.nanmax(exposure))),
-        ylim=(-1.08, 1.08),
-        title="C   Accumulated strain exposure",
-    )
-    exposure_axis.legend(
-        loc="lower left",
+        Patch(
+            facecolor=category_colors["no cohort"],
+            edgecolor="0.65",
+            label="no deposited cohort",
+        ),
+        Patch(
+            facecolor=category_colors["exit"],
+            edgecolor="0.65",
+            label="exited before overturn",
+        ),
+        Patch(
+            facecolor=category_colors["age"],
+            edgecolor="0.65",
+            label="still in domain; no overturn by 8 kyr (right-censored)",
+        ),
+    ]
+    if np.any(solver_failure):
+        outcome_handles.append(
+            Patch(
+                facecolor=category_colors["failure"],
+                edgecolor="0.65",
+                label="solver failure",
+            )
+        )
+    category_axis.axis("off")
+    category_axis.legend(
+        handles=outcome_handles,
+        loc="center",
+        ncol=2,
         frameon=False,
-        fontsize=8.5,
-        handletextpad=0.4,
-        borderaxespad=0.3,
+        handlelength=1.3,
+        columnspacing=2.0,
     )
-    figure.savefig(path, dpi=240)
+
+    j_image = None
+    for axis, age, panel in (
+        (early_axis, REPORT_AGES[0], "C"),
+        (late_axis, REPORT_AGES[1], "D"),
+    ):
+        paint_common_categories(axis)
+        values = j_by_age[age]
+        j_image = axis.pcolormesh(
+            x_edges,
+            y_edges,
+            np.ma.masked_where(~finite_cohort, values),
+            cmap=diverging,
+            norm=norm,
+            shading="flat",
+            rasterized=True,
+        )
+        format_map_axis(
+            axis,
+            rf"{panel}   Minimum $J$ through {age / 1_000:g} kyr or exit",
+            show_ylabel=axis is early_axis,
+        )
+        label_common_regions(axis)
+    j_colorbar = figure.colorbar(
+        j_image,
+        cax=j_colorbar_axis,
+        orientation="horizontal",
+    )
+    j_colorbar.set_ticks(np.arange(-1.0, 1.01, 0.5))
+    j_colorbar.set_label(
+        r"Minimum fixed-interior $J=\partial x/\partial x_0$"
+        " (negative indicates overturning)"
+    )
+    figure.savefig(path, dpi=300)
     if str(path).lower().endswith(".png"):
-        figure.savefig(str(path)[:-4] + ".pdf")
+        figure.savefig(str(path)[:-4] + ".pdf", dpi=300)
     plt.close(figure)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--resolution", type=float, default=10.0)
-    parser.add_argument("--maximum-age", type=float, default=4_000.0)
+    parser.add_argument("--maximum-age", type=float, default=8_000.0)
     parser.add_argument("--time-step", type=float, default=1.0)
     parser.add_argument("--source-count", type=int, default=401)
     parser.add_argument(
@@ -642,6 +766,26 @@ def main():
         help="Read --csv and only regenerate the figure",
     )
     args = parser.parse_args()
+    if not args.plot_only:
+        if args.maximum_age < max(REPORT_AGES):
+            parser.error(
+                f"--maximum-age must be at least {max(REPORT_AGES):g} yr"
+            )
+        if args.time_step <= 0.0:
+            parser.error("--time-step must be positive")
+        if any(
+            not np.isclose(
+                age / args.time_step,
+                round(age / args.time_step),
+                rtol=0.0,
+                atol=1.0e-10,
+            )
+            for age in REPORT_AGES
+        ):
+            parser.error(
+                "--time-step must divide the 2 kyr and 8 kyr reporting "
+                "horizons exactly"
+            )
     repository = Path(__file__).resolve().parents[1]
     csv_path = Path(args.csv) if args.csv else (
         repository / "data" / "realistic_geometry_elliptical_parameter_map.csv"
