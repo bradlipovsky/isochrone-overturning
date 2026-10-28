@@ -91,9 +91,9 @@ invalid rather than interpolated.
 
 The color field reports the minimum fixed-interior $J$ through 4 kyr or the
 first exit from that fixed source subset, whichever occurs first. Evaluation
-ends range from 73 yr to the 4 kyr ceiling across the grid. The solid zero
-contour is the fixed-interior result; the dashed contour shows the raw
-lifetime diagnostic. For example, the 20/80 m and 140/180 m boundary/center
+ends range from 73 yr to the 4 kyr ceiling across the grid. The figure shows
+only the fixed-interior result; the raw lifetime diagnostic remains in the
+CSV for comparison. For example, the 20/80 m and 140/180 m boundary/center
 cases have raw minima $-0.194$ and $-0.631$ but fixed-interior minima $+0.922$
 and $+0.800$. Those raw signs are not retained by the fixed-interior
 diagnostic and are sensitive to the moving-exit convention.
@@ -139,16 +139,18 @@ minima remain positive on 48x12, 72x18, and 96x24 meshes:
 
 ## Figure note
 
-`realistic_geometry_overturned_maps` shows ages 0, 0.7, 1.4, 2.1, and 2.8 kyr
-for the narrow symmetric and steep-entry/gentle-exit troughs. Curve color is
-deposition coordinate. Open red rings mark sampled locations with centered
-$J<0$, and markers are removed permanently at their first surface or side
-exit. Every panel retains the full bed geometry.
+`realistic_geometry_overturned_maps` overlays ages 0, 0.7, 1.4, 2.1, and
+2.8 kyr in two panels: the narrow symmetric and steep-entry/gentle-exit
+troughs. Curve color is deposition coordinate and each age is labeled
+directly. Open red rings mark sampled locations with centered $J<0$, and
+markers are removed permanently at their first surface or side exit. The
+red-ring explanation sits outside the axes beside the colorbar.
 
 `realistic_geometry_elliptical_parameter_map` shows the two-dimensional
-thickness slice. The diverging color scale is centered exactly at a white
-$J=0$; sampled cells, the existing narrow case, invalid cells, and the
-fixed-interior and raw zero contours are identified explicitly.
+thickness slice beside a schematic of $H_b$, $H_c$, half-domain length $L$,
+and horizontal diameter $D=2a$. Both map axes are normalized by $D=350$ m.
+The diverging color scale is centered exactly at a white $J=0$, and the
+geometrically invalid region is labeled directly.
 
 ## Reproduction
 

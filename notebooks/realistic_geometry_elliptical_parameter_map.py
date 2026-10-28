@@ -2,8 +2,8 @@
 
 The full symmetric finite-reach ellipse has four geometric parameters after
 translations: center and boundary thickness, half-domain length, and one
-additional horizontal-curvature scale.  Here the last two are fixed at the
-values of the existing narrow symmetric trough.  The varied parameters are
+additional horizontal-curvature scale.  Here the last two are fixed at
+L = 128.3 m and horizontal diameter D = 350 m.  The varied parameters are
 therefore the ice thickness at the open boundaries and at the trough center.
 """
 
@@ -15,7 +15,6 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap, TwoSlopeNorm
-from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 
@@ -146,6 +145,160 @@ def cell_edges(values):
     ]
 
 
+def draw_geometry_schematic(axis):
+    """Define the four geometric quantities used by this parameter slice."""
+    diameter = 2.0 * HORIZONTAL_RADIUS
+    half_domain = REFERENCE_HALF_DOMAIN / diameter
+    half_horizontal_diameter = 0.5
+
+    # An illustrative member of the family.  The annotations, rather than
+    # these particular thicknesses, define the parameterization.
+    boundary_thickness = 0.16
+    center_thickness = 0.43
+    boundary_shape = np.sqrt(
+        1.0 - (half_domain / half_horizontal_diameter) ** 2
+    )
+    vertical_radius = (
+        center_thickness - boundary_thickness
+    ) / (1.0 - boundary_shape)
+    center_height = vertical_radius - center_thickness
+
+    x_full = np.linspace(
+        -half_horizontal_diameter, half_horizontal_diameter, 601
+    )
+    bed_full = center_height - vertical_radius * np.sqrt(
+        np.maximum(
+            0.0, 1.0 - (x_full / half_horizontal_diameter) ** 2
+        )
+    )
+    x_domain = np.linspace(-half_domain, half_domain, 401)
+    bed_domain = center_height - vertical_radius * np.sqrt(
+        1.0 - (x_domain / half_horizontal_diameter) ** 2
+    )
+
+    # The pale continuation shows the underlying ellipse; only the dark
+    # segment between +/-L is part of the modeled glacier.
+    axis.plot(x_full, bed_full, color="0.78", linewidth=1.1, zorder=1)
+    axis.fill_between(
+        x_domain,
+        bed_domain,
+        0.0,
+        color="#d9edf7",
+        alpha=0.9,
+        zorder=2,
+    )
+    axis.plot(x_domain, bed_domain, color="0.15", linewidth=1.8, zorder=3)
+    axis.plot(
+        [-half_domain, half_domain],
+        [0.0, 0.0],
+        color="#3b78a3",
+        linewidth=1.8,
+        zorder=4,
+    )
+    for side in (-half_domain, half_domain):
+        bed_side = center_height - vertical_radius * np.sqrt(
+            1.0 - (side / half_horizontal_diameter) ** 2
+        )
+        axis.plot(
+            [side, side],
+            [bed_side, 0.0],
+            color="0.35",
+            linewidth=1.0,
+            zorder=4,
+        )
+
+    arrow = dict(arrowstyle="<->", color="0.15", shrinkA=0, shrinkB=0)
+    axis.annotate(
+        "",
+        xy=(0.0, -center_thickness),
+        xytext=(0.0, 0.0),
+        arrowprops=arrow,
+        zorder=5,
+    )
+    axis.text(
+        0.018,
+        -0.5 * center_thickness,
+        r"$H_c$",
+        ha="left",
+        va="center",
+    )
+    axis.annotate(
+        "",
+        xy=(-half_domain, -boundary_thickness),
+        xytext=(-half_domain, 0.0),
+        arrowprops=arrow,
+        zorder=5,
+    )
+    axis.text(
+        -half_domain - 0.018,
+        -0.5 * boundary_thickness,
+        r"$H_b$",
+        ha="right",
+        va="center",
+    )
+    axis.annotate(
+        "",
+        xy=(half_domain, 0.075),
+        xytext=(0.0, 0.075),
+        arrowprops=arrow,
+    )
+    axis.text(
+        0.5 * half_domain,
+        0.092,
+        rf"$L={REFERENCE_HALF_DOMAIN:.1f}\,$m (fixed)",
+        ha="center",
+        va="bottom",
+    )
+    diameter_arrow_height = -0.55
+    axis.annotate(
+        "",
+        xy=(half_horizontal_diameter, diameter_arrow_height),
+        xytext=(-half_horizontal_diameter, diameter_arrow_height),
+        arrowprops=arrow,
+    )
+    axis.text(
+        0.0,
+        diameter_arrow_height - 0.025,
+        rf"$D=2a={diameter:.0f}\,$m (fixed)",
+        ha="center",
+        va="top",
+    )
+
+    axis.text(
+        -half_domain + 0.015,
+        0.012,
+        "surface",
+        color="#285f85",
+        ha="left",
+        va="bottom",
+    )
+    axis.text(
+        0.23,
+        -0.36,
+        "elliptical bed",
+        color="0.25",
+        rotation=34,
+        ha="left",
+        va="center",
+    )
+    axis.text(
+        0.0,
+        -0.665,
+        r"$H_c=-z_b(0),\quad H_b=-z_b(\pm L),\quad$"
+        r"$z_b=c-b\sqrt{1-(x/a)^2}$",
+        ha="center",
+        va="top",
+        fontsize=9,
+    )
+    axis.set(
+        xlim=(-0.58, 0.58),
+        ylim=(-0.74, 0.16),
+        title="A   Geometry and fixed horizontal scales",
+    )
+    axis.set_aspect("equal", adjustable="box")
+    axis.axis("off")
+
+
 def save_figure(table, path):
     """Plot minimum J with zero exactly at the white color-map midpoint."""
     status = table.pivot(
@@ -158,20 +311,17 @@ def save_figure(table, path):
         columns="boundary thickness input (m)",
         values="minimum fixed-interior J",
     ).reindex(index=CENTER_THICKNESSES, columns=BOUNDARY_THICKNESSES)
-    raw_values = table.pivot(
-        index="center thickness input (m)",
-        columns="boundary thickness input (m)",
-        values="minimum J",
-    ).reindex(index=CENTER_THICKNESSES, columns=BOUNDARY_THICKNESSES)
     array = values.to_numpy(dtype=float)
-    raw_array = raw_values.to_numpy(dtype=float)
     success = status.to_numpy() == "success"
     finite_success = success & np.isfinite(array)
     if not np.any(finite_success):
         raise RuntimeError("parameter map contains no successful finite values")
 
-    x_edges = cell_edges(BOUNDARY_THICKNESSES)
-    y_edges = cell_edges(CENTER_THICKNESSES)
+    diameter = 2.0 * HORIZONTAL_RADIUS
+    normalized_boundary_thicknesses = BOUNDARY_THICKNESSES / diameter
+    normalized_center_thicknesses = CENTER_THICKNESSES / diameter
+    x_edges = cell_edges(normalized_boundary_thicknesses)
+    y_edges = cell_edges(normalized_center_thicknesses)
     limit = max(0.25, float(np.nanmax(np.abs(array[finite_success]))))
     norm = TwoSlopeNorm(vmin=-limit, vcenter=0.0, vmax=limit)
     diverging = LinearSegmentedColormap.from_list(
@@ -179,129 +329,54 @@ def save_figure(table, path):
         ["#67001f", "#d6604d", "#ffffff", "#4393c3", "#053061"],
         N=257,
     )
-    figure, axis = plt.subplots(figsize=(8.2, 6.6), constrained_layout=True)
-    axis.pcolormesh(
+    figure, (schematic_axis, map_axis) = plt.subplots(
+        1,
+        2,
+        figsize=(12.2, 5.5),
+        gridspec_kw={"width_ratios": [1.0, 1.25]},
+        constrained_layout=True,
+    )
+    draw_geometry_schematic(schematic_axis)
+    map_axis.pcolormesh(
         x_edges,
         y_edges,
         np.ones_like(array),
         cmap=ListedColormap(["0.88"]),
         shading="flat",
+        rasterized=True,
     )
-    image = axis.pcolormesh(
+    image = map_axis.pcolormesh(
         x_edges,
         y_edges,
         np.ma.masked_where(~finite_success, array),
         cmap=diverging,
         norm=norm,
         shading="flat",
+        rasterized=True,
     )
 
-    valid_rows = table[table["status"].str.startswith("success")]
-    axis.scatter(
-        valid_rows["boundary thickness input (m)"],
-        valid_rows["center thickness input (m)"],
-        s=9,
-        color="0.15",
-        linewidths=0,
-        label="successful sample",
+    map_axis.text(
+        0.345,
+        0.275,
+        "geometrically\ninvalid",
+        color="0.25",
+        ha="center",
+        va="center",
+        rotation=37,
+        fontsize=9,
     )
-    failed_rows = table[table["status"].str.startswith("failed")]
-    if len(failed_rows):
-        axis.scatter(
-            failed_rows["boundary thickness input (m)"],
-            failed_rows["center thickness input (m)"],
-            s=28,
-            marker="x",
-            color="0.15",
-            linewidths=1.0,
-            label="failed sample",
-        )
-    axis.scatter(
-        [70.0],
-        [150.0],
-        marker="*",
-        s=150,
-        facecolor="#ffd92f",
-        edgecolor="black",
-        linewidth=0.8,
-        zorder=5,
-        label="existing narrow case",
-    )
-    x_grid, y_grid = np.meshgrid(
-        BOUNDARY_THICKNESSES, CENTER_THICKNESSES
-    )
-    if np.nanmin(array[finite_success]) < 0.0 < np.nanmax(array[finite_success]):
-        interior_contour = axis.contour(
-            x_grid,
-            y_grid,
-            np.ma.masked_where(~finite_success, array),
-            levels=[0.0],
-            colors="0.1",
-            linewidths=1.2,
-        )
-    raw_finite = success & np.isfinite(raw_array)
-    if (
-        np.any(raw_finite)
-        and np.nanmin(raw_array[raw_finite]) < 0.0
-        < np.nanmax(raw_array[raw_finite])
-    ):
-        raw_contour = axis.contour(
-            x_grid,
-            y_grid,
-            np.ma.masked_where(~raw_finite, raw_array),
-            levels=[0.0],
-            colors="0.35",
-            linewidths=0.9,
-            linestyles="--",
-        )
-    colorbar = figure.colorbar(image, ax=axis, extend="both")
+    colorbar = figure.colorbar(image, ax=map_axis)
     colorbar.set_label(
         r"Minimum fixed-interior $J=\partial x/\partial x_0$"
-        " through 4 kyr or first interior exit"
+        "\n(to 4 kyr or first interior exit)"
     )
-    axis.set(
-        xlabel="Ice thickness at each open boundary (m)",
-        ylabel="Maximum ice thickness at trough center (m)",
+    map_axis.set(
+        xlabel=r"Boundary (minimum) thickness, $H_b/D$",
+        ylabel=r"Center (maximum) thickness, $H_c/D$",
         xlim=(x_edges[0], x_edges[-1]),
         ylim=(y_edges[0], y_edges[-1]),
-        title=(
-            "Symmetric elliptical trough: fixed horizontal geometry\n"
-            rf"horizontal radius = {HORIZONTAL_RADIUS:.0f} m, "
-            rf"half-domain = {REFERENCE_HALF_DOMAIN:.1f} m"
-        ),
+        title=r"B   Minimum fixed-interior $J$",
     )
-    handles, labels = axis.get_legend_handles_labels()
-    handles.extend(
-        [
-            Line2D([0], [0], color="0.1", linewidth=1.2),
-            Line2D(
-                [0],
-                [0],
-                color="0.35",
-                linewidth=0.9,
-                linestyle="--",
-            ),
-        ]
-    )
-    labels.extend(
-        [
-            r"fixed-interior $J=0$",
-            r"raw lifetime $J=0$",
-        ]
-    )
-    handles.append(
-        Line2D(
-            [0],
-            [0],
-            marker="s",
-            markersize=8,
-            linestyle="none",
-            markerfacecolor="0.88",
-            markeredgecolor="0.6",
-        )
-    )
-    labels.append("geometrically invalid / not sampled")
-    axis.legend(handles, labels, frameon=False, loc="upper left")
     figure.savefig(path, dpi=240)
     if str(path).lower().endswith(".png"):
         figure.savefig(str(path)[:-4] + ".pdf")

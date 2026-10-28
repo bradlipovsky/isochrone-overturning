@@ -574,8 +574,190 @@ def coordinate_edges(values: np.ndarray) -> np.ndarray:
     ]
 
 
+def draw_geometry_schematic(axis: plt.Axes) -> None:
+    """Draw the exact model shape and define its four geometric parameters."""
+    # Dimensionless values are chosen only to keep the schematic legible.  The
+    # curves use the same piecewise sin^2 geometry as the finite-element mesh.
+    left_length = 1.0
+    right_length = 2.5
+    relief = 0.60
+    thickness = 0.72
+    x = np.linspace(-left_length, right_length, 801)
+    bed = np.where(
+        x <= 0.0,
+        relief * np.sin(0.5 * np.pi * (-x) / left_length) ** 2,
+        relief * np.sin(0.5 * np.pi * x / right_length) ** 2,
+    )
+    surface = bed + thickness
+
+    axis.fill_between(x, -0.20, bed, color="0.72", zorder=1)
+    axis.fill_between(x, bed, surface, color="#D9EAF4", zorder=2)
+    axis.plot(x, bed, color="0.12", linewidth=1.5, zorder=3)
+    axis.plot(x, surface, color="#2C6E9B", linewidth=1.5, zorder=3)
+    axis.text(
+        2.45,
+        1.41,
+        r"surface $s(x)=b(x)+H$",
+        color="#2C6E9B",
+        fontsize=8.5,
+        ha="right",
+        va="bottom",
+    )
+    axis.text(
+        1.70,
+        np.interp(1.70, x, bed) - 0.10,
+        r"bed $b(x)$",
+        color="0.15",
+        fontsize=8.5,
+        ha="center",
+    )
+
+    dimension_style = {
+        "arrowstyle": "<->",
+        "color": "0.12",
+        "linewidth": 1.1,
+        "shrinkA": 0.0,
+        "shrinkB": 0.0,
+    }
+    guide_style = {"color": "0.45", "linewidth": 0.8, "linestyle": ":"}
+
+    # Horizontal flank lengths are measured from the confluence at x=0.
+    length_y = -0.34
+    for location, upper_y in (
+        (-left_length, relief),
+        (0.0, 0.0),
+        (right_length, relief),
+    ):
+        axis.plot(
+            (location, location),
+            (length_y - 0.03, upper_y),
+            **guide_style,
+            zorder=0,
+        )
+    axis.annotate(
+        "",
+        xy=(0.0, length_y),
+        xytext=(-left_length, length_y),
+        arrowprops=dimension_style,
+        annotation_clip=False,
+    )
+    axis.annotate(
+        "",
+        xy=(right_length, length_y),
+        xytext=(0.0, length_y),
+        arrowprops=dimension_style,
+        annotation_clip=False,
+    )
+    axis.text(
+        -0.5 * left_length,
+        length_y - 0.07,
+        r"$L_{\mathrm{left}}$",
+        ha="center",
+        va="top",
+        fontsize=10,
+    )
+    axis.text(
+        0.5 * right_length,
+        length_y - 0.07,
+        r"$L_{\mathrm{right}}$",
+        ha="center",
+        va="top",
+        fontsize=10,
+    )
+
+    # Relief is the vertical difference between the central minimum and the
+    # equal-height outer endpoints.
+    relief_x = -left_length - 0.20
+    axis.plot((relief_x, -left_length), (0.0, 0.0), **guide_style)
+    axis.plot((relief_x, -left_length), (relief, relief), **guide_style)
+    axis.annotate(
+        "",
+        xy=(relief_x, relief),
+        xytext=(relief_x, 0.0),
+        arrowprops=dimension_style,
+        annotation_clip=False,
+    )
+    axis.text(
+        relief_x - 0.06,
+        0.5 * relief,
+        r"$\Delta b$",
+        ha="right",
+        va="center",
+        fontsize=10,
+    )
+
+    # Ice thickness is the vertical bed-to-surface distance everywhere.
+    thickness_x = 0.28
+    local_bed = float(np.interp(thickness_x, x, bed))
+    local_surface = local_bed + thickness
+    axis.plot(
+        (thickness_x - 0.08, thickness_x + 0.08),
+        (local_bed, local_bed),
+        **guide_style,
+    )
+    axis.plot(
+        (thickness_x - 0.08, thickness_x + 0.08),
+        (local_surface, local_surface),
+        **guide_style,
+    )
+    axis.annotate(
+        "",
+        xy=(thickness_x, local_surface),
+        xytext=(thickness_x, local_bed),
+        arrowprops=dimension_style,
+    )
+    axis.text(
+        thickness_x + 0.09,
+        0.5 * (local_bed + local_surface),
+        r"$H$",
+        ha="left",
+        va="center",
+        fontsize=10,
+    )
+
+    axis.text(
+        0.02,
+        0.97,
+        (
+            r"$b(x)=\Delta b\,\sin^2[\pi |x|/(2L_{\rm side})]$"
+            "\n"
+            r"$L_{\rm side}=L_{\rm left}$ for $x<0$; "
+            r"$L_{\rm side}=L_{\rm right}$ for $x>0$"
+        ),
+        transform=axis.transAxes,
+        ha="left",
+        va="top",
+        fontsize=8.2,
+        color="0.25",
+        bbox={
+            "facecolor": "white",
+            "edgecolor": "none",
+            "alpha": 0.88,
+            "pad": 1.5,
+        },
+    )
+    axis.text(
+        0.98,
+        0.62,
+        "schematic; vertical scale exaggerated",
+        transform=axis.transAxes,
+        ha="right",
+        va="top",
+        fontsize=7.5,
+        color="0.35",
+        style="italic",
+    )
+    axis.set(
+        xlim=(-1.43, 2.68),
+        ylim=(-0.49, 1.55),
+        title="(a) Geometry and parameter definitions",
+    )
+    axis.set_aspect("equal", adjustable="box")
+    axis.axis("off")
+
+
 def make_figure(table: pd.DataFrame) -> None:
-    """Plot minimum J with zero fixed to the white center of the color map."""
+    """Plot the model geometry and minimum J phase map side by side."""
     ratios = np.sort(table["right_to_left_length_ratio"].unique())
     reliefs = np.sort(table["relief_to_thickness_ratio"].unique())
     values = np.full((len(reliefs), len(ratios)), np.nan)
@@ -595,7 +777,18 @@ def make_figure(table: pd.DataFrame) -> None:
     cmap.set_bad("0.75")
     norm = TwoSlopeNorm(vmin=-limit, vcenter=0.0, vmax=limit)
 
-    fig, axis = plt.subplots(figsize=(8.1, 5.8), constrained_layout=True)
+    fig = plt.figure(figsize=(13.2, 5.9), constrained_layout=True)
+    grid = fig.add_gridspec(
+        2,
+        2,
+        width_ratios=(1.05, 1.75),
+        height_ratios=(1.0, 0.07),
+    )
+    schematic_axis = fig.add_subplot(grid[0, 0])
+    axis = fig.add_subplot(grid[0, 1])
+    caption_axis = fig.add_subplot(grid[1, :])
+    caption_axis.axis("off")
+    draw_geometry_schematic(schematic_axis)
     image = axis.pcolormesh(
         coordinate_edges(ratios),
         coordinate_edges(reliefs),
@@ -626,51 +819,38 @@ def make_figure(table: pd.DataFrame) -> None:
             linewidth=1.2,
             label="invalid solve/diagnostic",
         )
-    axis.scatter(
-        [5.0],
-        [0.75],
-        marker="*",
-        s=115,
-        facecolor="#F0E442",
-        edgecolor="black",
-        linewidth=0.8,
-        zorder=5,
-        label="baseline geometry",
-    )
     axis.set(
         xlabel=r"flank-length ratio $L_{\mathrm{right}}/L_{\mathrm{left}}$",
-        ylabel=r"roughness ratio $\Delta b/H$",
-        title=(
-            r"Finite-sliding convergent flow: tangent-map minimum "
-            r"$J=\partial x/\partial x_0$"
-        ),
+        ylabel=r"bed-relief ratio $\Delta b/H$",
+        title=r"(b) Minimum tangent-map $J=\partial x/\partial x_0$",
         xticks=ratios,
         yticks=reliefs,
     )
-    axis.legend(frameon=True, facecolor="white", framealpha=0.9, loc="upper left")
+    if len(invalid_x):
+        axis.legend(
+            frameon=True,
+            facecolor="white",
+            framealpha=0.9,
+            loc="upper left",
+        )
     colorbar = fig.colorbar(image, ax=axis, extend="neither")
     colorbar.set_label(r"minimum variational $J$ over full marker residence")
-    axis.text(
-        0.99,
-        0.015,
+    caption_axis.text(
+        0.5,
+        0.5,
         (
-            r"fixed: $L=6$ km, $H=200$ m, "
+            r"Phase map fixes $L_{\rm left}+L_{\rm right}=6$ km, "
+            r"$H=200$ m, "
             r"$C=10^{-5}$ m Pa$^{-1}$ yr$^{-1}$"
-            "\n"
-            r"$\eta=2.5\times10^8$ Pa yr; fixed boundary treatment and resolution"
+            r", $\eta=2.5\times10^8$ Pa yr, boundary treatment, and resolution."
         ),
-        transform=axis.transAxes,
-        ha="right",
-        va="bottom",
+        transform=caption_axis.transAxes,
+        ha="center",
+        va="center",
         fontsize=8.5,
         color="0.2",
-        bbox={
-            "boxstyle": "round,pad=0.25",
-            "facecolor": "white",
-            "edgecolor": "0.75",
-            "alpha": 0.92,
-        },
     )
+    fig.suptitle("Finite-sliding convergent flow", fontsize=14)
     fig.savefig(FIGURE_STEM.with_suffix(".png"), dpi=240)
     fig.savefig(FIGURE_STEM.with_suffix(".pdf"))
     plt.close(fig)

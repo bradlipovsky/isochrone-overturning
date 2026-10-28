@@ -644,16 +644,24 @@ def material_curve_snapshots(
 
 
 def save_map_figure(path, resolution=7.5):
-    """Plot common-age material curves for two overturning troughs."""
+    """Overlay common-age material curves for two overturning troughs."""
     selected = (GEOMETRIES[1], GEOMETRIES[4])
     ages = (0.0, 700.0, 1_400.0, 2_100.0, 2_800.0)
-    figure, axes = plt.subplots(
-        len(ages),
+    figure = plt.figure(figsize=(12.0, 5.7))
+    grid = figure.add_gridspec(
+        1,
         2,
-        figsize=(10.6, 12.5),
-        constrained_layout=True,
-        sharex="col",
-        sharey=True,
+        left=0.07,
+        right=0.985,
+        bottom=0.27,
+        top=0.92,
+        wspace=0.12,
+    )
+    axes = np.asarray(
+        [
+            figure.add_subplot(grid[0, 0]),
+            figure.add_subplot(grid[0, 1]),
+        ]
     )
     all_snapshots = []
     for column, geometry in enumerate(selected):
@@ -674,15 +682,21 @@ def save_map_figure(path, resolution=7.5):
     source_norm = plt.Normalize(source_min, source_max)
     cmap = plt.get_cmap("viridis")
 
+    label_fractions = (0.55, 0.30, 0.18, 0.47, 0.55)
+    label_offsets = ((0, -18), (-8, 10), (-12, 1), (10, 1), (10, -9))
+    panel_titles = (
+        "Narrow symmetric trough",
+        "Steep-entry, gentle-exit trough",
+    )
     for column, (geometry, snapshots) in enumerate(zip(selected, all_snapshots)):
+        axis = axes[column]
         left_side, right_side = side_locations(geometry)
         x = np.linspace(left_side, right_side, 801)
         bed = bed_height(x, geometry)
-        for row, snapshot in enumerate(snapshots):
-            axis = axes[row, column]
-            axis.fill_between(x, bed, np.min(bed) - 10.0, color="0.88")
-            axis.plot(x, bed, color="0.25", linewidth=0.8)
-            axis.axhline(0.0, color="0.25", linewidth=0.8)
+        axis.fill_between(x, bed, np.min(bed) - 10.0, color="0.88")
+        axis.plot(x, bed, color="0.25", linewidth=0.9)
+        axis.axhline(0.0, color="0.25", linewidth=0.9)
+        for age_index, snapshot in enumerate(snapshots):
             states = snapshot["states"]
             valid = snapshot["valid"]
             valid_pairs = valid[:-1] & valid[1:]
@@ -697,7 +711,8 @@ def save_map_figure(path, resolution=7.5):
                         array=source_midpoints,
                         cmap=cmap,
                         norm=source_norm,
-                        linewidth=2.0,
+                        linewidth=2.2,
+                        zorder=3 + age_index,
                     )
                 )
             overturned = valid & np.isfinite(snapshot["jacobian"])
@@ -710,7 +725,7 @@ def save_map_figure(path, resolution=7.5):
                 facecolors="none",
                 edgecolors="#e41a1c",
                 linewidths=0.6,
-                zorder=4,
+                zorder=9,
             )
             finite_j = snapshot["jacobian"][np.isfinite(snapshot["jacobian"])]
             j_text = ""
@@ -718,40 +733,65 @@ def save_map_figure(path, resolution=7.5):
                 displayed_j = float(np.min(finite_j))
                 if abs(displayed_j) < 0.005:
                     sign = "-" if displayed_j < 0.0 else "+"
-                    j_text = rf", $J_{{min}}\approx 0^{{{sign}}}$"
+                    j_text = rf"; $J_{{\min}}\!\approx\!0^{{{sign}}}$"
                 else:
-                    j_text = rf", $J_{{min}}={displayed_j:.2f}$"
-            axis.text(
-                0.02,
-                0.06,
-                f"{snapshot['age'] / 1000:.1f} kyr{j_text}\n"
-                f"{np.count_nonzero(valid)} markers remain",
-                transform=axis.transAxes,
-                fontsize=8.5,
-                va="bottom",
-            )
-            axis.set(
-                xlim=(left_side, right_side),
-                ylim=(min(-160.0, np.min(bed) - 5.0), 4.0),
-            )
-            if column == 0:
-                axis.set_ylabel("Elevation (m)")
-            if row == 0:
-                axis.set_title(geometry["name"])
-            if row == len(ages) - 1:
-                axis.set_xlabel("Horizontal coordinate (m)")
+                    j_text = rf"; $J_{{\min}}\!=\!{displayed_j:.2f}$"
+            valid_indices = np.flatnonzero(valid)
+            if len(valid_indices):
+                label_index = valid_indices[
+                    min(
+                        int(label_fractions[age_index] * len(valid_indices)),
+                        len(valid_indices) - 1,
+                    )
+                ]
+                age_label = f"{snapshot['age'] / 1000:.1f} kyr{j_text}"
+                axis.annotate(
+                    age_label,
+                    xy=states[label_index],
+                    xytext=label_offsets[age_index],
+                    textcoords="offset points",
+                    ha=(
+                        "center"
+                        if age_index == 0
+                        else "right"
+                        if age_index == len(ages) - 1
+                        else "left"
+                    ),
+                    va="center",
+                    fontsize=8.0,
+                    color="0.12",
+                    bbox={
+                        "boxstyle": "round,pad=0.12",
+                        "facecolor": "white",
+                        "edgecolor": "none",
+                        "alpha": 0.78,
+                    },
+                    zorder=10,
+                )
+        axis.set(
+            xlim=(left_side, right_side),
+            ylim=(min(-160.0, np.min(bed) - 5.0), 4.0),
+            xlabel="Horizontal coordinate (m)",
+        )
+        axis.set_title(
+            f"{'AB'[column]}.  {panel_titles[column]}",
+            loc="left",
+            fontsize=12,
+            fontweight="bold",
+        )
+        axis.grid(color="0.92", linewidth=0.5, zorder=0)
+    axes[0].set_ylabel("Elevation (m)")
+    axes[1].tick_params(labelleft=False)
     scalar_mappable = plt.cm.ScalarMappable(norm=source_norm, cmap=cmap)
     scalar_mappable.set_array([])
+    colorbar_axis = figure.add_axes((0.20, 0.075, 0.60, 0.035))
     colorbar = figure.colorbar(
         scalar_mappable,
-        ax=axes,
+        cax=colorbar_axis,
         orientation="horizontal",
-        fraction=0.035,
-        pad=0.035,
-        aspect=45,
     )
     colorbar.set_label(r"Deposition coordinate $x_0$ (m)")
-    axes[0, 0].legend(
+    figure.legend(
         handles=[
             Line2D(
                 [0],
@@ -767,8 +807,8 @@ def save_map_figure(path, resolution=7.5):
             )
         ],
         frameon=False,
-        loc="center",
-        bbox_to_anchor=(0.5, 0.62),
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.145),
         fontsize=8.5,
     )
     figure.savefig(path, dpi=220)

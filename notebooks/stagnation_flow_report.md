@@ -109,6 +109,12 @@ high-relief, strongly asymmetric part of the slice. The plotted (J=0)
 contour is therefore evidence for a transition within this specified slice,
 not a universal boundary for convergent glaciers.
 
+The phase-map figure pairs the heat map with a schematic of the exact
+piecewise-sinusoidal geometry. Dimension arrows define the vertical bed
+relief $\Delta b$, vertical ice thickness $H$, and the two horizontal flank
+lengths $L_{\rm left}$ and $L_{\rm right}$; no particular sampled geometry is
+singled out.
+
 A mesh-stable bracket occurs at (q=7):
 
 | (\Delta b/H) | (J_{\min}), coarse | medium | fine | refined map |
