@@ -1,5 +1,7 @@
 """Sensitivity checks for the symmetric-ellipse parameter map."""
 
+import argparse
+
 from pathlib import Path
 
 import pandas as pd
@@ -33,9 +35,34 @@ CHECKS = [
 ]
 
 
+DENSE_CHECKS = [
+    # The Hb=10 m edge is thinner than the production target spacing, so use
+    # a 5 m mesh before interpreting the newly added first column.
+    ("thin-boundary extension", 10.0, 130.0, 5.0, 0.5, 801, 4_000.0),
+    # Combined finer-mesh, time-step, and source-order checks on both sides
+    # of a newly resolved transition.
+    ("dense transition, negative", 30.0, 130.0, 7.5, 0.5, 801, 4_000.0),
+    ("dense transition, positive", 40.0, 130.0, 7.5, 0.5, 801, 4_000.0),
+    # Exact H_center/H_boundary=2 examples with opposite outcomes.
+    ("two-to-one, negative", 100.0, 200.0, 7.5, 0.5, 801, 4_000.0),
+    ("two-to-one, positive", 110.0, 220.0, 7.5, 0.5, 801, 4_000.0),
+    # The high-thickness continuation of the diagonal band and its neighbor.
+    ("extended band, negative", 190.0, 260.0, 7.5, 0.5, 801, 4_000.0),
+    ("extended band, positive", 180.0, 260.0, 7.5, 0.5, 801, 4_000.0),
+]
+
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--dense-only",
+        action="store_true",
+        help="Run the seven combined refinement checks for the dense map",
+    )
+    args = parser.parse_args()
+    checks = DENSE_CHECKS if args.dense_only else CHECKS
     rows = []
-    for check, boundary, center, resolution, time_step, sources, age in CHECKS:
+    for check, boundary, center, resolution, time_step, sources, age in checks:
         print(
             f"{check}: H_boundary={boundary:g}, H_center={center:g}, "
             f"dx={resolution:g}, dt={time_step:g}, N={sources}, age={age:g}",
@@ -62,17 +89,22 @@ def main():
             }
             | result
         )
+        fixed_j = result["minimum fixed-interior J"]
+        fixed_text = "NA" if fixed_j is None else f"{fixed_j:.6f}"
         print(
             f"  raw J={result['minimum J']:.6f}; "
-            f"fixed-interior J={result['minimum fixed-interior J']:.6f}; "
+            f"fixed-interior J={fixed_text}; "
             f"interior end={result['fixed-interior evaluation end age (yr)']:.0f} yr",
             flush=True,
         )
     repository = Path(__file__).resolve().parents[1]
+    filename = (
+        "realistic_geometry_elliptical_parameter_dense_validation.csv"
+        if args.dense_only
+        else "realistic_geometry_elliptical_parameter_validation.csv"
+    )
     pd.DataFrame(rows).to_csv(
-        repository
-        / "data"
-        / "realistic_geometry_elliptical_parameter_validation.csv",
+        repository / "data" / filename,
         index=False,
         na_rep="NA",
     )

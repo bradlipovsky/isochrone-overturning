@@ -14,6 +14,12 @@ fixed.  Each cell reports the minimum horizontal material-map derivative
 times.  ``J`` is obtained from the variational equation
 ``dF/dt = grad(u) F`` along each trajectory, so it does not rely on finite
 differences between the last surviving markers at a surface exit.
+
+The Stokes problem and all scalar diagnostics are invariant under horizontal
+reflection, which maps ``q = L_right / L_left`` to ``1 / q``.  The screen is
+therefore solved for ``q >= 1`` and copied exactly to reciprocal ``q < 1``
+cells, with left/right and signed-coordinate fields reflected explicitly.
+Selected direct ``q < 1`` solves in the validation table test this symmetry.
 """
 
 from __future__ import annotations
@@ -40,8 +46,11 @@ FIGURE_STEM = OUTPUT_DIRECTORY / "convergent_flow_geometry_phase_map"
 
 TOTAL_LENGTH = 6_000.0
 THICKNESS = 200.0
-LENGTH_RATIOS = np.arange(1.0, 10.0, 1.0)
-RELIEF_RATIOS = np.arange(0.25, 2.51, 0.25)
+DIRECT_LENGTH_RATIOS = np.r_[np.arange(1.0, 11.0, 1.0), 12.0]
+LENGTH_RATIOS = np.sort(
+    np.r_[1.0 / DIRECT_LENGTH_RATIOS[1:], DIRECT_LENGTH_RATIOS]
+)
+RELIEF_RATIOS = np.arange(0.25, 4.01, 0.25)
 SCREEN_MESH = (180, 24)
 
 
@@ -123,6 +132,140 @@ def material_map_metrics(family: dict) -> dict:
     }
 
 
+def flow_dynamics_metrics(result: dict) -> dict:
+    """Diagnose mass balance, shear, and genuine counter-slope flow."""
+    diagnostics = result["diagnostics"]
+    x = result["x"]
+    X = result["X"]
+    Z = result["Z"]
+    u = result["values"][..., 0]
+
+    # The horizontal shear term enters the tangent equation directly through
+    # dF_x/dt = u_x F_x + u_z F_z.  Sample away from the outermost rows and
+    # columns, where one-sided interpolation derivatives are least accurate.
+    sample_X = X[2:-2:4, 3:-3:5]
+    sample_Z = Z[2:-2:4, 3:-3:5]
+    points = np.column_stack((sample_X.ravel(), sample_Z.ravel()))
+    gradients = result["geometry"]["velocity_gradient"](points)
+    horizontal_shear = np.abs(gradients[:, 0, 1])
+    horizontal_compression = np.maximum(-gradients[:, 0, 0], 0.0)
+
+    # "Counterflow" is defined relative to the local bed/surface descent:
+    # u < 0 on the left flank or u > 0 on the right flank.  Exclude only a
+    # narrow 30 m strip at the non-differentiable join and require at least
+    # one percent of the domain-wide maximum |u| for the area fraction.
+    away_from_join = np.abs(X) >= 0.005 * TOTAL_LENGTH
+    counter = away_from_join & (
+        ((X < 0.0) & (u < 0.0)) | ((X > 0.0) & (u > 0.0))
+    )
+    maximum_abs_u = float(np.nanmax(np.abs(u)))
+    significant_counter = counter & (
+        np.abs(u) >= 0.01 * max(maximum_abs_u, 1.0e-12)
+    )
+    maximum_counter_speed = (
+        float(np.nanmax(np.abs(u[counter]))) if np.any(counter) else 0.0
+    )
+
+    # Locate the internal surface-u zero.  Its displacement from x=0 is the
+    # width of the surface counter-slope reach on the long flank.
+    surface_u = result["geometry"]["surface_velocity"](x)[:, 0]
+    crossings = np.flatnonzero(
+        (surface_u[:-1] >= 0.0) & (surface_u[1:] <= 0.0)
+    )
+    crossings = crossings[(crossings > 2) & (crossings < len(x) - 4)]
+    roots = []
+    for index in crossings:
+        denominator = surface_u[index + 1] - surface_u[index]
+        if abs(denominator) > 1.0e-14:
+            roots.append(
+                x[index]
+                - surface_u[index]
+                * (x[index + 1] - x[index])
+                / denominator
+            )
+    confluence_x = min(roots, key=abs) if roots else np.nan
+
+    return {
+        "peak_required_ablation_m_per_yr": float(
+            -diagnostics["minimum_surface_mass_balance"]
+        ),
+        "peak_accumulation_m_per_yr": float(
+            diagnostics["maximum_surface_mass_balance"]
+        ),
+        "maximum_upwelling_m_per_yr": float(
+            diagnostics["maximum_nodal_w"]
+        ),
+        "maximum_downwelling_m_per_yr": float(
+            -diagnostics["minimum_nodal_w"]
+        ),
+        "maximum_horizontal_shear_rate_per_yr": float(
+            np.nanmax(horizontal_shear)
+        ),
+        "maximum_horizontal_compression_rate_per_yr": float(
+            np.nanmax(horizontal_compression)
+        ),
+        "surface_confluence_x_m": float(confluence_x),
+        "surface_counter_slope_reach_m": float(abs(confluence_x)),
+        "maximum_counterflow_speed_m_per_yr": maximum_counter_speed,
+        "significant_counterflow_area_fraction": float(
+            np.count_nonzero(significant_counter)
+            / np.count_nonzero(away_from_join)
+        ),
+    }
+
+
+def trajectory_path_metrics(result: dict) -> dict:
+    """Count basin crossings, horizontal turns, and sampled recirculation."""
+    trajectory_count = 0
+    crossing_count = 0
+    reversal_count = 0
+    return_after_crossing_count = 0
+    closed_count = 0
+    maximum_overshoot = 0.0
+    for family in result["families"]:
+        for source_index, source_x in enumerate(family["source_x"]):
+            positions = family["positions"][:, source_index]
+            positions = positions[np.all(np.isfinite(positions), axis=1)]
+            if len(positions) < 3:
+                continue
+            dx = np.diff(positions[:, 0])
+            resolved_dx = dx[np.abs(dx) > 0.01]
+            if not len(resolved_dx):
+                continue
+            trajectory_count += 1
+            directions = np.sign(resolved_dx)
+            if np.any(directions[1:] != directions[:-1]):
+                reversal_count += 1
+            crossed = positions[:, 0] * source_x < 0.0
+            if np.any(crossed):
+                crossing_count += 1
+                first_crossing = int(np.flatnonzero(crossed)[0])
+                overshoot = np.maximum(
+                    -np.sign(source_x) * positions[:, 0], 0.0
+                )
+                maximum_overshoot = max(
+                    maximum_overshoot, float(np.max(overshoot))
+                )
+                after_crossing_dx = np.diff(positions[first_crossing:, 0])
+                if np.any(after_crossing_dx * np.sign(source_x) > 0.01):
+                    return_after_crossing_count += 1
+            if np.linalg.norm(positions[-1] - positions[0]) < 50.0:
+                closed_count += 1
+    denominator = max(trajectory_count, 1)
+    return {
+        "sampled_trajectory_count": trajectory_count,
+        "basin_crossing_trajectory_fraction": crossing_count / denominator,
+        "horizontal_reversal_trajectory_fraction": (
+            reversal_count / denominator
+        ),
+        "return_after_crossing_trajectory_fraction": (
+            return_after_crossing_count / denominator
+        ),
+        "closed_or_recirculating_trajectory_count": closed_count,
+        "maximum_basin_overshoot_m": maximum_overshoot,
+    }
+
+
 def summarize_result(result: dict) -> dict:
     """Return scalar phase-map diagnostics and conservative validity tests."""
     diagnostics = result["diagnostics"]
@@ -130,6 +273,14 @@ def summarize_result(result: dict) -> dict:
         family["name"]: material_map_metrics(family)
         for family in result["families"]
     }
+    dynamics = flow_dynamics_metrics(result)
+    short_length = min(convergent.LEFT_LENGTH, convergent.RIGHT_LENGTH)
+    left_peak_slope = (
+        0.5 * np.pi * convergent.RELIEF / convergent.LEFT_LENGTH
+    )
+    right_peak_slope = (
+        0.5 * np.pi * convergent.RELIEF / convergent.RIGHT_LENGTH
+    )
     minimum = float(diagnostics.get("minimum_Jx", np.nan))
     minimum_family = min(
         family_metrics,
@@ -205,14 +356,14 @@ def summarize_result(result: dict) -> dict:
         and energy_ok
         and basal_ok
     )
-    return {
+    summary = {
         "valid": bool(valid),
         "status": "valid" if valid else "failed_diagnostic",
         "minimum_Jx": minimum,
-        "left_source_minimum_Jx": family_metrics.get("left_steep", {}).get(
+        "left_source_minimum_Jx": family_metrics.get("left_flank", {}).get(
             "minimum_Jx", np.nan
         ),
-        "right_source_minimum_Jx": family_metrics.get("right_gentle", {}).get(
+        "right_source_minimum_Jx": family_metrics.get("right_flank", {}).get(
             "minimum_Jx", np.nan
         ),
         "minimum_Jx_neighbor_difference": min(
@@ -280,7 +431,19 @@ def summarize_result(result: dict) -> dict:
             "rms_basal_normal_speed"
         ],
         "accumulation_intervals": diagnostics["accumulation_intervals"],
+        "left_flank_peak_slope": left_peak_slope,
+        "right_flank_peak_slope": right_peak_slope,
+        "short_flank_peak_slope": max(left_peak_slope, right_peak_slope),
+        "short_flank_dimensionless_center_curvature": (
+            THICKNESS
+            * 0.5
+            * np.pi**2
+            * convergent.RELIEF
+            / short_length**2
+        ),
     }
+    summary.update(dynamics)
+    return summary
 
 
 def run_case(
@@ -308,10 +471,19 @@ def run_case(
         "time_step_yr": 50.0,
         "sampler_nx": 1201,
         "sampler_nsigma": 101,
+        "solution_provenance": "direct_solve",
         "error": "",
     }
     try:
         result = convergent.diagnose_resolution(nx, nz, trace=True)
+        # The base solver's historical names assumed q > 1.  Location-based
+        # names remain correct for both direct reciprocal validation cases.
+        for family in result["families"]:
+            family["name"] = (
+                "left_flank"
+                if np.nanmean(family["source_x"]) < 0.0
+                else "right_flank"
+            )
         row.update(summarize_result(result))
         return row, result
     except Exception as error:  # retain invalid cells rather than hiding them
@@ -331,17 +503,65 @@ def screen_worker(arguments: tuple[float, float, int, int]) -> dict:
     """Process-safe wrapper that returns only serializable diagnostics."""
     length_ratio, relief_ratio, nx, nz = arguments
     row, _ = run_case(length_ratio, relief_ratio, nx, nz)
+    # A regular sampling point can land exactly on an element-search edge in
+    # an otherwise valid curved mesh.  Retry only that point-location failure
+    # with one additional horizontal column; neighboring 179/181-column tests
+    # agree to 5e-5 in J for the sole screen cell that triggers this path.
+    if (
+        not bool(row.get("valid", False))
+        and row.get("status") == "PointNotInDomainError"
+    ):
+        row, _ = run_case(length_ratio, relief_ratio, nx + 1, nz)
+        if bool(row.get("valid", False)):
+            row["solution_provenance"] = "direct_solve_mesh_edge_retry"
     return row
 
 
+def reflected_row(row: dict) -> dict:
+    """Reflect a q>1 scalar result to its exact reciprocal geometry."""
+    reflected = dict(row)
+    ratio = float(row["right_to_left_length_ratio"])
+    if ratio <= 1.0:
+        raise ValueError("Only q > 1 rows have a distinct reciprocal")
+    reflected["right_to_left_length_ratio"] = 1.0 / ratio
+    reflected["left_length_m"] = row["right_length_m"]
+    reflected["right_length_m"] = row["left_length_m"]
+    reflected["solution_provenance"] = "exact_horizontal_reflection"
+    reflected["source_x_at_minimum_Jx_m"] = -row.get(
+        "source_x_at_minimum_Jx_m", np.nan
+    )
+    reflected["surface_confluence_x_m"] = -row.get(
+        "surface_confluence_x_m", np.nan
+    )
+    reflected["left_source_minimum_Jx"] = row.get(
+        "right_source_minimum_Jx", np.nan
+    )
+    reflected["right_source_minimum_Jx"] = row.get(
+        "left_source_minimum_Jx", np.nan
+    )
+    reflected["left_flank_peak_slope"] = row.get(
+        "right_flank_peak_slope", np.nan
+    )
+    reflected["right_flank_peak_slope"] = row.get(
+        "left_flank_peak_slope", np.nan
+    )
+    family_swap = {
+        "left_flank": "right_flank",
+        "right_flank": "left_flank",
+    }
+    for column in ("minimum_Jx_family", "first_negative_family"):
+        reflected[column] = family_swap.get(row.get(column), row.get(column))
+    return reflected
+
+
 def run_screen(workers: int = 1) -> pd.DataFrame:
-    """Run the full geometry grid and checkpoint after every solve."""
+    """Solve q >= 1 and fill q < 1 by exact horizontal reflection."""
     OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
     rows = []
     cases = [
         (length_ratio, relief_ratio, SCREEN_MESH[0], SCREEN_MESH[1])
         for relief_ratio in RELIEF_RATIOS
-        for length_ratio in LENGTH_RATIOS
+        for length_ratio in DIRECT_LENGTH_RATIOS
     ]
     with ProcessPoolExecutor(max_workers=workers) as executor:
         future_cases = {
@@ -351,6 +571,8 @@ def run_screen(workers: int = 1) -> pd.DataFrame:
             case = future_cases[future]
             row = future.result()
             rows.append(row)
+            if case[0] > 1.0:
+                rows.append(reflected_row(row))
             print(
                 "PHASE MAP COMPLETE "
                 f"Lr/Ll={case[0]:g}, relief/H={case[1]:g}: "
@@ -428,8 +650,16 @@ def rerun_material_map(result: dict, source_count: int, time_step: float) -> dic
         if interior_negative_metrics
         else {}
     )
-    fixed_3000 = min(fixed_age_minima[3000.0], key=lambda item: item[0])
-    fixed_4000 = min(fixed_age_minima[4000.0], key=lambda item: item[0])
+    fixed_3000 = (
+        min(fixed_age_minima[3000.0], key=lambda item: item[0])
+        if fixed_age_minima[3000.0]
+        else (np.nan, np.nan)
+    )
+    fixed_4000 = (
+        min(fixed_age_minima[4000.0], key=lambda item: item[0])
+        if fixed_age_minima[4000.0]
+        else (np.nan, np.nan)
+    )
     return {
         "minimum_Jx": minimum["minimum_Jx"],
         "minimum_Jx_neighbor_difference": min(
@@ -477,16 +707,22 @@ def rerun_material_map(result: dict, source_count: int, time_step: float) -> dic
 
 
 def run_validation() -> pd.DataFrame:
-    """Refine a baseline, a contour-bracketing pair, and an extreme case."""
+    """Refine transition/extreme cases and test reciprocal symmetry."""
     rows = []
     cases = (
-        ("baseline", 5.0, 0.75),
+        ("symmetric_high_relief", 1.0, 4.00),
         ("transition_positive", 7.0, 2.25),
         ("transition_negative", 7.0, 2.50),
-        ("overturned", 9.0, 2.50),
+        ("reciprocal_left_direct", 0.125, 3.50),
+        ("reciprocal_right_direct", 8.0, 3.50),
+        ("extended_extreme", 12.0, 4.00),
     )
-    meshes = ((120, 16), (180, 24), (240, 32))
     for name, length_ratio, relief_ratio in cases:
+        meshes = (
+            ((180, 24), (240, 32), (300, 40))
+            if name == "extended_extreme"
+            else ((120, 16), (180, 24), (240, 32))
+        )
         for nx, nz in meshes:
             print(
                 f"\nVALIDATION {name}: Lr/Ll={length_ratio:g}, "
@@ -496,6 +732,8 @@ def run_validation() -> pd.DataFrame:
             row, result = run_case(length_ratio, relief_ratio, nx, nz)
             row["case"] = name
             row["marker_variant"] = "81 sources, 50 yr"
+            if result is not None:
+                row.update(trajectory_path_metrics(result))
             rows.append(row)
             if result is not None and (nx, nz) == meshes[-1]:
                 variants = ((81, 25.0), (161, 25.0), (321, 25.0), (321, 12.5))
@@ -522,7 +760,7 @@ def run_validation() -> pd.DataFrame:
                         refined["minimum_Jx"] = np.nan
                         refined["error"] = str(error)
                     rows.append(refined)
-                if name == "overturned":
+                if name == "extended_extreme":
                     for sampler_nx, sampler_nsigma in ((601, 51), (1601, 151)):
                         sampled = row.copy()
                         sampled["source_count_per_family"] = 161
@@ -564,8 +802,17 @@ def run_validation() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def coordinate_edges(values: np.ndarray) -> np.ndarray:
-    """Cell edges for a one-dimensional array of centers."""
+def coordinate_edges(
+    values: np.ndarray, *, logarithmic: bool = False
+) -> np.ndarray:
+    """Cell edges for linearly or logarithmically displayed centers."""
+    if logarithmic:
+        midpoints = np.sqrt(values[:-1] * values[1:])
+        return np.r_[
+            values[0] ** 2 / midpoints[0],
+            midpoints,
+            values[-1] ** 2 / midpoints[-1],
+        ]
     midpoints = 0.5 * (values[:-1] + values[1:])
     return np.r_[
         values[0] - (midpoints[0] - values[0]),
@@ -597,7 +844,7 @@ def draw_geometry_schematic(axis: plt.Axes) -> None:
     axis.text(
         2.45,
         1.41,
-        r"surface $s(x)=b(x)+H$",
+        "surface",
         color="#2C6E9B",
         fontsize=8.5,
         ha="right",
@@ -715,41 +962,36 @@ def draw_geometry_schematic(axis: plt.Axes) -> None:
         fontsize=10,
     )
 
+    # Put the defining equation and scale warning below the drawing, following
+    # the convention used in the elliptical-trough parameter figure.
     axis.text(
-        0.02,
-        0.97,
+        0.5,
+        -0.60,
         (
-            r"$b(x)=\Delta b\,\sin^2[\pi |x|/(2L_{\rm side})]$"
-            "\n"
-            r"$L_{\rm side}=L_{\rm left}$ for $x<0$; "
-            r"$L_{\rm side}=L_{\rm right}$ for $x>0$"
+            r"$b(x)=\Delta b\,\sin^2[\pi |x|/(2L_{\rm side})]$,  "
+            r"$s(x)=b(x)+H$"
         ),
-        transform=axis.transAxes,
-        ha="left",
+        ha="center",
         va="top",
-        fontsize=8.2,
-        color="0.25",
-        bbox={
-            "facecolor": "white",
-            "edgecolor": "none",
-            "alpha": 0.88,
-            "pad": 1.5,
-        },
+        fontsize=8.7,
+        color="0.2",
     )
     axis.text(
-        0.98,
-        0.62,
-        "schematic; vertical scale exaggerated",
-        transform=axis.transAxes,
-        ha="right",
+        0.5,
+        -0.74,
+        (
+            r"$L_{\rm side}=L_{\rm left}$ for $x<0$ and "
+            r"$L_{\rm right}$ for $x>0$; vertical scale exaggerated"
+        ),
+        ha="center",
         va="top",
-        fontsize=7.5,
+        fontsize=7.6,
         color="0.35",
         style="italic",
     )
     axis.set(
         xlim=(-1.43, 2.68),
-        ylim=(-0.49, 1.55),
+        ylim=(-0.88, 1.55),
         title="(a) Geometry and parameter definitions",
     )
     axis.set_aspect("equal", adjustable="box")
@@ -757,92 +999,142 @@ def draw_geometry_schematic(axis: plt.Axes) -> None:
 
 
 def make_figure(table: pd.DataFrame) -> None:
-    """Plot the model geometry and minimum J phase map side by side."""
+    """Plot geometry, overturning, ablation, and tangent-driving shear."""
     ratios = np.sort(table["right_to_left_length_ratio"].unique())
     reliefs = np.sort(table["relief_to_thickness_ratio"].unique())
-    values = np.full((len(reliefs), len(ratios)), np.nan)
-    invalid = np.ones_like(values, dtype=bool)
-    for _, row in table.iterrows():
-        iy = int(np.flatnonzero(reliefs == row["relief_to_thickness_ratio"])[0])
-        ix = int(np.flatnonzero(ratios == row["right_to_left_length_ratio"])[0])
-        if bool(row.get("valid", False)) and np.isfinite(row["minimum_Jx"]):
-            values[iy, ix] = row["minimum_Jx"]
-            invalid[iy, ix] = False
+    x_edges = coordinate_edges(ratios, logarithmic=True)
+    y_edges = coordinate_edges(reliefs)
 
-    finite = values[np.isfinite(values)]
-    if not finite.size:
+    def values_for(column: str) -> np.ndarray:
+        values = np.full((len(reliefs), len(ratios)), np.nan)
+        for _, row in table.iterrows():
+            iy = int(
+                np.flatnonzero(
+                    np.isclose(reliefs, row["relief_to_thickness_ratio"])
+                )[0]
+            )
+            ix = int(
+                np.flatnonzero(
+                    np.isclose(ratios, row["right_to_left_length_ratio"])
+                )[0]
+            )
+            if bool(row.get("valid", False)) and np.isfinite(row.get(column)):
+                values[iy, ix] = row[column]
+        return values
+
+    minimum_J = values_for("minimum_Jx")
+    ablation = values_for("peak_required_ablation_m_per_yr")
+    shear = 1.0e3 * values_for("maximum_horizontal_shear_rate_per_yr")
+    finite_J = minimum_J[np.isfinite(minimum_J)]
+    if not finite_J.size:
         raise RuntimeError("No valid phase-map cells to plot")
-    limit = max(1.0, float(np.max(np.abs(finite))))
-    cmap = plt.get_cmap("RdBu_r").copy()
-    cmap.set_bad("0.75")
-    norm = TwoSlopeNorm(vmin=-limit, vcenter=0.0, vmax=limit)
 
-    fig = plt.figure(figsize=(13.2, 5.9), constrained_layout=True)
+    cmap = plt.get_cmap("RdBu").copy()
+    cmap.set_bad("0.75")
+    norm = TwoSlopeNorm(
+        vmin=float(np.nanmin(finite_J)),
+        vcenter=0.0,
+        vmax=float(np.nanmax(finite_J)),
+    )
+
+    fig = plt.figure(figsize=(13.2, 9.6), constrained_layout=True)
     grid = fig.add_gridspec(
+        3,
         2,
-        2,
-        width_ratios=(1.05, 1.75),
-        height_ratios=(1.0, 0.07),
+        width_ratios=(1.0, 1.17),
+        height_ratios=(1.0, 1.0, 0.08),
     )
     schematic_axis = fig.add_subplot(grid[0, 0])
-    axis = fig.add_subplot(grid[0, 1])
-    caption_axis = fig.add_subplot(grid[1, :])
+    j_axis = fig.add_subplot(grid[0, 1])
+    ablation_axis = fig.add_subplot(grid[1, 0])
+    shear_axis = fig.add_subplot(grid[1, 1])
+    caption_axis = fig.add_subplot(grid[2, :])
     caption_axis.axis("off")
     draw_geometry_schematic(schematic_axis)
-    image = axis.pcolormesh(
-        coordinate_edges(ratios),
-        coordinate_edges(reliefs),
-        np.ma.masked_invalid(values),
+
+    j_image = j_axis.pcolormesh(
+        x_edges,
+        y_edges,
+        np.ma.masked_invalid(minimum_J),
         cmap=cmap,
         norm=norm,
         shading="flat",
-        edgecolors="0.85",
-        linewidth=0.35,
+        edgecolors="0.88",
+        linewidth=0.25,
     )
-    if np.nanmin(values) < 0.0 < np.nanmax(values):
-        contour = axis.contour(
-            ratios,
-            reliefs,
-            values,
-            levels=(0.0,),
-            colors="black",
-            linewidths=1.4,
-        )
-        axis.clabel(contour, fmt={0.0: "J = 0"}, fontsize=9)
-    invalid_y, invalid_x = np.where(invalid)
-    if len(invalid_x):
-        axis.scatter(
-            ratios[invalid_x],
-            reliefs[invalid_y],
-            marker="x",
-            color="0.2",
-            linewidth=1.2,
-            label="invalid solve/diagnostic",
-        )
-    axis.set(
-        xlabel=r"flank-length ratio $L_{\mathrm{right}}/L_{\mathrm{left}}$",
+    j_axis.set(
         ylabel=r"bed-relief ratio $\Delta b/H$",
         title=r"(b) Minimum tangent-map $J=\partial x/\partial x_0$",
-        xticks=ratios,
-        yticks=reliefs,
     )
-    if len(invalid_x):
-        axis.legend(
-            frameon=True,
-            facecolor="white",
-            framealpha=0.9,
-            loc="upper left",
+    j_colorbar = fig.colorbar(j_image, ax=j_axis, pad=0.02)
+    j_colorbar.set_label(r"minimum variational $J$ over full residence")
+
+    diagnostic_specs = (
+        (
+            ablation_axis,
+            ablation,
+            "magma",
+            "(c) Peak required surface ablation",
+            r"$\max(-\dot a,0)$ (m yr$^{-1}$)",
+        ),
+        (
+            shear_axis,
+            shear,
+            "viridis",
+            r"(d) Peak horizontal shear $|\partial u/\partial z|$",
+            r"maximum shear ($10^{-3}$ yr$^{-1}$)",
+        ),
+    )
+    for axis, values, color_map, title, label in diagnostic_specs:
+        image = axis.pcolormesh(
+            x_edges,
+            y_edges,
+            np.ma.masked_invalid(values),
+            cmap=color_map,
+            shading="flat",
+            edgecolors="0.88",
+            linewidth=0.25,
         )
-    colorbar = fig.colorbar(image, ax=axis, extend="neither")
-    colorbar.set_label(r"minimum variational $J$ over full marker residence")
+        axis.set(
+            xlabel=(
+                r"flank-length ratio "
+                r"$q=L_{\mathrm{right}}/L_{\mathrm{left}}$"
+            ),
+            ylabel=r"bed-relief ratio $\Delta b/H$",
+            title=title,
+        )
+        colorbar = fig.colorbar(image, ax=axis, pad=0.02)
+        colorbar.set_label(label)
+
+    tick_values = np.array((1 / 12, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 12))
+    tick_labels = (
+        r"$1/12$",
+        r"$1/8$",
+        r"$1/4$",
+        r"$1/2$",
+        r"$1$",
+        r"$2$",
+        r"$4$",
+        r"$8$",
+        r"$12$",
+    )
+    for axis in (j_axis, ablation_axis, shear_axis):
+        axis.set_xscale("log")
+        axis.set_xlim(x_edges[0], x_edges[-1])
+        axis.set_ylim(y_edges[0], y_edges[-1])
+        axis.set_xticks(tick_values, tick_labels)
+        axis.set_yticks(np.arange(0.5, 4.01, 0.5))
+        axis.minorticks_off()
     caption_axis.text(
         0.5,
         0.5,
         (
-            r"Phase map fixes $L_{\rm left}+L_{\rm right}=6$ km, "
+            r"Fixed: $L_{\rm left}+L_{\rm right}=6$ km, "
             r"$H=200$ m, "
             r"$C=10^{-5}$ m Pa$^{-1}$ yr$^{-1}$"
-            r", $\eta=2.5\times10^8$ Pa yr, boundary treatment, and resolution."
+            r", $\eta=2.5\times10^8$ Pa yr, boundary treatment, and resolution.  "
+            r"Cells at $q<1$ are exact horizontal reflections of reciprocal "
+            r"direct solves at $q>1$."
         ),
         transform=caption_axis.transAxes,
         ha="center",

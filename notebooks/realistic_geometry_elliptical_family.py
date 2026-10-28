@@ -398,6 +398,9 @@ def trace_surface_map(
             "fixed-interior source count": 0,
             "fixed-interior source span (m)": None,
             "fixed-interior evaluation end age (yr)": None,
+            "first fixed-interior negative age (yr)": None,
+            "first fixed-interior negative minimum J": None,
+            "fixed-interior censoring": "no accumulation sources",
         }
 
     margin = int(np.ceil(0.10 * len(sources)))
@@ -425,6 +428,7 @@ def trace_surface_map(
         "minimum fixed-interior J": np.inf,
         "age of minimum fixed-interior J (yr)": np.nan,
     }
+    interior_first_negative = None
     interior_open = True
     interior_end_age = 0.0
     for step_index in range(int(np.ceil(maximum_age / time_step)) + 1):
@@ -446,6 +450,11 @@ def trace_surface_map(
             interior_finite = np.isfinite(interior_jacobian)
             if np.any(interior_finite):
                 interior_minimum = float(np.nanmin(interior_jacobian))
+                if interior_first_negative is None and interior_minimum < 0.0:
+                    interior_first_negative = {
+                        "age (yr)": age,
+                        "minimum J": interior_minimum,
+                    }
                 if (
                     interior_minimum
                     < interior_best["minimum fixed-interior J"]
@@ -512,6 +521,23 @@ def trace_surface_map(
                 np.ptp(sources[fixed_interior])
             ),
             "fixed-interior evaluation end age (yr)": interior_end_age,
+            "first fixed-interior negative age (yr)": (
+                None
+                if interior_first_negative is None
+                else interior_first_negative["age (yr)"]
+            ),
+            "first fixed-interior negative minimum J": (
+                None
+                if interior_first_negative is None
+                else interior_first_negative["minimum J"]
+            ),
+            "fixed-interior censoring": (
+                "J<0 observed"
+                if interior_first_negative is not None
+                else "age ceiling"
+                if interior_end_age >= maximum_age - 0.5 * time_step
+                else "first interior exit"
+            ),
         }
     )
     return best
