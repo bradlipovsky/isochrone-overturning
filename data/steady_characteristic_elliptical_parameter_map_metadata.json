@@ -1,0 +1,65 @@
+{
+  "description": "Direct steady-characteristic minimum-J map for the symmetric elliptical trough family",
+  "method": "dX/dt = v(X), dT/dt = grad(v) T; J = T_x; each source traced to its individual sampled-domain exit",
+  "geometry": {
+    "horizontal_radius_m": 175.0,
+    "horizontal_diameter_m": 350.0,
+    "half_domain_length_m": 128.3121194588,
+    "boundary_thicknesses_m": [10.0, 260.0, 10.0],
+    "center_thicknesses_m": [60.0, 320.0, 10.0],
+    "maximum_bed_slope_relation": "max_abs_bed_slope = 0.0192545197 * (H_c - H_b)"
+  },
+  "production_numerics": {
+    "stokes_target_spacing_m": 10.0,
+    "linear_sliding_law": true,
+    "velocity_sampler": [601, 181],
+    "rk4_step_yr": 10.0,
+    "candidate_source_count": 161,
+    "traced_depositing_source_fraction": 0.9,
+    "plotted_depositing_source_fraction": 0.8,
+    "nested_source_fractions": [0.7, 0.8, 0.9],
+    "initial_safety_ceiling_yr": 120000.0,
+    "extended_safety_ceiling_yr": 500000.0,
+    "extended_cell_count": 6,
+    "side_exit_fraction": 0.994,
+    "bed_exit_sigma": 0.006,
+    "surface_exit_sigma": 0.99994
+  },
+  "grid_counts": {
+    "total": 702,
+    "geometrically_invalid": 231,
+    "no_surface_deposition_source": 50,
+    "complete": 421,
+    "safety_capped_final": 0,
+    "numerical_failure_final": 0
+  },
+  "classification_counts": {
+    "resolved_overturn_J_lt_minus_0.05": 277,
+    "resolved_ordered_J_gt_0.05": 136,
+    "unresolved_abs_J_le_0.05": 5,
+    "unresolved_trim_sensitive_sign": 3
+  },
+  "validation": {
+    "rows": 95,
+    "successful_rows": 86,
+    "no_deposition_rows": 9,
+    "maximum_fixed_step_minus_adaptive_abs_J": 0.0001004011,
+    "maximum_time_step_abs_delta_J": 0.0002813678,
+    "maximum_source_count_abs_delta_J": 0.0065686423,
+    "maximum_sampler_abs_delta_J": 0.0027703723,
+    "maximum_mesh_abs_delta_J": 0.0109054365,
+    "numerical_sign_changes": 0,
+    "numerical_resolution_classification_changes": 1
+  },
+  "legacy_comparison": {
+    "old_overturn_count_2_kyr": 49,
+    "old_overturn_count_8_kyr": 115,
+    "direct_overturn_count": 277,
+    "old_negative_direct_nonnegative_count": 0,
+    "direct_overturns_missed_at_2_kyr_later_crossing": 170,
+    "direct_overturns_missed_at_2_kyr_common_exit_censoring": 58,
+    "direct_overturns_missed_at_8_kyr_later_crossing": 96,
+    "direct_overturns_missed_at_8_kyr_common_exit_censoring": 66
+  },
+  "manuscript_modified": false
+}

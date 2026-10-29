@@ -1,0 +1,38 @@
+{
+  "diagnostic": "steady variational tangent carried to first physical exit",
+  "mapped_quantity": "minimum resolved T_x",
+  "source_flux_quantiles": [
+    0.05,
+    0.95
+  ],
+  "source_trim_interpretation": "defining convention: near-zero-accumulation source endpoints have singular or extremely long residence age",
+  "surface_outflow_buffer_m": 16.666666666666668,
+  "outflow_buffer_application": "only beneath ablating surface",
+  "global_vs_ablation_only_buffer_changed_cell_count": 38,
+  "global_vs_ablation_only_buffer_maximum_absolute_J_change": 0.08006457108106746,
+  "global_vs_ablation_only_buffer_classification_change_count": 0,
+  "screen_mesh": [
+    180,
+    24
+  ],
+  "source_count_per_family": 81,
+  "time_step_yr": 25.0,
+  "maximum_age_safety_cap_yr": 120000.0,
+  "valid_cells": 336,
+  "resolved_overturning_cells": 124,
+  "unresolved_cells": 2,
+  "safety_cap_trajectory_count": 0,
+  "validation_rows": 79,
+  "eulerian_audit_rows": 3,
+  "eulerian_phase_map_rejected": true,
+  "eulerian_rejection_reason": "source-basin separatrix compression contaminates stationary DG tangent extrema",
+  "empirical_short_flank_slope_threshold_isolated_minimum": 0.917,
+  "empirical_short_flank_angle_threshold_isolated_minimum_degrees": 42.52082345847564,
+  "empirical_short_flank_slope_threshold_robust_p01": 1.1,
+  "empirical_short_flank_angle_threshold_robust_p01_degrees": 47.72631099390627,
+  "isolated_slope_threshold_mismatch_count": 8,
+  "robust_slope_threshold_mismatch_count": 8,
+  "last_render_runtime_s": 1.22070625,
+  "summed_direct_screen_case_runtime_s": 856.1478636320002,
+  "summed_validation_case_runtime_s": 347.433559373
+}
