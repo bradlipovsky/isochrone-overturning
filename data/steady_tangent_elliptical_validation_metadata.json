@@ -1,0 +1,10 @@
+{
+  "resolution (m)": 10.0,
+  "source count": 401,
+  "velocity sample grid": [
+    601,
+    181
+  ],
+  "total runtime (s)": 121.78718562499999,
+  "description": "Adaptive steady-characteristic integration of the exact material-tangent variational equation."
+}
