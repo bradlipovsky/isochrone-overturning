@@ -1,0 +1,95 @@
+{
+  "diagnostic method version": "sinusoidal-steady-v2-exact-surface-ablation-only-buffer",
+  "geometry": "b(x) = -H + A cos(2 pi x / lambda), 0 <= x < lambda",
+  "domain": "one exactly periodic wavelength with a flat surface",
+  "dimensionless controls": [
+    "A/H",
+    "lambda/H",
+    "beta H / eta"
+  ],
+  "physical constants": {
+    "viscosity (Pa yr)": 250000000.0,
+    "basal drag (Pa yr/m)": 100000.0,
+    "linear-slip length eta/beta (m)": 2500.0,
+    "surface slope (rad)": 0.05,
+    "Nitsche penalty": 30000.0
+  },
+  "production grid": {
+    "mean thicknesses (m)": [
+      50.0,
+      100.0,
+      160.0,
+      240.0,
+      320.0
+    ],
+    "amplitude / mean thickness": [
+      0.0,
+      0.02,
+      0.05,
+      0.08,
+      0.12,
+      0.18,
+      0.25,
+      0.35,
+      0.45,
+      0.55,
+      0.65,
+      0.75,
+      0.85
+    ],
+    "wavelength / mean thickness": [
+      1.0,
+      1.25,
+      1.5,
+      2.0,
+      2.5,
+      3.0,
+      4.0,
+      5.0,
+      6.0,
+      8.0,
+      10.0,
+      12.0
+    ],
+    "cell count": 780,
+    "mesh nz": 24,
+    "mesh nx rule": "max(64, ceil(8 lambda/H)), rounded to 8",
+    "candidate source count": 241,
+    "retained accumulation-flux fraction": 0.8,
+    "characteristic time step (yr)": 25.0,
+    "safety maximum ages present (yr)": [
+      300000.0,
+      1500000.0
+    ]
+  },
+  "source and metric convention": {
+    "source depth (m)": 0.0,
+    "sources": "all surface accumulation intervals, flux trimmed",
+    "primary": "minimum T_x, excluding only the upper 5% of local thickness beneath an ablating surface",
+    "raw audit": "minimum T_x all the way to individual physical exit"
+  },
+  "result summary": {
+    "status counts": {
+      "success": 720,
+      "analytic flat-bed limit (zero surface mass balance)": 60
+    },
+    "lowest primary J": {
+      "mean thickness (m)": 50.0,
+      "amplitude / mean thickness": 0.85,
+      "wavelength / mean thickness": 3.0,
+      "minimum J": 0.6428095966314928
+    },
+    "lowest raw J": {
+      "mean thickness (m)": 50.0,
+      "amplitude / mean thickness": 0.85,
+      "wavelength / mean thickness": 3.0,
+      "raw minimum J to exit": 0.4427618629373863
+    },
+    "successful primary J < 0 count": 0,
+    "successful raw J < 0 count": 0,
+    "Eulerian-domain counterflow case count": 115,
+    "retained-path counterflow case count": 0,
+    "retained-path velocity-reversal case count": 0,
+    "maximum fixed-geometry J spread across sampled H": 0.010531980363659654
+  }
+}
