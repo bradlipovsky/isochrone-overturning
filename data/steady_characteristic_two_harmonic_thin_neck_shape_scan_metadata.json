@@ -1,0 +1,43 @@
+{
+  "method version": "two-harmonic-positive-maximum-v2-adaptive-grading__sinusoidal-steady-v2-exact-surface-ablation-only-buffer",
+  "mode": "shape",
+  "normalization": "b=-H+A[cos(theta)+q cos(2 theta+phi)]/M; M=max_theta[cos(theta)+q cos(2 theta+phi)]",
+  "normalization invariants": [
+    "mean thickness H",
+    "minimum thickness H-A",
+    "q=0 exactly recovers the one-harmonic bed"
+  ],
+  "wavelength / mean thickness": [
+    3.0
+  ],
+  "vertical grading powers present": [
+    1.0
+  ],
+  "characteristic time steps present (yr)": [
+    12.5
+  ],
+  "candidate source counts present": [
+    321
+  ],
+  "safety maximum ages present (yr)": [
+    5000000.0
+  ],
+  "resolution policy": {
+    "horizontal mesh": "128 columns for A/H >= 0.90; otherwise 96",
+    "vertical mesh": "at least 96 rows for A/H >= 0.90; quadratic endpoint grading only for lambda/H <= 0.25",
+    "thin-neck A/H >= 0.90": "sampler 641 x 321, 321 sources, dt=12.5 yr, maximum age at least 1.5 Myr"
+  },
+  "minimum surface signal / basal leakage": 10.0,
+  "cell count": 121,
+  "status counts": {
+    "success": 121
+  },
+  "lowest primary J": {
+    "minimum J": 0.4478954573303184,
+    "H (m)": 160.0,
+    "A/H": 0.95,
+    "lambda/H": 3.0,
+    "q": 0.125,
+    "phi/(2pi)": 0.75
+  }
+}

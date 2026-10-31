@@ -49,7 +49,8 @@ EXPECTED_AMPLITUDE_RATIOS = np.array(
      0.45, 0.55, 0.65, 0.75, 0.85)
 )
 EXPECTED_WAVELENGTH_RATIOS = np.array(
-    (1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0,
+    (1.0 / 12.0, 1.0 / 8.0, 1.0 / 4.0, 1.0 / 2.0,
+     1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0,
      10.0, 12.0)
 )
 
@@ -65,6 +66,7 @@ COLORS = {
     "censored": "#ead9a4",
     "failed": "#e7c7c7",
     "missing": "#f2f2f2",
+    "screened": "#c9dce8",
     "ice": "#dceef5",
     "bed": "#b9a590",
     "accent": "#6a51a3",
@@ -165,6 +167,8 @@ def status_category(status):
     text = str(status).lower()
     if resolved_status(status):
         return "resolved"
+    if "screened below numerical surface signal" in text:
+        return "screened"
     if text.startswith("invalid"):
         return "invalid"
     if "censor" in text or "safety-cap" in text:
@@ -315,6 +319,7 @@ def _status_underlay(axis, x_edges, y_edges, categories):
         "censored": COLORS["censored"],
         "failed": COLORS["failed"],
         "missing": COLORS["missing"],
+        "screened": COLORS["screened"],
     }
     for category, color in palette.items():
         mask = categories == category
@@ -331,14 +336,14 @@ def _status_underlay(axis, x_edges, y_edges, categories):
             rasterized=True,
             zorder=0,
         )
-        if category in ("censored", "failed"):
+        if category in ("censored", "failed", "screened"):
             rows, columns = np.nonzero(mask)
             axis.scatter(
                 np.sqrt(x_edges[columns] * x_edges[columns + 1]),
                 0.5 * (y_edges[rows] + y_edges[rows + 1]),
-                marker="x",
+                marker=("." if category == "screened" else "x"),
                 color=COLORS["muted"],
-                s=11,
+                s=(7 if category == "screened" else 11),
                 lw=0.55,
                 zorder=4,
             )
@@ -372,8 +377,13 @@ def draw_heatmap(axis, table, mean_thickness, panel_title=None):
     axis.set_xscale("log")
     axis.set_xlim(x_edges[0], x_edges[-1])
     axis.set_ylim(0.0, y_edges[-1])
-    axis.set_xticks((1.0, 2.0, 4.0, 8.0, 12.0))
-    axis.set_xticklabels(("1", "2", "4", "8", "12"))
+    axis.set_xticks((1 / 12, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 12))
+    axis.set_xticklabels(
+        (r"$1/12$", r"$1/8$", r"$1/4$", r"$1/2$", "1", "2", "4", "8", "12"),
+        rotation=35,
+        ha="right",
+        rotation_mode="anchor",
+    )
     axis.set_yticks((0.0, 0.25, 0.5, 0.75))
     axis.grid(False)
     if panel_title is not None:
@@ -395,8 +405,12 @@ def status_legend(table):
         "censored": (COLORS["censored"], "age-censored"),
         "failed": (COLORS["failed"], "unresolved numerical cell"),
         "missing": (COLORS["missing"], "missing"),
+        "screened": (
+            COLORS["screened"],
+            r"surface signal below numerical leakage ($J$ not evaluated)",
+        ),
     }
-    for category in ("invalid", "censored", "failed", "missing"):
+    for category in ("invalid", "censored", "failed", "screened", "missing"):
         if category in categories:
             color, label = labels[category]
             handles.append(Patch(facecolor=color, edgecolor="none", label=label))
@@ -584,6 +598,40 @@ def _thin_neck_audit_values(
     return audit.sort_values(EPSILON_COLUMN)
 
 
+def _thin_neck_wavelength_audits(validation_table, mean_thickness):
+    """Return the finest A/H=0.95 audit at each sampled wavelength."""
+    if validation_table is None or validation_table.empty:
+        return pd.DataFrame(columns=(WAVELENGTH_COLUMN, MINIMUM_COLUMN))
+    required = {
+        "scenario",
+        STATUS_COLUMN,
+        H_COLUMN,
+        EPSILON_COLUMN,
+        WAVELENGTH_COLUMN,
+        MINIMUM_COLUMN,
+    }
+    if not required.issubset(validation_table.columns):
+        return pd.DataFrame(columns=(WAVELENGTH_COLUMN, MINIMUM_COLUMN))
+    audit = validation_table.copy()
+    for column in (H_COLUMN, EPSILON_COLUMN, WAVELENGTH_COLUMN, MINIMUM_COLUMN):
+        audit[column] = pd.to_numeric(audit[column], errors="coerce")
+    audit = audit[
+        audit["scenario"].astype(str).str.contains("A/H=0.95")
+        & audit[STATUS_COLUMN].map(resolved_status)
+        & np.isclose(audit[H_COLUMN], mean_thickness)
+        & np.isclose(audit[EPSILON_COLUMN], 0.95)
+        & np.isfinite(audit[MINIMUM_COLUMN])
+    ].copy()
+    if audit.empty:
+        return audit
+    if "mesh cells" in audit:
+        audit = audit.sort_values("mesh cells")
+    return (
+        audit.drop_duplicates(WAVELENGTH_COLUMN, keep="last")
+        .sort_values(WAVELENGTH_COLUMN)
+    )
+
+
 def _line_data(table, mean_thickness, amplitude=None, wavelength=None):
     subset = resolved_table(table)
     subset = subset[np.isclose(subset[H_COLUMN], mean_thickness)]
@@ -678,7 +726,23 @@ def draw_wavelength_section(axis, table, mean_thickness, selected_amplitude,
             edgecolor=audit_color,
             linewidth=1.0,
             zorder=5,
-            label=r"$A/H=0.65$ asymptotic audits (outside map)",
+            label=r"$A/H=0.65$ regime audits",
+        )
+    thin_neck_wavelengths = _thin_neck_wavelength_audits(
+        validation_table, mean_thickness
+    )
+    if len(thin_neck_wavelengths):
+        axis.plot(
+            thin_neck_wavelengths[WAVELENGTH_COLUMN],
+            thin_neck_wavelengths[MINIMUM_COLUMN],
+            color=COLORS["negative_light"],
+            lw=1.0,
+            ls=(0, (3, 2)),
+            marker="s",
+            ms=3.8,
+            mfc="white",
+            label=r"$A/H=0.95$ thin-neck audits",
+            zorder=5,
         )
     axis.axhline(0.0, color=COLORS["muted"], lw=0.7)
     axis.axhline(1.0, color=COLORS["grid"], lw=0.8, ls=(0, (2, 2)))
@@ -710,12 +774,21 @@ def draw_wavelength_section(axis, table, mean_thickness, selected_amplitude,
         )
     axis.set_xscale("log")
     if len(audit_values):
-        axis.set_xlim(0.45, 26.0)
-        axis.set_xticks((0.5, 1.0, 2.0, 4.0, 8.0, 12.0, 24.0))
-        axis.set_xticklabels(("0.5", "1", "2", "4", "8", "12", "24"))
+        axis.set_xlim(0.07, 26.0)
+        axis.set_xticks(
+            (1 / 12, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 12, 24)
+        )
+        axis.set_xticklabels(
+            (r"$1/12$", r"$1/8$", r"$1/4$", r"$1/2$", "1", "2", "4", "8", "12", "24")
+        )
     else:
-        axis.set_xticks((1.0, 2.0, 4.0, 8.0, 12.0))
-        axis.set_xticklabels(("1", "2", "4", "8", "12"))
+        axis.set_xticks((1 / 12, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 12))
+        axis.set_xticklabels(
+            (r"$1/12$", r"$1/8$", r"$1/4$", r"$1/2$", "1", "2", "4", "8", "12")
+        )
+    for label in axis.get_xticklabels():
+        label.set_rotation(35)
+        label.set_horizontalalignment("right")
     all_values = resolved_table(table)
     all_values = all_values[np.isclose(all_values[H_COLUMN], mean_thickness)]
     displayed_values = all_values[MINIMUM_COLUMN].to_numpy(float)
@@ -728,6 +801,11 @@ def draw_wavelength_section(axis, table, mean_thickness, selected_amplitude,
         displayed_values = np.r_[
             displayed_values,
             audit_values[MINIMUM_COLUMN].to_numpy(float),
+        ]
+    if len(thin_neck_wavelengths):
+        displayed_values = np.r_[
+            displayed_values,
+            thin_neck_wavelengths[MINIMUM_COLUMN].to_numpy(float),
         ]
     minimum = float(np.nanmin(displayed_values))
     axis.set_ylim(min(-0.08, minimum - 0.12), 1.04)
@@ -912,8 +990,12 @@ def draw_flow_diagnostics(axis, table, mean_thickness, amplitude):
         label=r"path $u_{\min}/\max|u|$",
     )[0]
     axis.set_xscale("log")
-    axis.set_xticks((1.0, 2.0, 4.0, 8.0, 12.0))
-    axis.set_xticklabels(("1", "2", "4", "8", "12"))
+    axis.set_xticks((1 / 12, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 12))
+    axis.set_xticklabels(
+        (r"$1/12$", r"$1/8$", r"$1/4$", r"$1/2$", "1", "2", "4", "8", "12"),
+        rotation=35,
+        ha="right",
+    )
     minimum_velocity_ratio = np.nanmin(
         np.r_[velocity_ratio, path_velocity_ratio]
     )
@@ -1009,9 +1091,12 @@ def save_limits_figure(table, path, validation_table=None):
         table[np.isclose(table[H_COLUMN], mean_thickness)]
     )
     if selected_status_handles:
+        for handle in selected_status_handles:
+            if "surface signal" in handle.get_label():
+                handle.set_label("dots: surface signal below leakage")
         map_axis.legend(
             handles=selected_status_handles,
-            loc="lower left",
+            loc="upper left",
             frameon=True,
             facecolor="white",
             edgecolor="none",

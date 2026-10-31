@@ -34,7 +34,8 @@ AMPLITUDE_RATIOS = np.array(
      0.55, 0.65, 0.75, 0.85)
 )
 WAVELENGTH_RATIOS = np.array(
-    (1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0,
+    (1.0 / 12.0, 1.0 / 8.0, 1.0 / 4.0, 1.0 / 2.0,
+     1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0,
      10.0, 12.0)
 )
 
@@ -44,6 +45,12 @@ PRODUCTION_RETAINED_FLUX_FRACTION = 0.80
 PRODUCTION_TIME_STEP = 25.0
 PRODUCTION_MAXIMUM_AGE = 300_000.0
 PRODUCTION_SAMPLER_NZ = 121
+SHORT_WAVE_MESH_NX = 96
+SHORT_WAVE_MESH_NZ = 64
+SHORT_WAVE_SAMPLER_NX = 481
+SHORT_WAVE_SAMPLER_NZ = 321
+SHORT_WAVE_VERTICAL_GRADING_POWER = 2.0
+MINIMUM_SURFACE_SIGNAL_TO_BASAL_LEAKAGE = 10.0
 
 
 def mesh_nx_for_ratio(wavelength_ratio):
@@ -57,16 +64,47 @@ def sampler_nx_for_mesh(mesh_nx):
     return int(max(321, 4 * int(mesh_nx) + 1))
 
 
-def task_tuple(mean_thickness, amplitude_ratio, wavelength_ratio, maximum_age):
+def resolution_for_ratio(wavelength_ratio):
+    """Use endpoint grading where the Fourier boundary layers are thin."""
+    if wavelength_ratio <= 0.5:
+        return (
+            SHORT_WAVE_MESH_NX,
+            SHORT_WAVE_MESH_NZ,
+            SHORT_WAVE_VERTICAL_GRADING_POWER,
+            SHORT_WAVE_SAMPLER_NX,
+            SHORT_WAVE_SAMPLER_NZ,
+            SHORT_WAVE_VERTICAL_GRADING_POWER,
+        )
     mesh_nx = mesh_nx_for_ratio(wavelength_ratio)
+    return (
+        mesh_nx,
+        PRODUCTION_MESH_NZ,
+        1.0,
+        sampler_nx_for_mesh(mesh_nx),
+        PRODUCTION_SAMPLER_NZ,
+        1.0,
+    )
+
+
+def task_tuple(mean_thickness, amplitude_ratio, wavelength_ratio, maximum_age):
+    (
+        mesh_nx,
+        mesh_nz,
+        mesh_power,
+        sampler_nx,
+        sampler_nz,
+        sampler_power,
+    ) = resolution_for_ratio(wavelength_ratio)
     return (
         float(mean_thickness),
         float(amplitude_ratio),
         float(wavelength_ratio),
         mesh_nx,
-        PRODUCTION_MESH_NZ,
-        sampler_nx_for_mesh(mesh_nx),
-        PRODUCTION_SAMPLER_NZ,
+        mesh_nz,
+        mesh_power,
+        sampler_nx,
+        sampler_nz,
+        sampler_power,
         PRODUCTION_SOURCE_COUNT,
         PRODUCTION_RETAINED_FLUX_FRACTION,
         PRODUCTION_TIME_STEP,
@@ -81,8 +119,10 @@ def solve_task(task):
         wavelength_ratio,
         mesh_nx,
         mesh_nz,
+        mesh_power,
         sampler_nx,
         sampler_nz,
+        sampler_power,
         source_count,
         retained_flux_fraction,
         time_step,
@@ -97,14 +137,51 @@ def solve_task(task):
         geometry,
         mesh_nx=mesh_nx,
         mesh_nz=mesh_nz,
+        vertical_grading_power=mesh_power,
         sampler_nx=sampler_nx,
         sampler_nz=sampler_nz,
+        sampler_vertical_grading_power=sampler_power,
         source_count=source_count,
         retained_flux_fraction=retained_flux_fraction,
         time_step=time_step,
         maximum_age=maximum_age,
+        minimum_surface_signal_to_basal_leakage=(
+            MINIMUM_SURFACE_SIGNAL_TO_BASAL_LEAKAGE
+        ),
     )
     row["sliding thickness ratio beta H / eta"] = mean_thickness / 2500.0
+    surface_signal = float(
+        row.get("maximum absolute surface mass balance (m/yr)", np.nan)
+    )
+    basal_leakage = float(row.get("rms basal normal speed (m/yr)", np.nan))
+    if basal_leakage > 0.0:
+        signal_ratio = surface_signal / basal_leakage
+    elif surface_signal > 0.0:
+        signal_ratio = np.inf
+    else:
+        signal_ratio = 0.0
+    row["surface signal / basal normal leakage"] = signal_ratio
+    row["minimum credible surface signal / basal leakage"] = (
+        MINIMUM_SURFACE_SIGNAL_TO_BASAL_LEAKAGE
+    )
+    row["computed minimum J before signal screening"] = row.get(
+        "minimum J", np.nan
+    )
+    closure = float(
+        row.get("sampled relative surface mass balance closure", np.inf)
+    )
+    status = str(row.get("status", ""))
+    eligible = status == "success" or status.startswith(
+        "no retained surface-deposition source"
+    )
+    if eligible and (
+        signal_ratio < MINIMUM_SURFACE_SIGNAL_TO_BASAL_LEAKAGE
+        or closure > 1.0e-3
+    ):
+        row["status"] = "screened below numerical surface signal"
+        row["classification"] = (
+            "not evaluated: surface signal below numerical leakage"
+        )
     return row
 
 
@@ -112,9 +189,9 @@ def task_key_from_row(row):
     """Identity of a completed case, excluding its unused safety ceiling.
 
     A successful trajectory is independent of how much unused integration
-    time remained after its physical exit.  Excluding the ceiling lets a
-    longer-cap restart reuse every completed row while retrying only censored
-    cases.
+    time remained after its recorded boundary exit.  Excluding the ceiling
+    lets a longer-cap restart reuse every completed row while retrying only
+    censored cases.
     """
     return (
         round(float(row["mean ice thickness (m)"]), 12),
@@ -122,8 +199,10 @@ def task_key_from_row(row):
         round(float(row["wavelength / mean thickness"]), 12),
         int(row["mesh nx"]),
         int(row["mesh nz"]),
+        round(float(row.get("mesh vertical grading power", 1.0)), 12),
         int(row["sampler nx"]),
         int(row["sampler nz"]),
+        round(float(row.get("sampler vertical grading power", 1.0)), 12),
         int(row["candidate source count"]),
         round(float(row["retained accumulation-flux fraction"]), 12),
         round(float(row["characteristic time step (yr)"]), 12),
@@ -205,8 +284,19 @@ def write_metadata(table, output):
             "amplitude / mean thickness": AMPLITUDE_RATIOS.tolist(),
             "wavelength / mean thickness": WAVELENGTH_RATIOS.tolist(),
             "cell count": int(len(table)),
-            "mesh nz": PRODUCTION_MESH_NZ,
-            "mesh nx rule": "max(64, ceil(8 lambda/H)), rounded to 8",
+            "long-wave mesh nz": PRODUCTION_MESH_NZ,
+            "long-wave mesh nx rule": "max(64, ceil(8 lambda/H)), rounded to 8",
+            "lambda/H <= 0.5 mesh": [SHORT_WAVE_MESH_NX, SHORT_WAVE_MESH_NZ],
+            "lambda/H <= 0.5 sampler": [
+                SHORT_WAVE_SAMPLER_NX,
+                SHORT_WAVE_SAMPLER_NZ,
+            ],
+            "short-wave vertical grading power": (
+                SHORT_WAVE_VERTICAL_GRADING_POWER
+            ),
+            "minimum surface signal / basal leakage": (
+                MINIMUM_SURFACE_SIGNAL_TO_BASAL_LEAKAGE
+            ),
             "candidate source count": PRODUCTION_SOURCE_COUNT,
             "retained accumulation-flux fraction": (
                 PRODUCTION_RETAINED_FLUX_FRACTION
@@ -224,7 +314,7 @@ def write_metadata(table, output):
                 "minimum T_x, excluding only the upper 5% of local thickness "
                 "beneath an ablating surface"
             ),
-            "raw audit": "minimum T_x all the way to individual physical exit",
+            "raw audit": "minimum T_x through the sampled individual exit",
         },
         "result summary": {
             "status counts": status_counts,
@@ -259,6 +349,15 @@ def write_metadata(table, output):
 
 def run_grid(output, jobs=1, maximum_age=PRODUCTION_MAXIMUM_AGE):
     reusable = {}
+    successful_diagnostic_columns = (
+        "mesh vertical grading power",
+        "sampler vertical grading power",
+        "surface signal / basal normal leakage",
+        "maximum horizontal step (wavelengths)",
+        "mechanism C at minimum J",
+        "u / source u at minimum J",
+        "maximum relative streamfunction identity residual",
+    )
     if output.exists():
         existing = pd.read_csv(output)
         required = {
@@ -274,10 +373,18 @@ def run_grid(output, jobs=1, maximum_age=PRODUCTION_MAXIMUM_AGE):
                     row["diagnostic method version"]
                     == DIAGNOSTIC_METHOD_VERSION
                 )
-                reusable_status = status == "success" or status.startswith(
-                    "analytic flat-bed limit"
+                reusable_status = (
+                    status == "success"
+                    or status.startswith("analytic flat-bed limit")
+                    or status.startswith(
+                        "screened below numerical surface signal"
+                    )
                 )
-                if current_method and reusable_status:
+                complete_success = status != "success" or all(
+                    column in row.index and pd.notna(row[column])
+                    for column in successful_diagnostic_columns
+                )
+                if current_method and reusable_status and complete_success:
                     reusable[task_key_from_row(row)] = row.to_dict()
 
     rows = []

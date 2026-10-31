@@ -38,6 +38,10 @@
       0.85
     ],
     "wavelength / mean thickness": [
+      0.08333333333333333,
+      0.125,
+      0.25,
+      0.5,
       1.0,
       1.25,
       1.5,
@@ -51,9 +55,19 @@
       10.0,
       12.0
     ],
-    "cell count": 780,
-    "mesh nz": 24,
-    "mesh nx rule": "max(64, ceil(8 lambda/H)), rounded to 8",
+    "cell count": 1040,
+    "long-wave mesh nz": 24,
+    "long-wave mesh nx rule": "max(64, ceil(8 lambda/H)), rounded to 8",
+    "lambda/H <= 0.5 mesh": [
+      96,
+      64
+    ],
+    "lambda/H <= 0.5 sampler": [
+      481,
+      321
+    ],
+    "short-wave vertical grading power": 2.0,
+    "minimum surface signal / basal leakage": 10.0,
     "candidate source count": 241,
     "retained accumulation-flux fraction": 0.8,
     "characteristic time step (yr)": 25.0,
@@ -66,30 +80,31 @@
     "source depth (m)": 0.0,
     "sources": "all surface accumulation intervals, flux trimmed",
     "primary": "minimum T_x, excluding only the upper 5% of local thickness beneath an ablating surface",
-    "raw audit": "minimum T_x all the way to individual physical exit"
+    "raw audit": "minimum T_x through the sampled individual exit"
   },
   "result summary": {
     "status counts": {
-      "success": 720,
-      "analytic flat-bed limit (zero surface mass balance)": 60
+      "success": 750,
+      "screened below numerical surface signal": 210,
+      "analytic flat-bed limit (zero surface mass balance)": 80
     },
     "lowest primary J": {
       "mean thickness (m)": 50.0,
       "amplitude / mean thickness": 0.85,
       "wavelength / mean thickness": 3.0,
-      "minimum J": 0.6428095966314928
+      "minimum J": 0.6428095966314916
     },
     "lowest raw J": {
       "mean thickness (m)": 50.0,
       "amplitude / mean thickness": 0.85,
       "wavelength / mean thickness": 3.0,
-      "raw minimum J to exit": 0.4427618629373863
+      "raw minimum J to exit": 0.4427618629373856
     },
     "successful primary J < 0 count": 0,
     "successful raw J < 0 count": 0,
-    "Eulerian-domain counterflow case count": 115,
+    "Eulerian-domain counterflow case count": 160,
     "retained-path counterflow case count": 0,
     "retained-path velocity-reversal case count": 0,
-    "maximum fixed-geometry J spread across sampled H": 0.010531980363659654
+    "maximum fixed-geometry J spread across sampled H": 0.010531980363659543
   }
 }

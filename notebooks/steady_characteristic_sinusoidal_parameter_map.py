@@ -141,7 +141,13 @@ def wrap_x(x, geometry):
 
 
 def thickness(x, geometry):
-    """Analytical ice thickness, whose spatial mean is exactly ``H``."""
+    """Analytical ice thickness, whose spatial mean is exactly ``H``.
+
+    Geometry objects with a ``thickness`` method may supply another smooth
+    periodic profile.  The fallback preserves the original one-harmonic bed.
+    """
+    if hasattr(geometry, "thickness"):
+        return np.asarray(geometry.thickness(x), dtype=float)
     phase = (
         2.0
         * np.pi
@@ -153,6 +159,8 @@ def thickness(x, geometry):
 
 def thickness_slope(x, geometry):
     """Analytical derivative of ice thickness with respect to x."""
+    if hasattr(geometry, "thickness_slope"):
+        return np.asarray(geometry.thickness_slope(x), dtype=float)
     phase = (
         2.0
         * np.pi
@@ -170,6 +178,8 @@ def thickness_slope(x, geometry):
 
 def bed_height(x, geometry):
     """Analytical sinusoidal bed elevation below the flat surface."""
+    if hasattr(geometry, "bed_height"):
+        return np.asarray(geometry.bed_height(x), dtype=float)
     return -thickness(x, geometry)
 
 
@@ -205,8 +215,29 @@ def choose_mesh_dimensions(geometry, target_spacing=10.0):
     return nx, nz
 
 
-def make_mesh(geometry, nx, nz):
-    """Map a periodic rectangle into exactly one sinusoidal-bed period."""
+def endpoint_clustered_coordinate(coordinate, power=1.0):
+    """Map ``[0, 1]`` to itself while clustering both endpoints.
+
+    ``power=1`` is exactly the identity.  Larger powers symmetrically refine
+    the basal forcing layer and the shallow surface-connected streamtube,
+    whose dimensional scales both become ``O(lambda / (2 pi))`` in the
+    short-wave limit.
+    """
+    power = float(power)
+    if not np.isfinite(power) or power < 1.0:
+        raise ValueError("vertical grading power must be finite and >= 1")
+    coordinate = np.asarray(coordinate, dtype=float)
+    if power == 1.0:
+        return coordinate.copy()
+    return np.where(
+        coordinate <= 0.5,
+        0.5 * (2.0 * coordinate) ** power,
+        1.0 - 0.5 * (2.0 * (1.0 - coordinate)) ** power,
+    )
+
+
+def make_mesh(geometry, nx, nz, vertical_grading_power=1.0):
+    """Map a graded periodic rectangle into one sinusoidal-bed period."""
     if nx < 8 or nz < 4:
         raise ValueError("mesh needs at least 8 horizontal and 4 vertical cells")
     mesh = fd.PeriodicRectangleMesh(
@@ -214,16 +245,21 @@ def make_mesh(geometry, nx, nz):
     )
     reference = mesh.coordinates.dat.data_ro.copy()
     local_thickness = thickness(reference[:, 0], geometry)
+    sigma = endpoint_clustered_coordinate(
+        reference[:, 1], vertical_grading_power
+    )
     mesh.coordinates.dat.data[:, 1] = -local_thickness * (
-        1.0 - reference[:, 1]
+        1.0 - sigma
     )
     mesh.clear_spatial_index()
     return mesh
 
 
-def solve_stokes(geometry, nx, nz):
+def solve_stokes(geometry, nx, nz, vertical_grading_power=1.0):
     """Solve periodic Stokes flow with no penetration and linear basal drag."""
-    mesh = make_mesh(geometry, nx, nz)
+    mesh = make_mesh(
+        geometry, nx, nz, vertical_grading_power=vertical_grading_power
+    )
     velocity_space = fd.VectorFunctionSpace(mesh, "CG", 2)
     pressure_space = fd.FunctionSpace(mesh, "CG", 1)
     solution = fd.Function(velocity_space * pressure_space)
@@ -345,6 +381,7 @@ def make_variational_sampler(
     velocity,
     horizontal_samples=DEFAULT_SAMPLER_NX,
     vertical_samples=DEFAULT_SAMPLER_NZ,
+    vertical_grading_power=1.0,
 ):
     """Sample velocity periodically and return its bilinear physical gradient.
 
@@ -358,7 +395,12 @@ def make_variational_sampler(
     x_grid = (np.arange(horizontal_samples) + 0.5) * dx
     # Include the physical surface itself so both the source accumulation and
     # its initial velocity are sampled without a dimensional-depth surrogate.
-    sigma_grid = np.linspace(BED_SIGMA, SURFACE_SIGMA, vertical_samples)
+    reference_sigma = np.linspace(0.0, 1.0, vertical_samples)
+    sigma_grid = BED_SIGMA + (SURFACE_SIGMA - BED_SIGMA) * (
+        endpoint_clustered_coordinate(
+            reference_sigma, vertical_grading_power
+        )
+    )
     local_thickness = represented_thickness(x_grid, geometry, mesh_nx)
     X = np.tile(x_grid, (vertical_samples, 1))
     Z = -(1.0 - sigma_grid[:, None]) * local_thickness[None, :]
@@ -598,10 +640,23 @@ def trace_sources_to_exit(
     maximum_negative_surface_clearance = np.full(count, np.nan)
     exit_age = np.full(count, np.nan)
     exit_kind = np.full(count, "active", dtype=object)
-    minimum_u = sample_vector(points)[:, 0]
-    previous_u = minimum_u.copy()
+    source_velocity = sample_vector(points)
+    source_u = source_velocity[:, 0]
+    source_accumulation = -source_velocity[:, 1]
+    minimum_u = source_u.copy()
+    previous_u = source_u.copy()
     reversal_count = np.zeros(count, dtype=int)
+    minimum_speed_ratio = np.ones(count)
+    minimum_mechanism_c = np.zeros(count)
+    raw_speed_ratio_at_minimum_j = np.ones(count)
+    raw_mechanism_c_at_minimum_j = np.zeros(count)
+    raw_reversal_before_minimum_j = np.zeros(count, dtype=bool)
+    buffered_speed_ratio_at_minimum_j = np.ones(count)
+    buffered_mechanism_c_at_minimum_j = np.zeros(count)
+    buffered_reversal_before_minimum_j = np.zeros(count, dtype=bool)
+    maximum_streamfunction_identity_residual = np.zeros(count)
     maximum_absolute_periods = np.zeros(count)
+    maximum_step_periods = np.zeros(count)
 
     maximum_steps = int(np.ceil(maximum_age / time_step))
     for step_index in range(maximum_steps):
@@ -661,6 +716,49 @@ def trace_sources_to_exit(
         old_j = old_tangents[:, 0]
         accepted_j = accepted_tangents[:, 0]
         accepted_sigma = local_sigma(accepted_points, geometry, mesh_nx)
+        accepted_velocity = sample_vector(accepted_points)
+        accepted_u = accepted_velocity[:, 0]
+        speed_scale = np.maximum(
+            np.maximum(np.abs(previous_u[indices]), np.abs(accepted_u)),
+            1.0e-12,
+        )
+        reversal = (
+            np.signbit(previous_u[indices]) != np.signbit(accepted_u)
+        ) & (
+            np.minimum(np.abs(previous_u[indices]), np.abs(accepted_u))
+            > 1.0e-6 * speed_scale
+        )
+        reversals_through_sample = reversal_count[indices] + reversal.astype(int)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            speed_ratio = accepted_u / source_u[indices]
+            mechanism_c = accepted_j / speed_ratio - 1.0
+        mechanism_valid = (
+            (reversals_through_sample == 0)
+            & np.isfinite(speed_ratio)
+            & np.isfinite(mechanism_c)
+            & (speed_ratio >= 1.0e-3)
+        )
+        minimum_speed_ratio[indices] = np.fmin(
+            minimum_speed_ratio[indices],
+            np.where(mechanism_valid, speed_ratio, np.inf),
+        )
+        minimum_mechanism_c[indices] = np.fmin(
+            minimum_mechanism_c[indices],
+            np.where(mechanism_valid, mechanism_c, np.inf),
+        )
+        identity_residual = (
+            -accepted_velocity[:, 1] * accepted_j
+            + accepted_u * accepted_tangents[:, 1]
+            - source_accumulation[indices]
+        )
+        identity_scale = np.maximum(
+            np.abs(source_accumulation[indices]),
+            max(float(surface_accumulation_tolerance), 1.0e-14),
+        )
+        maximum_streamfunction_identity_residual[indices] = np.fmax(
+            maximum_streamfunction_identity_residual[indices],
+            np.abs(identity_residual) / identity_scale,
+        )
         crossed_zero = (
             np.isnan(first_zero_age[indices])
             & (old_j > 0.0)
@@ -685,6 +783,15 @@ def trace_sources_to_exit(
             selected = indices[improves]
             raw_minimum_j[selected] = accepted_j[improves]
             raw_minimum_age[selected] = accepted_age[improves]
+            raw_speed_ratio_at_minimum_j[selected] = np.where(
+                mechanism_valid[improves], speed_ratio[improves], np.nan
+            )
+            raw_mechanism_c_at_minimum_j[selected] = np.where(
+                mechanism_valid[improves], mechanism_c[improves], np.nan
+            )
+            raw_reversal_before_minimum_j[selected] = (
+                reversals_through_sample[improves] > 0
+            )
 
         # The production diagnostic ignores the uppermost five per cent of
         # local thickness only beneath an ablating part of the surface.  The
@@ -695,6 +802,9 @@ def trace_sources_to_exit(
         # descend below sigma=0.95.
         local_buffered_j = np.full(len(indices), np.inf)
         local_buffered_age = np.full(len(indices), np.nan)
+        local_buffered_speed_ratio = np.full(len(indices), np.nan)
+        local_buffered_mechanism_c = np.full(len(indices), np.nan)
+        local_buffered_reversal = reversals_through_sample > 0
         accepted_surface_points = np.column_stack(
             (
                 accepted_points[:, 0],
@@ -712,6 +822,12 @@ def trace_sources_to_exit(
         local_buffered_age[resolved_sample] = accepted_age[
             resolved_sample
         ]
+        local_buffered_speed_ratio[resolved_sample] = np.where(
+            mechanism_valid[resolved_sample], speed_ratio[resolved_sample], np.nan
+        )
+        local_buffered_mechanism_c[resolved_sample] = np.where(
+            mechanism_valid[resolved_sample], mechanism_c[resolved_sample], np.nan
+        )
         crosses_buffer = (
             (old_sigma - ANALYSIS_SURFACE_SIGMA)
             * (accepted_sigma - ANALYSIS_SURFACE_SIGMA)
@@ -727,12 +843,40 @@ def trace_sources_to_exit(
             boundary_age = old_age[crosses_buffer] + fraction * (
                 accepted_age[crosses_buffer] - old_age[crosses_buffer]
             )
+            boundary_points = old_points[crosses_buffer] + fraction[:, None] * (
+                accepted_points[crosses_buffer] - old_points[crosses_buffer]
+            )
+            boundary_u = sample_vector(boundary_points)[:, 0]
+            boundary_source_u = source_u[indices[crosses_buffer]]
+            with np.errstate(divide="ignore", invalid="ignore"):
+                boundary_speed_ratio = boundary_u / boundary_source_u
+                boundary_mechanism_c = boundary_j / boundary_speed_ratio - 1.0
+            boundary_reversal = reversals_through_sample[crosses_buffer] > 0
+            boundary_valid = (
+                ~boundary_reversal
+                & np.isfinite(boundary_speed_ratio)
+                & np.isfinite(boundary_mechanism_c)
+                & (boundary_speed_ratio >= 1.0e-3)
+            )
             target = np.flatnonzero(crosses_buffer)
             better_boundary = boundary_j < local_buffered_j[target]
             local_buffered_j[target[better_boundary]] = boundary_j[
                 better_boundary
             ]
             local_buffered_age[target[better_boundary]] = boundary_age[
+                better_boundary
+            ]
+            local_buffered_speed_ratio[target[better_boundary]] = np.where(
+                boundary_valid[better_boundary],
+                boundary_speed_ratio[better_boundary],
+                np.nan,
+            )
+            local_buffered_mechanism_c[target[better_boundary]] = np.where(
+                boundary_valid[better_boundary],
+                boundary_mechanism_c[better_boundary],
+                np.nan,
+            )
+            local_buffered_reversal[target[better_boundary]] = boundary_reversal[
                 better_boundary
             ]
         improves_buffered = local_buffered_j < buffered_minimum_j[indices]
@@ -744,6 +888,15 @@ def trace_sources_to_exit(
             buffered_minimum_age[selected] = local_buffered_age[
                 improves_buffered
             ]
+            buffered_speed_ratio_at_minimum_j[selected] = (
+                local_buffered_speed_ratio[improves_buffered]
+            )
+            buffered_mechanism_c_at_minimum_j[selected] = (
+                local_buffered_mechanism_c[improves_buffered]
+            )
+            buffered_reversal_before_minimum_j[selected] = (
+                local_buffered_reversal[improves_buffered]
+            )
 
         negative = accepted_j < 0.0
         if np.any(negative):
@@ -753,19 +906,12 @@ def trace_sources_to_exit(
                 maximum_negative_surface_clearance[selected], clearance
             )
 
-        accepted_velocity = sample_vector(accepted_points)
-        accepted_u = accepted_velocity[:, 0]
+        maximum_step_periods[indices] = np.maximum(
+            maximum_step_periods[indices],
+            np.abs(accepted_points[:, 0] - old_points[:, 0])
+            / geometry.wavelength,
+        )
         minimum_u[indices] = np.minimum(minimum_u[indices], accepted_u)
-        speed_scale = np.maximum(
-            np.maximum(np.abs(previous_u[indices]), np.abs(accepted_u)),
-            1.0e-12,
-        )
-        reversal = (
-            np.signbit(previous_u[indices]) != np.signbit(accepted_u)
-        ) & (
-            np.minimum(np.abs(previous_u[indices]), np.abs(accepted_u))
-            > 1.0e-6 * speed_scale
-        )
         reversal_count[indices] += reversal.astype(int)
         previous_u[indices] = accepted_u
         maximum_absolute_periods[indices] = np.maximum(
@@ -804,10 +950,22 @@ def trace_sources_to_exit(
                 maximum_negative_surface_clearance
             ),
             "minimum path u (m/yr)": minimum_u,
+            "minimum path u / source u before reversal": minimum_speed_ratio,
+            "minimum mechanism C before reversal": minimum_mechanism_c,
+            "u / source u at minimum J": buffered_speed_ratio_at_minimum_j,
+            "mechanism C at minimum J": buffered_mechanism_c_at_minimum_j,
+            "reversal before minimum J": buffered_reversal_before_minimum_j,
+            "u / source u at raw minimum J": raw_speed_ratio_at_minimum_j,
+            "mechanism C at raw minimum J": raw_mechanism_c_at_minimum_j,
+            "reversal before raw minimum J": raw_reversal_before_minimum_j,
+            "maximum relative streamfunction identity residual": (
+                maximum_streamfunction_identity_residual
+            ),
             "horizontal velocity reversal count": reversal_count,
             "maximum absolute displacement (wavelengths)": (
                 maximum_absolute_periods
             ),
+            "maximum horizontal step (wavelengths)": maximum_step_periods,
             "exit age (yr)": exit_age,
             "exit kind": exit_kind,
             "exit phase": wrap_x(points[:, 0], geometry)
@@ -832,13 +990,16 @@ def solve_parameter_case(
     *,
     mesh_nx=None,
     mesh_nz=None,
+    vertical_grading_power=1.0,
     target_spacing=10.0,
     sampler_nx=DEFAULT_SAMPLER_NX,
     sampler_nz=DEFAULT_SAMPLER_NZ,
+    sampler_vertical_grading_power=1.0,
     source_count=DEFAULT_SOURCE_COUNT,
     retained_flux_fraction=DEFAULT_RETAINED_FLUX_FRACTION,
     time_step=DEFAULT_TIME_STEP,
     maximum_age=DEFAULT_MAXIMUM_AGE,
+    minimum_surface_signal_to_basal_leakage=None,
 ):
     """Solve one geometry and summarize its direct steady characteristics."""
     if mesh_nx is None or mesh_nz is None:
@@ -853,7 +1014,9 @@ def solve_parameter_case(
         "wavelength (m)": geometry.wavelength,
         "bed amplitude (m)": geometry.amplitude,
         "bed phase origin (m; coordinate gauge)": geometry.phase_origin,
-        "bed peak-to-trough relief (m)": 2.0 * geometry.amplitude,
+        "bed peak-to-trough relief (m)": float(
+            getattr(geometry, "relief", 2.0 * geometry.amplitude)
+        ),
         "mean ice thickness (m)": geometry.mean_thickness,
         "minimum ice thickness (m)": geometry.minimum_thickness,
         "maximum ice thickness (m)": geometry.maximum_thickness,
@@ -862,8 +1025,12 @@ def solve_parameter_case(
         "peak absolute bed slope": geometry.peak_bed_slope,
         "mesh nx": int(mesh_nx),
         "mesh nz": int(mesh_nz),
+        "mesh vertical grading power": float(vertical_grading_power),
         "sampler nx": int(sampler_nx),
         "sampler nz": int(sampler_nz),
+        "sampler vertical grading power": float(
+            sampler_vertical_grading_power
+        ),
         "candidate source count": int(source_count),
         "retained accumulation-flux fraction": retained_flux_fraction,
         "characteristic source depth (m)": START_DEPTH,
@@ -872,6 +1039,9 @@ def solve_parameter_case(
         ),
         "characteristic time step (yr)": time_step,
         "safety maximum age (yr)": maximum_age,
+        "minimum credible surface signal / basal leakage": (
+            minimum_surface_signal_to_basal_leakage
+        ),
         "basal drag (Pa yr/m)": BASAL_DRAG,
         "surface slope (rad)": SURFACE_SLOPE,
     }
@@ -885,6 +1055,7 @@ def solve_parameter_case(
             "status": "analytic flat-bed limit (zero surface mass balance)",
             "surface vertical flux (m2/yr)": 0.0,
             "mean surface vertical flux (m/yr)": 0.0,
+            "maximum absolute surface mass balance (m/yr)": 0.0,
             "accumulation interval count": 0,
             "depositing source count": 0,
             "retained source count": 0,
@@ -902,11 +1073,20 @@ def solve_parameter_case(
             "bed exit count": 0,
             "safety-cap count": 0,
             "numerical-failure count": 0,
+            "maximum horizontal step (wavelengths)": 0.0,
+            "minimum mechanism C before reversal": 0.0,
+            "u / source u at minimum J": 1.0,
+            "mechanism C at minimum J": 0.0,
+            "reversal before minimum J": False,
+            "maximum relative streamfunction identity residual": 0.0,
         }
     try:
         started = perf_counter()
         _, velocity, stokes = solve_stokes(
-            geometry, int(mesh_nx), int(mesh_nz)
+            geometry,
+            int(mesh_nx),
+            int(mesh_nz),
+            vertical_grading_power=vertical_grading_power,
         )
         stokes_seconds = perf_counter() - started
         started = perf_counter()
@@ -917,6 +1097,7 @@ def solve_parameter_case(
                 velocity,
                 horizontal_samples=int(sampler_nx),
                 vertical_samples=int(sampler_nz),
+                vertical_grading_power=sampler_vertical_grading_power,
             )
         )
         sampler_seconds = perf_counter() - started
@@ -929,13 +1110,58 @@ def solve_parameter_case(
         )
         sources = source_data["retained sources"]
         depositing = source_data["depositing sources"]
+        accumulation = source_data["accumulation"]
+        surface_signal = float(np.nanmax(np.abs(accumulation)))
+        basal_leakage = float(stokes["rms basal normal speed (m/yr)"])
+        if basal_leakage > 0.0:
+            signal_ratio = surface_signal / basal_leakage
+        elif surface_signal > 0.0:
+            signal_ratio = np.inf
+        else:
+            signal_ratio = 0.0
+        source_summary = {
+            "accumulation interval count": source_data[
+                "accumulation interval count"
+            ],
+            "depositing source count": len(depositing),
+            "retained source count": len(sources),
+            "sampled net surface mass balance (m2/yr)": source_data[
+                "sampled net surface mass balance (m2/yr)"
+            ],
+            "sampled gross surface mass exchange (m2/yr)": source_data[
+                "sampled gross surface mass exchange (m2/yr)"
+            ],
+            "sampled relative surface mass balance closure": source_data[
+                "sampled relative surface mass balance closure"
+            ],
+            "maximum absolute surface mass balance (m/yr)": surface_signal,
+            "surface signal / basal normal leakage": signal_ratio,
+        }
+        if (
+            minimum_surface_signal_to_basal_leakage is not None
+            and (
+                signal_ratio < minimum_surface_signal_to_basal_leakage
+                or source_data[
+                    "sampled relative surface mass balance closure"
+                ]
+                > 1.0e-3
+            )
+        ):
+            return base | stokes | sampler | source_summary | {
+                "status": "screened below numerical surface signal",
+                "Stokes solve wall time (s)": stokes_seconds,
+                "sampler construction wall time (s)": sampler_seconds,
+                "minimum J": np.nan,
+                "raw minimum J to exit": np.nan,
+                "classification": (
+                    "not evaluated: surface signal below numerical leakage"
+                ),
+            }
         if not len(sources):
-            return base | stokes | sampler | {
+            return base | stokes | sampler | source_summary | {
                 "status": "no retained surface-deposition source",
                 "Stokes solve wall time (s)": stokes_seconds,
                 "sampler construction wall time (s)": sampler_seconds,
-                "depositing source count": len(depositing),
-                "retained source count": 0,
                 "minimum J": np.nan,
                 "raw minimum J to exit": np.nan,
                 "classification": "not evaluated",
@@ -1025,10 +1251,9 @@ def solve_parameter_case(
             if len(negative_clearances)
             else np.nan
         )
-        accumulation = source_data["accumulation"]
         positive_accumulation = accumulation[accumulation > 0.0]
         exit_counts = trajectories["exit kind"].value_counts()
-        return base | stokes | sampler | {
+        return base | stokes | sampler | source_summary | {
             "status": status,
             "Stokes solve wall time (s)": stokes_seconds,
             "sampler construction wall time (s)": sampler_seconds,
@@ -1053,6 +1278,9 @@ def solve_parameter_case(
             ),
             "maximum accumulation (m/yr)": float(
                 np.max(positive_accumulation)
+            ),
+            "maximum absolute surface mass balance (m/yr)": float(
+                np.nanmax(np.abs(accumulation))
             ),
             "minimum J": minimum_j,
             "first percentile of per-source minimum J": first_percentile,
@@ -1089,6 +1317,37 @@ def solve_parameter_case(
             "minimum path u (m/yr)": float(
                 trajectories["minimum path u (m/yr)"].min()
             ),
+            "minimum path u / source u before reversal": float(
+                trajectories[
+                    "minimum path u / source u before reversal"
+                ].min()
+            ),
+            "minimum mechanism C before reversal": float(
+                trajectories["minimum mechanism C before reversal"].min()
+            ),
+            "u / source u at minimum J": float(
+                minimum_row["u / source u at minimum J"]
+            ),
+            "mechanism C at minimum J": float(
+                minimum_row["mechanism C at minimum J"]
+            ),
+            "reversal before minimum J": bool(
+                minimum_row["reversal before minimum J"]
+            ),
+            "u / source u at raw minimum J": float(
+                raw_row["u / source u at raw minimum J"]
+            ),
+            "mechanism C at raw minimum J": float(
+                raw_row["mechanism C at raw minimum J"]
+            ),
+            "reversal before raw minimum J": bool(
+                raw_row["reversal before raw minimum J"]
+            ),
+            "maximum relative streamfunction identity residual": float(
+                trajectories[
+                    "maximum relative streamfunction identity residual"
+                ].max()
+            ),
             "maximum velocity reversal count": int(
                 trajectories["horizontal velocity reversal count"].max()
             ),
@@ -1101,6 +1360,11 @@ def solve_parameter_case(
             "maximum path displacement (wavelengths)": float(
                 trajectories[
                     "maximum absolute displacement (wavelengths)"
+                ].max()
+            ),
+            "maximum horizontal step (wavelengths)": float(
+                trajectories[
+                    "maximum horizontal step (wavelengths)"
                 ].max()
             ),
             "surface exit count": int(exit_counts.get("surface", 0)),
@@ -1158,9 +1422,13 @@ def parse_arguments():
     parser.add_argument("--mean-thickness", type=float, default=160.0)
     parser.add_argument("--mesh-nx", type=int)
     parser.add_argument("--mesh-nz", type=int)
+    parser.add_argument("--vertical-grading-power", type=float, default=1.0)
     parser.add_argument("--target-spacing", type=float, default=10.0)
     parser.add_argument("--sampler-nx", type=int, default=DEFAULT_SAMPLER_NX)
     parser.add_argument("--sampler-nz", type=int, default=DEFAULT_SAMPLER_NZ)
+    parser.add_argument(
+        "--sampler-vertical-grading-power", type=float, default=1.0
+    )
     parser.add_argument("--source-count", type=int, default=DEFAULT_SOURCE_COUNT)
     parser.add_argument(
         "--retained-flux-fraction",
@@ -1195,9 +1463,13 @@ def main():
                     geometry,
                     mesh_nx=args.mesh_nx,
                     mesh_nz=args.mesh_nz,
+                    vertical_grading_power=args.vertical_grading_power,
                     target_spacing=args.target_spacing,
                     sampler_nx=args.sampler_nx,
                     sampler_nz=args.sampler_nz,
+                    sampler_vertical_grading_power=(
+                        args.sampler_vertical_grading_power
+                    ),
                     source_count=args.source_count,
                     retained_flux_fraction=args.retained_flux_fraction,
                     time_step=args.time_step,

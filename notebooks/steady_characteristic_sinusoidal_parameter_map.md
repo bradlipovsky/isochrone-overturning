@@ -2,9 +2,11 @@
 
 ## Main result
 
-No isochrone overturning occurs anywhere in the sampled sinusoidal-bed
-parameter space.  All 720 numerical cases complete successfully and all 60
-formal flat-bed cells are ordered.  The smallest production diagnostic is
+No isochrone overturning occurs anywhere that the surface-fed diagnostic is
+numerically resolved.  The extended grid contains 750 successful numerical
+cases and 80 formal flat-bed cells.  Another 210 short-wave cells are labeled
+as screened below numerical signal rather than assigned a potentially
+roundoff-controlled $J$.  The smallest resolved production diagnostic is
 
 \[
 J_{\min}=0.642810,
@@ -46,9 +48,10 @@ The production grid contains
 
 - $H=(50,100,160,240,320)$ m, or $\delta=0.020$--0.128;
 - 13 amplitudes, $A/H=0$--0.85; and
-- 12 wavelengths, $\lambda/H=1$--12.
+- 16 wavelengths, $\lambda/H=1/12$--12, including $1/12$, $1/8$, $1/4$,
+  and $1/2$.
 
-Thus the dimensional sweep spans wavelengths from 50 to 3840 m and bed
+Thus the dimensional sweep spans wavelengths from 4.2 to 3840 m and bed
 amplitudes from 0 to 272 m.  The flow uses linear viscosity
 $2.5\times10^8$ Pa yr, basal drag $\beta=10^5$ Pa yr m$^{-1}$, surface slope
 0.05 rad, and the same linear sliding and Nitsche bed treatment used by the
@@ -76,7 +79,8 @@ For every source,
 
 and $J=T_x$.  Horizontal positions remain unwrapped while velocity queries
 are wrapped into the periodic Stokes cell.  Each path ends at its own first
-physical surface or bed exit.  The primary minimum excludes only the upper
+sampled surface or bed-boundary exit (the numerical mask is inset by 0.5% of
+local thickness).  The primary minimum excludes only the upper
 5% of local thickness beneath an ablating surface; the accumulating side is
 eligible from its source.  A separate raw minimum retains every point through
 surface exit.  Both diagnostics remain positive throughout the sweep.
@@ -89,11 +93,27 @@ elliptical trough.
 
 ### Short-wave screening
 
-Bed-induced Fourier modes decay upward over the length $k^{-1}$, where
-$kH=2\pi/(\lambda/H)$.  As $\lambda/H\to0$, the bed perturbation is screened
-from the surface-connected flow and $J\to1$.  The out-of-grid audit at
-$H=160$ m, $A/H=0.65$, and $\lambda/H=0.5$ gives $J=0.9723$, compared with
-0.8433 at the map edge $\lambda/H=1$.
+Bed-induced Fourier modes decay upward over the length $k^{-1}$.  The useful
+local shielding number is $\chi=2\pi(H-A)/\lambda$, because the minimum gap
+sets the strongest possible connection to the surface.  As $\lambda/H\to0$
+at fixed $A/H<1$, the bed perturbation is screened from surface-connected
+flow and $J\to1$.
+
+The new production cells resolve this return directly where the surface
+signal remains above numerical leakage.  At $A/H=0.85$, $J$ changes from
+0.8209 at $\lambda/H=1/2$ to 0.9512 at $1/4$ and 0.99852 at $1/8$; the values
+are nearly independent of the five sampled thicknesses.  At $1/12$, however,
+the maximum surface signal is only about 0.8 times the RMS basal normal
+leakage, so those cells are screened rather than interpreted.  The plotted
+dots mark every cell for which the surface signal is less than ten times that
+leakage.  This is a numerical-reach boundary, not a physical phase boundary.
+
+The thin-neck audit remains surface-coupled farther into the short-wave
+regime.  At $A/H=0.95$, the primary minima for $\lambda/H=(1/2,1/4,1/8,1/12)$
+are $(0.8359,0.8008,0.8602,0.9394)$.  Refining the $1/12$ mesh changes the last
+value to 0.9466.  Even this extreme family is ordered and turns back toward
+one at the shortest wavelengths; its positive short-wave trough is near
+$\lambda/H=1/4$.
 
 ### Intermediate coupling
 
@@ -147,7 +167,7 @@ domain at $A/H=1$.
 
 At fixed $(A/H,\lambda/H)$ the five maps nearly collapse because all sampled
 thicknesses have $\beta H/\eta\ll1$.  The median same-geometry spread in $J$
-is $2.5\times10^{-4}$, the 95th percentile is 0.00485, and the maximum is
+is $2.1\times10^{-4}$, the 95th percentile is 0.00477, and the maximum is
 0.0105.  At the global-minimum geometry, $J$ changes only from 0.6428 at
 $H=50$ m to 0.6453 at 320 m.
 
@@ -164,9 +184,9 @@ non-basal/basal dissipation ratio).
 
 ## Counterflow is not the mechanism
 
-Small Eulerian reverse-flow pockets occur in 115 of 720 numerical cases,
-mostly for short, steep beds, but the largest reverse speed is only about
-1.1% of the case maximum.  No retained deposition characteristic has
+Small Eulerian reverse-flow pockets occur in 160 of 750 resolved numerical
+cases, mostly for short, steep beds, but the largest reverse speed is only
+about 1.8% of the case maximum.  No retained deposition characteristic has
 $u<0$, and none reverses horizontal direction.  At $A/H=0.85$, the Eulerian
 reverse pockets are confined to $\lambda/H\le2$, whereas the strongest
 tangent compression occurs at $\lambda/H=3$.  The intermediate $J$ trough is
@@ -175,13 +195,15 @@ folding.
 
 ## Numerical checks
 
-- Every production cell completes after six initially age-censored
-  $H=50$ m thin-neck cases are retried with a 1.5 Myr safety ceiling.  Their
-  longest actual exit age is 0.412 Myr; the ceiling does not truncate the
-  diagnostic.
+- Every resolved production cell completes.  The longest actual exit age is
+  0.412 Myr, well below the 1.5 Myr safety ceiling.
 - Sampled periodic surface-mass-balance closure error is at most
   $1.1\times10^{-6}$, and the discrete weak-form residual is at most
-  $6.4\times10^{-13}$.
+  $8.2\times10^{-13}$.
+- The 210 cells whose surface signal is not at least ten times the RMS basal
+  normal leakage are explicitly screened.  They do not enter the minimum-$J$
+  count.  All resolved characteristic steps move less than 0.0151 wavelength;
+  the 99th percentile is 0.0122 wavelength.
 - The validation table changes mesh, characteristic step, sampler, source
   count, flux retention, and phase independently around the lowest-$J$
   geometry.  Its detailed values are reported in

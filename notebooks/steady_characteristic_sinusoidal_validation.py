@@ -36,18 +36,28 @@ from steady_characteristic_sinusoidal_parameter_sweep import (
     PRODUCTION_TIME_STEP,
     WAVELENGTH_RATIOS,
     mesh_nx_for_ratio,
+    resolution_for_ratio,
     sampler_nx_for_mesh,
 )
 
 
 def production_settings(wavelength_ratio):
     """Copy the production resolution, including wavelength-dependent nx."""
-    mesh_nx = mesh_nx_for_ratio(wavelength_ratio)
+    (
+        mesh_nx,
+        mesh_nz,
+        mesh_power,
+        sampler_nx,
+        sampler_nz,
+        sampler_power,
+    ) = resolution_for_ratio(wavelength_ratio)
     return {
         "mesh_nx": mesh_nx,
-        "mesh_nz": PRODUCTION_MESH_NZ,
-        "sampler_nx": sampler_nx_for_mesh(mesh_nx),
-        "sampler_nz": PRODUCTION_SAMPLER_NZ,
+        "mesh_nz": mesh_nz,
+        "mesh_power": mesh_power,
+        "sampler_nx": sampler_nx,
+        "sampler_nz": sampler_nz,
+        "sampler_power": sampler_power,
         "source_count": PRODUCTION_SOURCE_COUNT,
         "retained_flux_fraction": PRODUCTION_RETAINED_FLUX_FRACTION,
         "time_step": PRODUCTION_TIME_STEP,
@@ -61,11 +71,22 @@ REGIME_GEOMETRIES = {
     "small amplitude": (160.0, 0.05, 4.0),
     "short-wave map edge": (160.0, 0.65, 1.0),
     "short-wave extension": (160.0, 0.65, 0.5),
+    "short-wave extension lambda/H=1/4": (160.0, 0.65, 0.25),
+    "short-wave extension lambda/H=1/8": (160.0, 0.65, 0.125),
+    "short-wave extension lambda/H=1/12": (160.0, 0.65, 1.0 / 12.0),
     "long-wave map edge": (160.0, 0.65, 12.0),
     "long-wave extension": (160.0, 0.65, 24.0),
     "thin-neck production edge": (160.0, 0.85, 3.0),
     "thin-neck extension A/H=0.90": (160.0, 0.90, 3.0),
     "thin-neck extension A/H=0.95": (160.0, 0.95, 3.0),
+    "thin-neck short wave A/H=0.95, lambda/H=1/2": (160.0, 0.95, 0.5),
+    "thin-neck short wave A/H=0.95, lambda/H=1/4": (160.0, 0.95, 0.25),
+    "thin-neck short wave A/H=0.95, lambda/H=1/8": (160.0, 0.95, 0.125),
+    "thin-neck short wave A/H=0.95, lambda/H=1/12": (
+        160.0,
+        0.95,
+        1.0 / 12.0,
+    ),
 }
 
 
@@ -143,6 +164,8 @@ def scenario_table(focus):
         settings = production_settings(wavelength_ratio)
         if family == "focus convergence":
             settings["maximum_age"] = focus_maximum_age
+        elif epsilon >= 0.90 and wavelength_ratio <= 0.5:
+            settings["maximum_age"] = 1_500_000.0
         settings |= changes
         scenarios.append(
             {
@@ -273,6 +296,38 @@ def scenario_table(focus):
         mesh_nx=96,
         mesh_nz=36,
     )
+    add(
+        "thin-neck short wave A/H=0.95, lambda/H=1/12, finer mesh",
+        "regime survey",
+        160.0,
+        0.95,
+        1.0 / 12.0,
+        mesh_nx=128,
+        mesh_nz=80,
+        sampler_nx=641,
+        sampler_nz=401,
+        mesh_power=2.0,
+        sampler_power=2.0,
+    )
+    for wavelength_ratio, label in (
+        (0.5, "1/2"),
+        (0.25, "1/4"),
+    ):
+        add(
+            f"thin-neck short wave A/H=0.95, lambda/H={label}, finer mesh",
+            "regime survey",
+            160.0,
+            0.95,
+            wavelength_ratio,
+            mesh_nx=144,
+            mesh_nz=96,
+            sampler_nx=769,
+            sampler_nz=481,
+            mesh_power=2.0,
+            sampler_power=2.0,
+            source_count=481,
+            time_step=12.5,
+        )
     return pd.DataFrame(scenarios)
 
 
@@ -287,8 +342,10 @@ def scenario_key(row):
         "bed phase origin (m; coordinate gauge)",
         "mesh nx",
         "mesh nz",
+        "mesh vertical grading power",
         "sampler nx",
         "sampler nz",
+        "sampler vertical grading power",
         "candidate source count",
         "retained accumulation-flux fraction",
         "characteristic time step (yr)",
@@ -333,8 +390,12 @@ def solve_scenario(specification):
         geometry,
         mesh_nx=int(specification["mesh_nx"]),
         mesh_nz=int(specification["mesh_nz"]),
+        vertical_grading_power=float(specification["mesh_power"]),
         sampler_nx=int(specification["sampler_nx"]),
         sampler_nz=int(specification["sampler_nz"]),
+        sampler_vertical_grading_power=float(
+            specification["sampler_power"]
+        ),
         source_count=int(specification["source_count"]),
         retained_flux_fraction=float(
             specification["retained_flux_fraction"]
@@ -360,8 +421,10 @@ def matching_production_result(production, specification):
         "bed phase origin (m; coordinate gauge)": geometry.phase_origin,
         "mesh nx": specification["mesh_nx"],
         "mesh nz": specification["mesh_nz"],
+        "mesh vertical grading power": specification["mesh_power"],
         "sampler nx": specification["sampler_nx"],
         "sampler nz": specification["sampler_nz"],
+        "sampler vertical grading power": specification["sampler_power"],
         "candidate source count": specification["source_count"],
         "retained accumulation-flux fraction": specification[
             "retained_flux_fraction"
@@ -373,12 +436,29 @@ def matching_production_result(production, specification):
         DIAGNOSTIC_METHOD_VERSION
     )
     for column, value in requested.items():
-        mask &= np.isclose(production[column].astype(float), float(value))
+        values = pd.to_numeric(production[column], errors="coerce")
+        if column in (
+            "mesh vertical grading power",
+            "sampler vertical grading power",
+        ):
+            values = values.fillna(1.0)
+        mask &= np.isclose(values, float(value))
     matches = production.loc[mask]
     if len(matches) != 1:
         return None
+    match = matches.iloc[0]
+    if not (
+        str(match["status"]) == "success"
+        or str(match["status"]).startswith("analytic flat-bed limit")
+    ):
+        return None
+    if (
+        geometry.amplitude > 0.0
+        and not np.isfinite(match.get("mechanism C at minimum J", np.nan))
+    ):
+        return None
     return annotate_result(
-        matches.iloc[0].to_dict(),
+        match.to_dict(),
         specification,
         "reused exact production row",
     )
@@ -437,9 +517,28 @@ def run(production_table, output):
     existing = {}
     if output.exists():
         previous = pd.read_csv(output)
+        for column in (
+            "mesh vertical grading power",
+            "sampler vertical grading power",
+        ):
+            if column not in previous:
+                previous[column] = 1.0
+            else:
+                previous[column] = previous[column].fillna(1.0)
         for _, row in previous.iterrows():
             try:
-                existing[scenario_key(row)] = row.to_dict()
+                status = str(row.get("status", ""))
+                complete_success = status != "success" or all(
+                    pd.notna(row.get(column))
+                    for column in (
+                        "maximum horizontal step (wavelengths)",
+                        "mechanism C at minimum J",
+                        "u / source u at minimum J",
+                        "maximum relative streamfunction identity residual",
+                    )
+                )
+                if complete_success:
+                    existing[scenario_key(row)] = row.to_dict()
             except (KeyError, TypeError, ValueError):
                 pass
 
@@ -461,8 +560,12 @@ def run(production_table, output):
             "bed phase origin (m; coordinate gauge)": geometry.phase_origin,
             "mesh nx": specification["mesh_nx"],
             "mesh nz": specification["mesh_nz"],
+            "mesh vertical grading power": specification["mesh_power"],
             "sampler nx": specification["sampler_nx"],
             "sampler nz": specification["sampler_nz"],
+            "sampler vertical grading power": specification[
+                "sampler_power"
+            ],
             "candidate source count": specification["source_count"],
             "retained accumulation-flux fraction": specification[
                 "retained_flux_fraction"
@@ -471,7 +574,8 @@ def run(production_table, output):
             "safety maximum age (yr)": specification["maximum_age"],
         }
         key = scenario_key(prospective)
-        if key in existing:
+        reusable_existing = key in existing
+        if reusable_existing:
             result = existing[key]
             action = "reused"
         else:
