@@ -103,7 +103,8 @@ The defensible conclusion is therefore:
 > A wrapped-Gaussian-smoothed, finite-sliding periodic basin can produce
 > overturning under sufficiently asymmetric convergence. Open boundaries and
 > sharp bed joins are not necessary. In the sampled periodic family the fold
-> occupies a narrow, sub-percent accumulation-flux band adjacent to a flow separatrix;
+> occupies a narrow, sub-percent accumulation-flux band adjacent to a flow
+> separatrix;
 > its existence is mesh- and gauge-robust at refined resolution, but its
 > amplitude and physical width are unresolved.
 
@@ -113,14 +114,19 @@ Reproduce the table and figure from the repository root with:
 
 ```bash
 OMP_NUM_THREADS=1 python notebooks/steady_characteristic_periodic_convergent.py --jobs 2
+OMP_NUM_THREADS=1 python notebooks/export_steady_characteristic_periodic_convergent_flow.py
 MPLBACKEND=Agg OMP_NUM_THREADS=1 python notebooks/plot_steady_characteristic_periodic_convergent.py
 ```
 
 - `data/steady_characteristic_periodic_convergent.csv`
 - `data/steady_characteristic_periodic_convergent_metadata.json`
+- `data/steady_characteristic_periodic_convergent_surface.csv`
+- `data/steady_characteristic_periodic_convergent_flow.csv`
+- `data/steady_characteristic_periodic_convergent_flow_metadata.json`
 - `figures/steady_characteristic_periodic_convergent.png`
 - `figures/steady_characteristic_periodic_convergent.pdf`
 - `notebooks/steady_characteristic_periodic_convergent.py`
+- `notebooks/export_steady_characteristic_periodic_convergent_flow.py`
 - `notebooks/plot_steady_characteristic_periodic_convergent.py`
 
 No manuscript or LaTeX source is modified by this analysis.
