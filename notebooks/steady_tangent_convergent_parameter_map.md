@@ -81,6 +81,7 @@ The audit gives characteristic ordered: min -31.01, p01 -3.66, transition: min -
 ## Outputs
 
 - `figures/steady_tangent_convergent_parameter_map.png`
+- `figures/steady_tangent_convergent_parameter_map.pdf`
 - `data/steady_tangent_convergent_parameter_map.csv`
 - `data/steady_tangent_convergent_parameter_map_validation.csv`
 - `data/steady_tangent_convergent_eulerian_audit.csv`

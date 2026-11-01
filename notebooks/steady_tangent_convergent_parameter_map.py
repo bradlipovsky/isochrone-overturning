@@ -57,6 +57,10 @@ FIGURE_PATH = (
     REPOSITORY_DIRECTORY
     / "figures/steady_tangent_convergent_parameter_map.png"
 )
+FIGURE_PDF_PATH = (
+    REPOSITORY_DIRECTORY
+    / "figures/steady_tangent_convergent_parameter_map.pdf"
+)
 REPORT_PATH = NOTEBOOK_DIRECTORY / "steady_tangent_convergent_parameter_map.md"
 
 TOTAL_LENGTH = 6_000.0
@@ -1602,6 +1606,7 @@ def make_figure(table: pd.DataFrame) -> None:
     )
     fig.suptitle("Finite-sliding convergent flow", fontsize=13)
     fig.savefig(FIGURE_PATH, dpi=240, bbox_inches="tight")
+    fig.savefig(FIGURE_PDF_PATH, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -1780,6 +1785,7 @@ def write_report(
         "## Outputs",
         "",
         "- `figures/steady_tangent_convergent_parameter_map.png`",
+        "- `figures/steady_tangent_convergent_parameter_map.pdf`",
         "- `data/steady_tangent_convergent_parameter_map.csv`",
         "- `data/steady_tangent_convergent_parameter_map_validation.csv`",
         "- `data/steady_tangent_convergent_eulerian_audit.csv`",
@@ -1917,6 +1923,7 @@ def main() -> None:
     )
     print(f"Saved {DATA_PATH}")
     print(f"Saved {FIGURE_PATH}")
+    print(f"Saved {FIGURE_PDF_PATH}")
 
 
 if __name__ == "__main__":
