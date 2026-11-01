@@ -1,0 +1,42 @@
+{
+  "method": "periodic-convergent-wrapped-gaussian-v9-flow-divide-split",
+  "description": "Smooth wrapped-Gaussian periodic continuation of the finite piecewise-sin^2 convergent basin; direct steady characteristics",
+  "data": "data/steady_characteristic_periodic_convergent.csv",
+  "row_count": 71,
+  "status_counts": {
+    "success": 71
+  },
+  "production_smoothing_fractions": [
+    0.05,
+    0.1,
+    0.2,
+    0.4
+  ],
+  "target_cases": [
+    {
+      "q": 1.0,
+      "relief/thickness": 4.0
+    },
+    {
+      "q": 8.0,
+      "relief/thickness": 2.75
+    },
+    {
+      "q": 12.0,
+      "relief/thickness": 2.0
+    }
+  ],
+  "minimum_successful_J": -170.7461263173645,
+  "minimum_successful_raw_J": -170.7461263173645,
+  "overturning_success_count": 19,
+  "finite_flux_primary_p01_negative_count": 0,
+  "minimum_finite_flux_primary_p01_J": 0.7224859511314382,
+  "notes": [
+    "Surface and bed are parallel; thickness is constant.",
+    "Horizontal boundaries are exactly periodic.",
+    "Cyclic accumulation zones are split into flow-directed source families at sampled surface-u sign changes.",
+    "Positive islands carrying <0.1% of total accumulation flux are rejected as interpolation noise.",
+    "Negative minima are narrow and source-sampling sensitive; the refined sign persists under a quarter-period gauge translation, while the magnitude is not converged. No sampled case has negative per-source p01 J.",
+    "No manuscript source is modified."
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "method": "legacy-periodic-steady-characteristic-v1",
+  "imported characteristic method": "sinusoidal-steady-v2-exact-surface-ablation-only-buffer",
+  "mode": "validation",
+  "row count": 9,
+  "status counts": {
+    "success": 9
+  },
+  "minimum successful case": {
+    "geometry": "steep asymmetric trough 10m",
+    "minimum J": 0.43187588553025474,
+    "raw minimum J to exit": 0.1954672391794193,
+    "minimum mechanism C before reversal": -0.7464530184663984
+  },
+  "physics": {
+    "viscosity (Pa yr)": 250000000.0,
+    "basal drag (Pa yr/m)": 100000.0,
+    "surface slope (rad)": 0.05,
+    "Nitsche penalty": 30000.0
+  },
+  "source convention": "central 80% of positive accumulation flux in every interval",
+  "stopping convention": "each characteristic stops at its own first surface/bed exit"
+}
