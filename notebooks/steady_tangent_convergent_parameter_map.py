@@ -55,11 +55,11 @@ METADATA_PATH = (
 )
 FIGURE_PATH = (
     REPOSITORY_DIRECTORY
-    / "figures/steady_tangent_convergent_parameter_map.png"
+    / "figures/steady_tangent_convergent_single_thickness_diagnostics.png"
 )
 FIGURE_PDF_PATH = (
     REPOSITORY_DIRECTORY
-    / "figures/steady_tangent_convergent_parameter_map.pdf"
+    / "figures/steady_tangent_convergent_single_thickness_diagnostics.pdf"
 )
 REPORT_PATH = NOTEBOOK_DIRECTORY / "steady_tangent_convergent_parameter_map.md"
 
@@ -1784,8 +1784,6 @@ def write_report(
     lines += [
         "## Outputs",
         "",
-        "- `figures/steady_tangent_convergent_parameter_map.png`",
-        "- `figures/steady_tangent_convergent_parameter_map.pdf`",
         "- `data/steady_tangent_convergent_parameter_map.csv`",
         "- `data/steady_tangent_convergent_parameter_map_validation.csv`",
         "- `data/steady_tangent_convergent_eulerian_audit.csv`",
