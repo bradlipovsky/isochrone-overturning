@@ -65,6 +65,7 @@ REPORT_PATH = NOTEBOOK_DIRECTORY / "steady_tangent_convergent_parameter_map.md"
 
 TOTAL_LENGTH = 6_000.0
 THICKNESS = 200.0
+KAPPA = 1.0
 DIRECT_LENGTH_RATIOS = np.r_[np.arange(1.0, 11.0), 12.0]
 LENGTH_RATIOS = np.sort(
     np.r_[1.0 / DIRECT_LENGTH_RATIOS[1:], DIRECT_LENGTH_RATIOS]
@@ -75,7 +76,9 @@ SOURCE_COUNT = 81
 TIME_STEP_YR = 25.0
 MAXIMUM_AGE_YR = 120_000.0
 SOURCE_FLUX_QUANTILES = (0.05, 0.95)
+SOURCE_ACCUMULATION_THRESHOLD_AT_KAPPA_ONE = 1.0e-5
 PROVENANCE_THRESHOLD = 0.95
+PRINT_CASE_TRACEBACKS = True
 DIRECT_SOLVER = {
     "ksp_type": "preonly",
     "pc_type": "lu",
@@ -95,12 +98,23 @@ plt.rcParams.update(
 )
 
 
-def set_geometry(length_ratio: float, relief_ratio: float) -> None:
-    """Set one member of the fixed-span, fixed-thickness geometry family."""
+def set_geometry(
+    length_ratio: float,
+    relief_ratio: float,
+    kappa: float = 1.0,
+) -> None:
+    """Set one member of the fixed-span bed--surface geometry family.
+
+    ``kappa = Delta s / Delta b``.  Thus ``kappa=1`` recovers the original
+    constant-thickness basin, whereas ``kappa=0`` has a flat surface.
+    """
+    global KAPPA
+    KAPPA = float(kappa)
     convergent.LEFT_LENGTH = TOTAL_LENGTH / (1.0 + length_ratio)
     convergent.RIGHT_LENGTH = TOTAL_LENGTH - convergent.LEFT_LENGTH
     convergent.RELIEF = relief_ratio * THICKNESS
     convergent.THICKNESS = THICKNESS
+    convergent.KAPPA = KAPPA
 
 
 def source_families(
@@ -111,7 +125,11 @@ def source_families(
     """Return the central 90% surface-flux interval of every source basin."""
     x = result["x"]
     accumulation = result["surface mass balance"]
-    intervals = convergent.connected_intervals(accumulation > 1.0e-5)
+    threshold = (
+        SOURCE_ACCUMULATION_THRESHOLD_AT_KAPPA_ONE
+        * abs(convergent.KAPPA)
+    )
+    intervals = convergent.connected_intervals(accumulation > threshold)
     families = []
     for family_id, (start, stop) in enumerate(intervals):
         if stop - start < 10:
@@ -142,14 +160,19 @@ def solve_velocity(
     nz: int,
     sampler_nx: int = 1201,
     sampler_nz: int = 101,
+    sampler_sigma_lower: float = 0.002,
+    sampler_sigma_upper: float = 0.999,
+    kappa: float = 1.0,
 ):
     """Solve Stokes flow and prepare the regular variational sampler."""
-    set_geometry(length_ratio, relief_ratio)
+    set_geometry(length_ratio, relief_ratio, kappa=kappa)
     mesh, velocity, diagnostics = convergent.solve_stokes(nx, nz)
     sample, geometry, x, sigma, X, Z, values = convergent.make_sampler(
         velocity,
         nx_sample=sampler_nx,
         nz_sample=sampler_nz,
+        sigma_lower=sampler_sigma_lower,
+        sigma_upper=sampler_sigma_upper,
     )
     surface_velocity = geometry["surface_velocity"](x)
     accumulation = (
@@ -170,6 +193,8 @@ def solve_velocity(
         "surface mass balance": accumulation,
         "sampler nx": sampler_nx,
         "sampler nz": sampler_nz,
+        "sampler sigma lower": sampler_sigma_lower,
+        "sampler sigma upper": sampler_sigma_upper,
     }
     return result
 
@@ -191,7 +216,7 @@ def surface_slope_expression(mesh):
         / convergent.RIGHT_LENGTH
         * fd.sin(np.pi * x / convergent.RIGHT_LENGTH)
     )
-    return fd.conditional(x <= 0.0, left, right)
+    return convergent.KAPPA * fd.conditional(x <= 0.0, left, right)
 
 
 def solve_upwind_scalar(
@@ -330,8 +355,12 @@ def summarize_stationary_fields(
         for lower, upper in source_ranges
     ]
     source_mask = np.logical_or.reduce(basin_masks)
-    surface = convergent.flank_shape(coordinates[:, 0]) + THICKNESS
+    bed = convergent.flank_shape(coordinates[:, 0])
+    surface = convergent.surface_shape(coordinates[:, 0])
     clearance = surface - coordinates[:, 1]
+    local_outflow_buffer = (
+        outflow_buffer_m / THICKNESS * (surface - bed)
+    )
     local_mass_balance = np.interp(
         coordinates[:, 0],
         result["x"],
@@ -350,7 +379,7 @@ def summarize_stationary_fields(
     # The numerical buffer is needed only below an ablating (outflow) part of
     # the surface.  Accumulating surface cells carry prescribed inflow data.
     resolved = raw & (
-        (local_mass_balance >= 0.0) | (clearance >= outflow_buffer_m)
+        (local_mass_balance >= 0.0) | (clearance >= local_outflow_buffer)
     )
     if not np.any(resolved):
         raise RuntimeError("stationary streamtube mask contains no resolved cells")
@@ -516,11 +545,9 @@ def trace_steady_family(
     bed = geometry["bed"](sources)
     surface = geometry["surface"](sources)
     points = np.column_stack((sources, bed + 0.995 * (surface - bed)))
-    source_slope = (
-        geometry["bed_slope"](sources)
-        + 0.995
-        * (geometry["surface_slope"](sources) - geometry["bed_slope"](sources))
-    )
+    # Deposited isochrones are tangent to the true surface.  Marker positions
+    # remain at sigma=0.995 solely to keep point evaluation inside the mesh.
+    source_slope = geometry["surface_slope"](sources)
     tangents = np.column_stack((np.ones(len(sources)), source_slope))
     source_velocity = geometry["surface_velocity"](sources)
     source_accumulation = (
@@ -625,8 +652,13 @@ def trace_steady_family(
             result["x"],
             result["surface mass balance"],
         )
+        local_bed = geometry["bed"](accepted_points[:, 0])
+        local_thickness = accepted_surface - local_bed
+        local_outflow_buffer = (
+            outflow_buffer_m / THICKNESS * local_thickness
+        )
         resolved = (local_mass_balance >= 0.0) | (
-            clearance >= outflow_buffer_m
+            clearance >= local_outflow_buffer
         )
         improves_resolved = resolved & (accepted_j < resolved_minimum[indices])
         if np.any(improves_resolved):
@@ -736,6 +768,9 @@ def summarize_characteristic_case(
     outflow_buffer_m: float,
     sampler_nx: int,
     sampler_nz: int,
+    sampler_sigma_lower: float,
+    sampler_sigma_upper: float,
+    maximum_age_yr: float,
     runtime: float,
 ) -> dict:
     """Reduce steady path results to an independent validation row."""
@@ -787,7 +822,14 @@ def summarize_characteristic_case(
 
     accumulation = result["surface mass balance"]
     x = result["x"]
-    intervals = convergent.connected_intervals(accumulation > 1.0e-5)
+    accumulation_threshold = (
+        SOURCE_ACCUMULATION_THRESHOLD_AT_KAPPA_ONE
+        * abs(convergent.KAPPA)
+    )
+    intervals = convergent.connected_intervals(
+        accumulation > accumulation_threshold
+    )
+    counterflow_velocity_threshold = 1.0e-5 * abs(convergent.KAPPA)
     first_zero = trajectories["first_J_zero_age_yr"].min(skipna=True)
     active_at_raw_min = int(
         np.count_nonzero(trajectories["exit_age_yr"] >= raw_row["raw_minimum_age_yr"])
@@ -809,17 +851,40 @@ def summarize_characteristic_case(
         "right_length_m": convergent.RIGHT_LENGTH,
         "relief_m": convergent.RELIEF,
         "thickness_m": THICKNESS,
+        "mean_thickness_m": THICKNESS,
+        "surface_to_bed_relief_ratio_kappa": convergent.KAPPA,
+        "surface_relief_m": convergent.KAPPA * convergent.RELIEF,
+        "center_thickness_m": convergent.center_ice_thickness(),
+        "divide_thickness_m": convergent.divide_ice_thickness(),
+        "minimum_thickness_m": convergent.minimum_ice_thickness(),
+        "maximum_thickness_m": convergent.maximum_ice_thickness(),
         "total_length_m": TOTAL_LENGTH,
         "nx": nx,
         "nz": nz,
         "source_count_per_family": source_count,
         "source_flux_lower_quantile": source_flux_quantiles[0],
         "source_flux_upper_quantile": source_flux_quantiles[1],
+        "source_accumulation_threshold_m_per_yr": accumulation_threshold,
         "time_step_yr": time_step,
         "sampler_nx": sampler_nx,
         "sampler_nz": sampler_nz,
-        "maximum_age_safety_cap_yr": MAXIMUM_AGE_YR,
+        "sampler_sigma_lower": sampler_sigma_lower,
+        "sampler_sigma_upper": sampler_sigma_upper,
+        "maximum_age_safety_cap_yr": maximum_age_yr,
         "surface_outflow_buffer_m": outflow_buffer,
+        "surface_outflow_buffer_fraction_of_local_thickness": (
+            outflow_buffer / THICKNESS
+        ),
+        "minimum_local_surface_outflow_buffer_m": (
+            outflow_buffer
+            / THICKNESS
+            * convergent.minimum_ice_thickness()
+        ),
+        "maximum_local_surface_outflow_buffer_m": (
+            outflow_buffer
+            / THICKNESS
+            * convergent.maximum_ice_thickness()
+        ),
         "solution_provenance": "direct_solve",
         "valid": bool(valid),
         "status": status,
@@ -881,13 +946,22 @@ def summarize_characteristic_case(
             np.count_nonzero(
                 (
                     (trajectories["source_side"] == "left")
-                    & (trajectories["minimum_path_u_m_per_yr"] < -1.0e-5)
+                    & (
+                        trajectories["minimum_path_u_m_per_yr"]
+                        < -counterflow_velocity_threshold
+                    )
                 )
                 | (
                     (trajectories["source_side"] == "right")
-                    & (trajectories["maximum_path_u_m_per_yr"] > 1.0e-5)
+                    & (
+                        trajectories["maximum_path_u_m_per_yr"]
+                        > counterflow_velocity_threshold
+                    )
                 )
             )
+        ),
+        "path_counterflow_velocity_threshold_m_per_yr": (
+            counterflow_velocity_threshold
         ),
         "maximum_counterflow_speed_m_per_yr": float(
             max(
@@ -933,6 +1007,7 @@ def summarize_characteristic_case(
     short_length = min(convergent.LEFT_LENGTH, convergent.RIGHT_LENGTH)
     short_slope = 0.5 * np.pi * convergent.RELIEF / short_length
     summary["maximum_short_flank_slope"] = short_slope
+    summary["maximum_short_surface_slope"] = convergent.KAPPA * short_slope
     summary["maximum_short_flank_angle_degrees"] = float(
         np.degrees(np.arctan(short_slope))
     )
@@ -950,10 +1025,16 @@ def run_case(
     source_flux_quantiles: tuple[float, float] = SOURCE_FLUX_QUANTILES,
     sampler_nx: int = 1201,
     sampler_nz: int = 101,
+    sampler_sigma_lower: float = 0.002,
+    sampler_sigma_upper: float = 0.999,
+    kappa: float = 1.0,
+    maximum_age_yr: float | None = None,
 ) -> tuple[dict, pd.DataFrame | None]:
     """Solve one steady geometry and retain failures as explicit rows."""
     started = time.perf_counter()
-    set_geometry(length_ratio, relief_ratio)
+    set_geometry(length_ratio, relief_ratio, kappa=kappa)
+    if maximum_age_yr is None:
+        maximum_age_yr = MAXIMUM_AGE_YR
     if outflow_buffer_m is None:
         outflow_buffer_m = 2.0 * THICKNESS / nz
     base = {
@@ -963,21 +1044,85 @@ def run_case(
         "right_length_m": convergent.RIGHT_LENGTH,
         "relief_m": convergent.RELIEF,
         "thickness_m": THICKNESS,
+        "mean_thickness_m": THICKNESS,
+        "surface_to_bed_relief_ratio_kappa": convergent.KAPPA,
+        "surface_relief_m": convergent.KAPPA * convergent.RELIEF,
+        "center_thickness_m": convergent.center_ice_thickness(),
+        "divide_thickness_m": convergent.divide_ice_thickness(),
+        "minimum_thickness_m": convergent.minimum_ice_thickness(),
+        "maximum_thickness_m": convergent.maximum_ice_thickness(),
         "total_length_m": TOTAL_LENGTH,
         "nx": nx,
         "nz": nz,
         "source_count_per_family": source_count,
         "time_step_yr": time_step,
         "surface_outflow_buffer_m": outflow_buffer_m,
+        "surface_outflow_buffer_fraction_of_local_thickness": (
+            outflow_buffer_m / THICKNESS
+        ),
+        "minimum_local_surface_outflow_buffer_m": (
+            outflow_buffer_m
+            / THICKNESS
+            * convergent.minimum_ice_thickness()
+        ),
+        "maximum_local_surface_outflow_buffer_m": (
+            outflow_buffer_m
+            / THICKNESS
+            * convergent.maximum_ice_thickness()
+        ),
         "source_flux_lower_quantile": source_flux_quantiles[0],
         "source_flux_upper_quantile": source_flux_quantiles[1],
+        "source_accumulation_threshold_m_per_yr": (
+            SOURCE_ACCUMULATION_THRESHOLD_AT_KAPPA_ONE
+            * abs(convergent.KAPPA)
+        ),
+        "path_counterflow_velocity_threshold_m_per_yr": (
+            1.0e-5 * abs(convergent.KAPPA)
+        ),
         "sampler_nx": sampler_nx,
         "sampler_nz": sampler_nz,
+        "sampler_sigma_lower": sampler_sigma_lower,
+        "sampler_sigma_upper": sampler_sigma_upper,
+        "maximum_age_safety_cap_yr": maximum_age_yr,
         "solution_provenance": "direct_solve",
         "valid": False,
         "status": "not_run",
         "error": "",
     }
+    if convergent.minimum_ice_thickness() <= 0.0:
+        base.update(
+            {
+                "solution_provenance": (
+                    "analytical_invalid_nonpositive_thickness"
+                ),
+                "status": "invalid_nonpositive_thickness",
+                "resolved_classification": "invalid",
+                "runtime_s": time.perf_counter() - started,
+                "error": (
+                    "mean-thickness geometry requires "
+                    "H - abs(1-kappa) Delta b / 2 > 0"
+                ),
+                "minimum_resolved_J": np.nan,
+                "minimum_raw_J": np.nan,
+            }
+        )
+        return base, None
+    if convergent.KAPPA == 0.0:
+        base.update(
+            {
+                "solution_provenance": "analytical_stagnant_limit",
+                "status": "stagnant_flat_surface",
+                "resolved_classification": "undefined",
+                "runtime_s": time.perf_counter() - started,
+                "error": (
+                    "kappa=0 has an exactly horizontal surface and a "
+                    "hydrostatic zero-velocity solution; steady J is undefined"
+                ),
+                "minimum_resolved_J": np.nan,
+                "minimum_raw_J": np.nan,
+            }
+        )
+        return base, None
     try:
         result = solve_velocity(
             length_ratio,
@@ -986,6 +1131,9 @@ def run_case(
             nz,
             sampler_nx=sampler_nx,
             sampler_nz=sampler_nz,
+            sampler_sigma_lower=sampler_sigma_lower,
+            sampler_sigma_upper=sampler_sigma_upper,
+            kappa=convergent.KAPPA,
         )
         families = source_families(
             result,
@@ -1001,7 +1149,7 @@ def run_case(
                     result,
                     family,
                     time_step=time_step,
-                    maximum_age=MAXIMUM_AGE_YR,
+                    maximum_age=maximum_age_yr,
                     outflow_buffer_m=outflow_buffer_m,
                 )
             )
@@ -1019,6 +1167,9 @@ def run_case(
             outflow_buffer_m=outflow_buffer_m,
             sampler_nx=sampler_nx,
             sampler_nz=sampler_nz,
+            sampler_sigma_lower=sampler_sigma_lower,
+            sampler_sigma_upper=sampler_sigma_upper,
+            maximum_age_yr=maximum_age_yr,
             runtime=time.perf_counter() - started,
         )
         return row, trajectories
@@ -1032,7 +1183,8 @@ def run_case(
                 "minimum_raw_J": np.nan,
             }
         )
-        traceback.print_exc()
+        if PRINT_CASE_TRACEBACKS:
+            traceback.print_exc()
         return base, None
 
 

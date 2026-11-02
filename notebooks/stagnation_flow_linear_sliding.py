@@ -1,11 +1,12 @@
 """Two-sided convergent glacier flow with passive linear basal sliding.
 
 The glacier occupies an asymmetric, finite V-shaped catchment.  Its left
-flank is short and steep, its right flank is five times longer and five
-times gentler, and both the bed and surface descend toward their common
-minimum.  Gravity therefore drives two flows toward the minimum.  The
-surface mass balance needed to hold the geometry fixed is diagnosed from
-the solved velocity; central ablation removes the converging flux.
+flank is short and steep and its right flank is longer and gentler.  Bed and
+surface relief may differ through ``KAPPA = Delta s / Delta b``; the original
+constant-thickness case has ``KAPPA=1``.  When the surface descends toward
+the basin center, gravity drives two converging flows.  The surface mass
+balance needed to hold the geometry fixed is diagnosed from the solved
+velocity; central ablation removes the converging flux.
 
 This script tests whether equal-age curves launched from the diagnosed
 surface-accumulation zones develop a vertical tangent (dx/dx0 = 0) or an
@@ -38,12 +39,23 @@ LEFT_LENGTH = 1_000.0
 RIGHT_LENGTH = 5_000.0
 RELIEF = 150.0
 THICKNESS = 200.0
+# Ratio of surface relief to bed relief.  The represented boundaries are
+#
+#     b(x) = RELIEF f(x),
+#     h(x) = THICKNESS + (1 - KAPPA) RELIEF (1/2 - f(x)),
+#     s(x) = b(x) + h(x),
+#
+# where f=0 at the basin center, f=1 at both divides, and its exact domain
+# mean is 1/2.  THICKNESS is therefore the mean vertical thickness for every
+# KAPPA.  KAPPA=1 is the original constant-thickness geometry and KAPPA=0
+# has a flat surface.
+KAPPA = 1.0
 
 OUTPUT_DIRECTORY = Path("notebooks/stagnation_flow_results")
 
 
 def flank_shape(x):
-    """Surface/bed relief above the central minimum."""
+    """Bed elevation above the central minimum."""
     x = np.asarray(x)
     left = RELIEF * np.sin(0.5 * np.pi * (-x) / LEFT_LENGTH) ** 2
     right = RELIEF * np.sin(0.5 * np.pi * x / RIGHT_LENGTH) ** 2
@@ -51,7 +63,7 @@ def flank_shape(x):
 
 
 def flank_slope(x):
-    """Derivative of flank_shape."""
+    """Bed slope, the derivative of :func:`flank_shape`."""
     x = np.asarray(x)
     left = -(
         0.5
@@ -70,8 +82,54 @@ def flank_slope(x):
     return np.where(x <= 0.0, left, right)
 
 
+def surface_shape(x):
+    """Surface elevation for the current bed--surface relief ratio."""
+    return (
+        THICKNESS
+        + 0.5 * (1.0 - KAPPA) * RELIEF
+        + KAPPA * flank_shape(x)
+    )
+
+
+def surface_slope(x):
+    """Surface slope for the current bed--surface relief ratio."""
+    return KAPPA * flank_slope(x)
+
+
+def ice_thickness(x):
+    """Local vertical ice thickness."""
+    return surface_shape(x) - flank_shape(x)
+
+
+def minimum_ice_thickness():
+    """Exact minimum vertical thickness over the two-flank geometry."""
+    return THICKNESS - 0.5 * abs(1.0 - KAPPA) * RELIEF
+
+
+def maximum_ice_thickness():
+    """Exact maximum vertical thickness over the two-flank geometry."""
+    return THICKNESS + 0.5 * abs(1.0 - KAPPA) * RELIEF
+
+
+def center_ice_thickness():
+    """Vertical thickness at the basin center, where f=0."""
+    return THICKNESS + 0.5 * (1.0 - KAPPA) * RELIEF
+
+
+def divide_ice_thickness():
+    """Vertical thickness at either divide, where f=1."""
+    return THICKNESS - 0.5 * (1.0 - KAPPA) * RELIEF
+
+
 def make_mesh(nx, nz):
-    """Map a rectangle to a constant-thickness asymmetric V catchment."""
+    """Map a rectangle to an asymmetric basin with independent top relief."""
+    minimum_thickness = minimum_ice_thickness()
+    if minimum_thickness <= 0.0:
+        raise ValueError(
+            "nonpositive ice thickness: require "
+            "THICKNESS - abs(1 - KAPPA) * RELIEF / 2 > 0; "
+            f"got {minimum_thickness:g} m"
+        )
     total_length = LEFT_LENGTH + RIGHT_LENGTH
     base_mesh = fd.RectangleMesh(nx, nz, total_length, THICKNESS)
     coordinate_space = fd.VectorFunctionSpace(base_mesh, "CG", 2)
@@ -99,8 +157,10 @@ def make_mesh(nx, nz):
         0.5 * np.pi * x / RIGHT_LENGTH
     ) ** 2
     bed = fd.conditional(x <= 0.0, left_relief, right_relief)
+    surface = THICKNESS + 0.5 * (1.0 - KAPPA) * RELIEF + KAPPA * bed
+    local_thickness = surface - bed
     coordinates = fd.Function(coordinate_space).interpolate(
-        fd.as_vector((x, bed + reference_z))
+        fd.as_vector((x, bed + reference_z * local_thickness / THICKNESS))
     )
     return fd.Mesh(coordinates)
 
@@ -202,7 +262,13 @@ def solve_stokes(nx, nz):
     return mesh, velocity, diagnostics
 
 
-def make_sampler(velocity, nx_sample=1201, nz_sample=101):
+def make_sampler(
+    velocity,
+    nx_sample=1201,
+    nz_sample=101,
+    sigma_lower=0.002,
+    sigma_upper=0.999,
+):
     """Sample velocity on a regular grid fitted to the represented boundary."""
     mesh = velocity.function_space().mesh()
     coordinates = mesh.coordinates.dat.data_ro
@@ -238,7 +304,9 @@ def make_sampler(velocity, nx_sample=1201, nz_sample=101):
         RIGHT_LENGTH - horizontal_margin,
         nx_sample,
     )
-    sigma = np.linspace(0.002, 0.999, nz_sample)
+    if not 0.0 < sigma_lower < sigma_upper < 1.0:
+        raise ValueError("require 0 < sigma_lower < sigma_upper < 1")
+    sigma = np.linspace(sigma_lower, sigma_upper, nz_sample)
     bed = bed_interpolator(x)
     surface = surface_interpolator(x)
     X = np.tile(x, (nz_sample, 1))
@@ -361,13 +429,11 @@ def trace_source_family(
         source_velocity[:, 0] * geometry["surface_slope"](source_x)
         - source_velocity[:, 1]
     )
-    source_bed_slope = geometry["bed_slope"](source_x)
     source_surface_slope = geometry["surface_slope"](source_x)
     source_tangent = np.column_stack(
         (
             np.ones(len(source_x)),
-            source_bed_slope
-            + 0.995 * (source_surface_slope - source_bed_slope),
+            source_surface_slope,
         )
     )
 
@@ -649,7 +715,7 @@ def make_figure(result):
     )
     axes[0].plot(
         x / 1000.0,
-        flank_shape(x) + THICKNESS,
+        surface_shape(x),
         color="0.1",
         linewidth=1.2,
         zorder=7,
@@ -687,9 +753,7 @@ def make_figure(result):
     )
 
     axes[2].fill_between(x / 1000.0, 0.0, flank_shape(x), color="0.6")
-    axes[2].plot(
-        x / 1000.0, flank_shape(x) + THICKNESS, color="0.1", linewidth=1.0
-    )
+    axes[2].plot(x / 1000.0, surface_shape(x), color="0.1", linewidth=1.0)
     colors = ("#4477AA", "#EE7733")
     for family, family_color in zip(result["families"], colors):
         times = np.linspace(0.0, family["times"][-1], 7)
