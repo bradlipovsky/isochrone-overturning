@@ -130,6 +130,9 @@ def main():
                 "bed-buffer terminations": diagnostic[
                     "bed-buffer terminations"
                 ],
+                "rms right-boundary w (m/yr)": diagnostic[
+                    "rms right-boundary w (m/yr)"
+                ],
                 "relative flux closure": diagnostic[
                     "relative flux closure"
                 ],

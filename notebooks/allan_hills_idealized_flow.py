@@ -10,7 +10,8 @@ on the thin left side to a positive slope on the thick right side.  The bed is
 ``b = s - h``, where ``h`` grows smoothly from 70 to 360 m.  The upper surface
 is traction free.  The bed has no penetration and the same passive linear
 Robin sliding law used by the other idealized experiments.  At the right side
-an exact linear-viscous SIA-style profile supplies leftward inflow.  Five cases
+an exact linear-viscous SIA-style horizontal profile supplies leftward inflow,
+and the vertical velocity is fixed to zero.  Five cases
 separate thickness, inflow strength, and the left boundary condition:
 
 * variable thickness with an open prescribed-traction boundary on the left;
@@ -391,9 +392,8 @@ def target_right_flux(case: Case) -> float:
 def right_inflow_horizontal(mesh, case: Case):
     """SIA-shaped horizontal speed with a prescribed target flux.
 
-    Only the horizontal component is prescribed.  The vertical component has
-    its natural tangential-traction condition at the vertical inlet, avoiding
-    the injection of an assumed vertical-velocity profile.
+    This expression supplies the horizontal Dirichlet datum.  The solve
+    separately imposes zero vertical velocity on the right inlet.
     """
     _, z = fd.SpatialCoordinate(mesh)
     h_right = float(ice_thickness(LENGTH, case))
@@ -505,18 +505,22 @@ def solve_stokes(case: Case, nx: int, nz: int):
     ) * fd.ds(3)
 
     effective_left_slope = np.nan
+    right_boundary_conditions = [
+        fd.DirichletBC(
+            mixed_space.sub(0).sub(0),
+            right_inflow_horizontal(mesh, case),
+            2,
+        ),
+        fd.DirichletBC(
+            mixed_space.sub(0).sub(1), fd.Constant(0.0), 2
+        ),
+    ]
     if case.left_boundary == "open_traction":
         left_traction, effective_left_slope = open_left_traction(
             mesh, case
         )
         residual -= fd.dot(left_traction, v) * fd.ds(1)
-        boundary_conditions = [
-            fd.DirichletBC(
-                mixed_space.sub(0).sub(0),
-                right_inflow_horizontal(mesh, case),
-                2,
-            )
-        ]
+        boundary_conditions = right_boundary_conditions
     elif case.left_boundary == "matched_inflow":
         boundary_conditions = [
             fd.DirichletBC(
@@ -524,23 +528,13 @@ def solve_stokes(case: Case, nx: int, nz: int):
                 left_inflow_horizontal(mesh, case),
                 1,
             ),
-            fd.DirichletBC(
-                mixed_space.sub(0).sub(0),
-                right_inflow_horizontal(mesh, case),
-                2,
-            ),
-        ]
+        ] + right_boundary_conditions
     elif case.left_boundary == "divide":
         boundary_conditions = [
             fd.DirichletBC(
                 mixed_space.sub(0).sub(0), fd.Constant(0.0), 1
             ),
-            fd.DirichletBC(
-                mixed_space.sub(0).sub(0),
-                right_inflow_horizontal(mesh, case),
-                2,
-            ),
-        ]
+        ] + right_boundary_conditions
     else:
         raise ValueError(f"unknown left boundary {case.left_boundary!r}")
 
@@ -563,6 +557,9 @@ def solve_stokes(case: Case, nx: int, nz: int):
         )
     }
     bed_length = float(fd.assemble(fd.Constant(1.0) * fd.ds(3, domain=mesh)))
+    right_length = float(
+        fd.assemble(fd.Constant(1.0) * fd.ds(2, domain=mesh))
+    )
     domain_area = float(fd.assemble(fd.Constant(1.0) * fd.dx(domain=mesh)))
     diagnostics = {
         "case": case.key,
@@ -609,6 +606,10 @@ def solve_stokes(case: Case, nx: int, nz: int):
                 fd.assemble(fd.dot(velocity, normal) ** 2 * fd.ds(3))
             )
             / bed_length
+        ),
+        "rms right-boundary w (m/yr)": np.sqrt(
+            float(fd.assemble(velocity[1] ** 2 * fd.ds(2)))
+            / right_length
         ),
         "effective open-left reference slope": effective_left_slope,
     }
@@ -1324,8 +1325,57 @@ def _draw_geometry(axis):
         ha="right",
         va="center",
     )
+    # Define the source-depth coordinate used on panel D directly on the
+    # geometry.  The source itself lies on the exact right boundary; the
+    # adjacent bracket shows its height above the bed as a fraction of h_R.
+    source_sigma_example = 0.28
+    right_bed = float(bed_elevation(LENGTH, reference_case))
+    right_surface = float(surface_elevation(LENGTH))
+    source_elevation = right_bed + source_sigma_example * (
+        right_surface - right_bed
+    )
+    axis.plot(
+        LENGTH / 1000.0,
+        source_elevation,
+        marker="o",
+        markersize=4.5,
+        markerfacecolor="white",
+        markeredgecolor="0.1",
+        clip_on=False,
+        zorder=6,
+    )
     axis.annotate(
-        "prescribed SIA-like $u$",
+        "",
+        xy=(1.72, source_elevation),
+        xytext=(1.72, right_bed),
+        arrowprops={"arrowstyle": "<->", "linewidth": 0.75},
+    )
+    axis.plot(
+        (1.72, LENGTH / 1000.0),
+        (source_elevation, source_elevation),
+        color="0.35",
+        linewidth=0.7,
+        linestyle=":",
+    )
+    axis.text(
+        1.69,
+        0.5 * (right_bed + source_elevation),
+        r"$\sigma_0h_R$",
+        ha="right",
+        va="center",
+        fontsize=8.0,
+    )
+    axis.text(
+        1.30,
+        source_elevation - 10.0,
+        r"source: $z_0=b_R+\sigma_0h_R$",
+        ha="left",
+        va="top",
+        fontsize=7.8,
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.75},
+    )
+    axis.annotate(
+        "$u=u_{\\mathrm{SIA}}(z)$\n$w=0$",
         xy=(1.62, 310.0),
         xytext=(1.96, 310.0),
         arrowprops={"arrowstyle": "->", "linewidth": 1.3},
@@ -1494,6 +1544,18 @@ def _draw_flow(axis, result, color_norm, levels):
         bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.72},
         zorder=9,
     )
+    axis.text(
+        0.985,
+        0.73,
+        "right inlet: $w=0$",
+        transform=axis.transAxes,
+        rotation=90,
+        ha="right",
+        va="center",
+        fontsize=8.0,
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.60},
+        zorder=9,
+    )
     axis.set(
         xlim=(0.0, 2.0),
         ylim=(np.min(bed) - 25.0, np.max(surface) + 10.0),
@@ -1620,7 +1682,11 @@ def _draw_inlet_j_map(axis, result):
     )
     axis.set(
         xlabel="Incoming layer slope, $m_0$",
-        ylabel="Inlet normalized height, $\sigma_0$",
+        ylabel=(
+            "Right-inlet normalized source height\n"
+            "$\\sigma_0=(z_0-b_R)/h_R$\n"
+            "(0 = bed; 1 = surface)"
+        ),
         title="Where do incoming ordered layers overturn?",
     )
     return image
@@ -1742,6 +1808,7 @@ def make_comparison_figure(results):
             fontsize=7.5,
         )
     summary_axis.set(
+        ylim=(-0.47, 0.12),
         ylabel="Minimum $J$ for horizontal incoming layers",
         title="Thin-left counterflow permits folding",
     )
@@ -1885,6 +1952,7 @@ def write_report(case_frame: pd.DataFrame, source_frame: pd.DataFrame, args):
                 "source sigma at minimum J, m0=0",
                 "negative horizontal sources",
                 "bed-buffer terminations",
+                "rms right-boundary w (m/yr)",
                 "maximum abs detF-1",
                 "relative flux closure",
             ),
@@ -1896,6 +1964,7 @@ def write_report(case_frame: pd.DataFrame, source_frame: pd.DataFrame, args):
                 "source sigma at minimum J, m0=0": lambda v: f"{v:.5f}",
                 "negative horizontal sources": lambda v: f"{int(v)}",
                 "bed-buffer terminations": lambda v: f"{int(v)}",
+                "rms right-boundary w (m/yr)": lambda v: f"{v:.2e}",
                 "maximum abs detF-1": lambda v: f"{v:.2e}",
                 "relative flux closure": lambda v: f"{v:.2e}",
             },
@@ -1929,7 +1998,7 @@ def write_report(case_frame: pd.DataFrame, source_frame: pd.DataFrame, args):
 
 This calculation tests whether an idealized thin-left/thick-right geometry, together with leftward influx from the thick side and alternative treatments of the thin-left boundary, can overturn material lines. It is a two-dimensional, fixed-geometry, incompressible, linear-viscous full-Stokes calculation, not a free-surface evolution.
 
-The domain is {LENGTH / 1000:.1f} km long. The variable-thickness geometry grows smoothly from {LEFT_THICKNESS:.0f} to {RIGHT_THICKNESS:.0f} m; the surface slope transitions from {LEFT_SURFACE_SLOPE:.3f} to {RIGHT_SURFACE_SLOPE:.3f}. The bed has no penetration and linear Robin drag $\\beta={BASAL_DRAG:.2e}$ Pa yr m$^{{-1}}$, and the surface is traction free. At the right boundary, only $u$ is prescribed using an $n=1$ SIA-shaped profile scaled to the target flux; $w$ is not prescribed and retains its natural zero-tangential-traction condition. The reference right flux is {REFERENCE_INFLOW_FLUX:.3f} m$^2$ yr$^{{-1}}$, and the reduced cases use {100.0 * REDUCED_INFLOW_FRACTION:.0f}% of it.
+The domain is {LENGTH / 1000:.1f} km long. The variable-thickness geometry grows smoothly from {LEFT_THICKNESS:.0f} to {RIGHT_THICKNESS:.0f} m; the surface slope transitions from {LEFT_SURFACE_SLOPE:.3f} to {RIGHT_SURFACE_SLOPE:.3f}. The bed has no penetration and linear Robin drag $\\beta={BASAL_DRAG:.2e}$ Pa yr m$^{{-1}}$, and the surface is traction free. At the right boundary, $u$ is prescribed using an $n=1$ SIA-shaped profile scaled to the target flux and $w=0$ is imposed explicitly. The reference right flux is {REFERENCE_INFLOW_FLUX:.3f} m$^2$ yr$^{{-1}}$, and the reduced cases use {100.0 * REDUCED_INFLOW_FRACTION:.0f}% of it.
 
 The thickness construction reaches {MID_THICKNESS:.0f} m through a smooth 0--{FIRST_THICKENING_END / 1000.0:.1f} km transition, then adds a second transition beginning at {SECOND_THICKENING_START / 1000.0:.1f} km. That second ramp formally ends at {SECOND_THICKENING_END / 1000.0:.1f} km outside the domain and is normalized to give exactly {RIGHT_THICKNESS:.0f} m at the right boundary. Consequently, the bed is still descending at the right inlet rather than turning upward there.
 
@@ -1941,6 +2010,8 @@ The surface mass balance needed to keep the surface fixed is diagnosed as $a_s=u
 
 Along {args.sources} right-inlet depth sources, the code integrates $\\dot F=\\nabla u F$ from $F=I$. For each incoming tangent $(1,m_0)$ it evaluates $J(m_0)=F_{{00}}+m_0F_{{01}}$. Negative $J$ is overturning. The reported decomposition integrates $u_xT_x$ and $u_zT_z$ separately, and `det(F)` checks incompressibility along paths.
 
+The source coordinate is $\\sigma_0=(z_0-b_R)/h_R$: $\\sigma_0=0$ is the right-inlet bed and $\\sigma_0=1$ is the right-inlet surface. It is a normalized source height, not either boundary thickness $h_L$ or $h_R$.
+
 {table}
 
 For initially horizontal material lines, overturning occurs in: **{names(overturned_horizontal)}**. For material lines initially parallel to the right surface, overturning occurs in: **{names(overturned_surface)}**.
@@ -1951,7 +2022,7 @@ The open-left variable-thickness case overturns: $J_{{min}}(m_0=0)={primary['min
 
 The flux-matched two-sided case also overturns ($J_{{min}}={matched['minimum J, m0=0']:.4f}$), so the positive result does not depend on using the open-traction boundary. In contrast, closing the thin-left boundary leaves the same variable-thickness geometry ordered ($J_{{min}}={closed['minimum J, m0=0']:.4f}$), and even the full reference right influx with a closed left remains ordered ($J_{{min}}={full_right['minimum J, m0=0']:.4f}$). Thus thickness contrast plus right-side influx is not sufficient in these tests; thin-left counterflow and the resulting two-sided convergence are the decisive ingredients.
 
-The principal case imports {-primary['left outward flux (m2/yr)']:.3f} m$^2$ yr$^{{-1}}$ from the left and {-primary['computed right outward flux (m2/yr)']:.3f} m$^2$ yr$^{{-1}}$ from the right, balanced by {primary['surface outward flux (m2/yr)']:.3f} m$^2$ yr$^{{-1}}$ of surface outflux. Its left quarter is not uniformly downwelling: {100.0 * primary['fraction w < 0 in left quarter']:.0f}% of sampled points have $w<0$, while the mean is {primary['mean w in left quarter (m/yr)']:.3e} m yr$^{{-1}}$. The idealized vertical-velocity field therefore only partly reproduces the attached 3-D section.
+The principal case imports {-primary['left outward flux (m2/yr)']:.3f} m$^2$ yr$^{{-1}}$ from the left and {-primary['computed right outward flux (m2/yr)']:.3f} m$^2$ yr$^{{-1}}$ from the right, balanced by {primary['surface outward flux (m2/yr)']:.3f} m$^2$ yr$^{{-1}}$ of surface outflux. The solved RMS right-boundary vertical velocity is {primary['rms right-boundary w (m/yr)']:.2e} m yr$^{{-1}}$. Its left quarter is not uniformly downwelling: {100.0 * primary['fraction w < 0 in left quarter']:.0f}% of sampled points have $w<0$, while the mean is {primary['mean w in left quarter (m/yr)']:.3e} m yr$^{{-1}}$. The idealized vertical-velocity field therefore only partly reproduces the attached 3-D section.
 
 The largest tangent-budget closure error is {maximum_budget_error:.2e}.
 
