@@ -781,6 +781,341 @@ def _draw_j_map(axis, result):
     return image
 
 
+def material_curve_snapshots(
+    result,
+    target_sigma=0.05,
+    initial_length=30.0,
+    source_count=121,
+):
+    """Advect a finite horizontal line whose right endpoint is a traced source.
+
+    The steady diagnostic follows a point at the right inlet together with the
+    deformation of an incoming tangent ``(1, m0)``.  To show the corresponding
+    fold as a finite curve, initialize
+
+        X0(xi) = (x_source + xi, z_source),  xi <= 0,
+
+    and advect every vertex through the same steady velocity field.  The right
+    endpoint therefore has ``sigma0 ~= target_sigma`` and ``m0 = 0``; its
+    endpoint derivative is the diagnostic ``J = F00`` in the short-segment
+    limit.  A short segment is used so that every vertex represents the same
+    near-bed inlet neighborhood rather than mixing a wide range of depths.
+    """
+    sampler = result["sampler"]
+    trace = result["trace"]
+    source_sigma = np.asarray(trace["source sigma"], dtype=float)
+    source_index = int(np.argmin(np.abs(source_sigma - target_sigma)))
+    selected_sigma = float(source_sigma[source_index])
+    source_x = (
+        sampler["domain right"] - 2.0 * sampler["horizontal margin"]
+    )
+    source_z = float(
+        sampler["bed"](source_x)
+        + selected_sigma * sampler["thickness"](source_x)
+    )
+
+    initial_x = np.linspace(source_x - initial_length, source_x, source_count)
+    initial_positions = np.column_stack(
+        (initial_x, np.full(source_count, source_z))
+    )
+    initial_sigma = core._terrain_sigma(initial_positions, sampler)
+    if (
+        np.any(initial_sigma <= sampler["sigma lower"])
+        or np.any(initial_sigma >= sampler["sigma upper"])
+    ):
+        raise RuntimeError("initial horizontal material line leaves the ice")
+
+    history_times = np.asarray(trace["history times"], dtype=float)
+    endpoint_j = np.asarray(
+        trace["history states"][:, source_index, 2], dtype=float
+    )
+    finite_history = np.isfinite(history_times) & np.isfinite(endpoint_j)
+    history_times = history_times[finite_history]
+    endpoint_j = endpoint_j[finite_history]
+    crossing_indices = np.flatnonzero(endpoint_j <= 0.0)
+    if not len(crossing_indices):
+        raise RuntimeError("selected horizontal source never reaches J=0")
+    crossing_index = int(crossing_indices[0])
+    if crossing_index == 0:
+        zero_age = float(history_times[0])
+    else:
+        zero_age = float(
+            np.interp(
+                0.0,
+                endpoint_j[crossing_index - 1 : crossing_index + 1][::-1],
+                history_times[crossing_index - 1 : crossing_index + 1][::-1],
+            )
+        )
+    horizontal = result["source frame"]
+    horizontal = horizontal[
+        np.isclose(horizontal["incoming slope m0"], 0.0)
+        & np.isclose(horizontal["source sigma"], selected_sigma)
+    ]
+    if len(horizontal) != 1:
+        raise RuntimeError("could not identify selected horizontal source")
+    selected_row = horizontal.iloc[0]
+    minimum_age = float(selected_row["age at minimum J (yr)"])
+    snapshot_ages = np.array(
+        (100_000.0, 115_000.0, 125_000.0, zero_age, minimum_age),
+        dtype=float,
+    )
+
+    positions = initial_positions.copy()
+    active = np.ones(source_count, dtype=bool)
+    snapshots = []
+    age = 0.0
+    requested_step = float(trace["time step"])
+
+    def record_snapshot(snapshot_age):
+        valid = active.copy()
+        segment_j = np.full(source_count - 1, np.nan)
+        valid_pairs = valid[:-1] & valid[1:]
+        segment_j[valid_pairs] = (
+            np.diff(positions[:, 0])[valid_pairs]
+            / np.diff(initial_x)[valid_pairs]
+        )
+        snapshots.append(
+            {
+                "age": float(snapshot_age),
+                "positions": positions.copy(),
+                "valid": valid,
+                "segment J": segment_j,
+                "endpoint J": float(
+                    np.interp(snapshot_age, history_times, endpoint_j)
+                ),
+            }
+        )
+
+    for target_age in snapshot_ages:
+        while age < target_age - 1.0e-10:
+            indices = np.flatnonzero(active)
+            if not len(indices):
+                raise RuntimeError("material curve exited before final snapshot")
+            local_step = min(requested_step, target_age - age)
+            current = positions[indices]
+            k1 = sampler["sample"](current)
+            k2 = sampler["sample"](current + 0.5 * local_step * k1)
+            k3 = sampler["sample"](current + 0.5 * local_step * k2)
+            k4 = sampler["sample"](current + local_step * k3)
+            candidate = current + local_step * (
+                k1 + 2.0 * k2 + 2.0 * k3 + k4
+            ) / 6.0
+            positions[indices] = candidate
+            local_sigma = core._terrain_sigma(candidate, sampler)
+            left_boundary = (
+                sampler["domain left"] + sampler["horizontal margin"]
+            )
+            right_boundary = (
+                sampler["domain right"] - sampler["horizontal margin"]
+            )
+            leaving = (
+                ~np.all(np.isfinite(candidate), axis=1)
+                | (candidate[:, 0] <= left_boundary)
+                | (candidate[:, 0] >= right_boundary)
+                | (local_sigma <= sampler["sigma lower"])
+                | (local_sigma >= sampler["sigma upper"])
+            )
+            active[indices[leaving]] = False
+            age += local_step
+        record_snapshot(target_age)
+
+    endpoint_finite_difference = float(snapshots[-1]["segment J"][-1])
+    endpoint_finite_difference_error = abs(
+        endpoint_finite_difference - snapshots[-1]["endpoint J"]
+    )
+    if endpoint_finite_difference_error > 0.01:
+        raise RuntimeError(
+            "finite-curve endpoint does not reproduce tangent diagnostic"
+        )
+    return {
+        "initial x": initial_x,
+        "source index": source_index,
+        "source sigma": selected_sigma,
+        "source x": source_x,
+        "source z": source_z,
+        "initial positions": initial_positions,
+        "initial sigma range": (
+            float(np.min(initial_sigma)),
+            float(np.max(initial_sigma)),
+        ),
+        "zero age": zero_age,
+        "minimum age": minimum_age,
+        "minimum J": float(selected_row["minimum J"]),
+        "endpoint finite-difference J": endpoint_finite_difference,
+        "endpoint finite-difference error": endpoint_finite_difference_error,
+        "snapshots": snapshots,
+    }
+
+
+def _consecutive_groups(indices):
+    """Split integer indices so plotting never bridges exited vertices."""
+    indices = np.asarray(indices, dtype=int)
+    if not len(indices):
+        return ()
+    return np.split(indices, np.flatnonzero(np.diff(indices) > 1) + 1)
+
+
+def _draw_material_curve_evolution(axis, result):
+    """Show a short near-bed isochrone segment developing a resolved fold."""
+    curve = material_curve_snapshots(result)
+    sampler = result["sampler"]
+    plotted_positions = np.vstack(
+        [
+            snapshot["positions"][snapshot["valid"]]
+            for snapshot in curve["snapshots"]
+        ]
+    )
+    x_padding = max(2.0, 0.08 * np.ptp(plotted_positions[:, 0]))
+    x_limits_m = (
+        float(np.min(plotted_positions[:, 0]) - x_padding),
+        float(np.max(plotted_positions[:, 0]) + x_padding),
+    )
+    x = np.linspace(*x_limits_m, 801)
+    floor = float(
+        min(
+            np.min(sampler["bed"](x)) - 8.0,
+            np.min(plotted_positions[:, 1]) - 15.0,
+        )
+    )
+    axis.fill_between(
+        x / 1000.0, floor, sampler["bed"](x), color="0.72", zorder=0
+    )
+    axis.plot(x / 1000.0, sampler["bed"](x), color="0.15", linewidth=1.0)
+    axis.plot(
+        x / 1000.0, sampler["surface"](x), color="0.15", linewidth=1.0
+    )
+    colors = plt.cm.viridis(np.linspace(0.08, 0.88, len(curve["snapshots"])))
+    for snapshot_index, (snapshot, color) in enumerate(
+        zip(curve["snapshots"], colors)
+    ):
+        valid_indices = np.flatnonzero(snapshot["valid"])
+        if np.isclose(snapshot["age"], curve["zero age"]):
+            label = rf"$t_{{J=0}}={snapshot['age'] / 1000.0:.0f}$ kyr"
+        elif np.isclose(snapshot["age"], curve["minimum age"]):
+            label = (
+                rf"$t_{{J_{{min}}}}={snapshot['age'] / 1000.0:.0f}$ kyr, "
+                rf"$J_{{end}}={snapshot['endpoint J']:.2f}$"
+            )
+        else:
+            label = f"{snapshot['age'] / 1000.0:.0f} kyr"
+        first_group = True
+        for group in _consecutive_groups(valid_indices):
+            if len(group) < 2:
+                continue
+            axis.plot(
+                snapshot["positions"][group, 0] / 1000.0,
+                snapshot["positions"][group, 1],
+                color=color,
+                linewidth=1.7,
+                label=label if first_group else None,
+                zorder=3 + snapshot_index,
+            )
+            first_group = False
+        if len(valid_indices):
+            endpoint = valid_indices[-1]
+            axis.plot(
+                snapshot["positions"][endpoint, 0] / 1000.0,
+                snapshot["positions"][endpoint, 1],
+                marker="o",
+                markersize=3.1,
+                color=color,
+                zorder=8,
+            )
+        if snapshot_index == len(curve["snapshots"]) - 1:
+            negative = np.flatnonzero(snapshot["segment J"] < 0.0)
+            negative = negative[:: max(1, len(negative) // 12)]
+            if len(negative):
+                midpoints = 0.5 * (
+                    snapshot["positions"][negative]
+                    + snapshot["positions"][negative + 1]
+                )
+                axis.scatter(
+                    midpoints[:, 0] / 1000.0,
+                    midpoints[:, 1],
+                    s=15,
+                    facecolors="none",
+                    edgecolors="#b2182b",
+                    linewidths=0.8,
+                    label=r"open circles: $\partial x/\partial x_0<0$",
+                    zorder=9,
+                )
+    axis.text(
+        0.02,
+        0.03,
+        (
+            "initial segment at right inlet:\n"
+            f"30 m horizontal; $\\sigma_0={curve['source sigma']:.3f}$, "
+            "$m_0=0$"
+        ),
+        transform=axis.transAxes,
+        fontsize=7.2,
+        ha="left",
+        va="bottom",
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.78},
+    )
+    axis.set(
+        xlim=np.asarray(x_limits_m) / 1000.0,
+        ylim=(floor, float(np.max(sampler["surface"](x)) + 8.0)),
+        xlabel="Distance (km)",
+        ylabel="Elevation (m)",
+        title="Near-bed isochrone segment develops a fold",
+    )
+    axis.legend(frameon=False, fontsize=6.5, loc="upper left", ncol=2)
+
+    inset = axis.inset_axes((0.59, 0.08, 0.38, 0.43))
+    for snapshot, color in zip(curve["snapshots"][2:], colors[2:]):
+        valid_indices = np.flatnonzero(snapshot["valid"])
+        for group in _consecutive_groups(valid_indices):
+            if len(group) < 2:
+                continue
+            inset.plot(
+                snapshot["positions"][group, 0],
+                snapshot["positions"][group, 1],
+                color=color,
+                linewidth=1.4,
+            )
+        negative = np.flatnonzero(snapshot["segment J"] < 0.0)
+        negative = negative[:: max(1, len(negative) // 8)]
+        if len(negative):
+            midpoints = 0.5 * (
+                snapshot["positions"][negative]
+                + snapshot["positions"][negative + 1]
+            )
+            inset.scatter(
+                midpoints[:, 0],
+                midpoints[:, 1],
+                s=11,
+                facecolors="none",
+                edgecolors="#b2182b",
+                linewidths=0.65,
+                zorder=5,
+            )
+    fold_positions = np.vstack(
+        [
+            snapshot["positions"][snapshot["valid"]]
+            for snapshot in curve["snapshots"][2:]
+        ]
+    )
+    inset_x_padding = max(0.15, 0.08 * np.ptp(fold_positions[:, 0]))
+    inset_y_padding = max(4.0, 0.05 * np.ptp(fold_positions[:, 1]))
+    inset.set(
+        xlim=(
+            np.min(fold_positions[:, 0]) - inset_x_padding,
+            np.max(fold_positions[:, 0]) + inset_x_padding,
+        ),
+        ylim=(
+            np.min(fold_positions[:, 1]) - inset_y_padding,
+            np.max(fold_positions[:, 1]) + inset_y_padding,
+        ),
+        xlabel="$x$ (m)",
+        title="fold close-up",
+    )
+    inset.tick_params(labelsize=6.0)
+    inset.xaxis.label.set_size(6.2)
+    inset.title.set_size(6.5)
+    return curve
+
+
 def make_figure(results, case_frame):
     primary = next(
         result for result in results if result["configuration"].key == "point_margin"
@@ -798,7 +1133,6 @@ def make_figure(results, case_frame):
     traction_free = ordered[ordered["surface mode"] == "traction_free"]
     exact = traction_free[traction_free["left thickness (m)"] == 0.0]
     truncated = traction_free[traction_free["left thickness (m)"] > 0.0]
-    uniform = ordered[ordered["surface mode"] == "uniform_ablation"]
     axes[4].plot(
         truncated["left thickness (m)"],
         truncated["minimum J, m0=0"],
@@ -815,21 +1149,13 @@ def make_figure(results, case_frame):
         label="true point margin (mesh sequence)",
         zorder=4,
     )
-    axes[4].scatter(
-        np.zeros(len(uniform)),
-        uniform["minimum J, m0=0"],
-        marker="^",
-        color="#b2182b",
-        label="point margin, uniform ablation",
-        zorder=5,
-    )
     axes[4].axhline(0.0, color="0.4", linewidth=0.8)
     axes[4].set(
         xlabel="Thickness of artificial left truncation (m)",
         ylabel="Minimum $J$ for horizontal incoming layers",
         title="Does the point-margin result converge?",
     )
-    axes[4].legend(frameon=False, fontsize=7.5)
+    axes[4].legend(frameon=False, fontsize=7.5, loc="upper left")
     inset = axes[4].inset_axes((0.53, 0.42, 0.43, 0.25))
     exact_by_resolution = exact.sort_values("resolution (m)")
     inset.plot(
@@ -845,61 +1171,7 @@ def make_figure(results, case_frame):
     inset.tick_params(labelsize=6.0)
     inset.set_facecolor((1.0, 1.0, 1.0, 0.90))
 
-    uniform_result = next(
-        result
-        for result in results
-        if result["configuration"].key == "point_margin_uniform_ablation"
-    )
-    flux = primary["surface frame"]
-    uniform_flux = uniform_result["surface frame"]
-    flux_axis = axes[5]
-    flux_axis.plot(
-        flux["x (m)"] / 1000.0,
-        flux["depth-integrated horizontal flux (m2/yr)"],
-        color="#2166ac",
-        label="$q$: diagnosed surface closure",
-    )
-    flux_axis.plot(
-        uniform_flux["x (m)"] / 1000.0,
-        uniform_flux["depth-integrated horizontal flux (m2/yr)"],
-        color="#2166ac",
-        linestyle="--",
-        label="$q$: uniform ablation",
-    )
-    flux_axis.set(
-        xlabel="Distance (km)",
-        ylabel="Horizontal flux $q$ (m$^2$ yr$^{-1}$)",
-        title="Surface closure controls the counterflow",
-    )
-    balance_axis = flux_axis.twinx()
-    balance_axis.plot(
-        flux["x (m)"] / 1000.0,
-        flux["diagnosed effective surface mass balance (m/yr)"],
-        color="#b2182b",
-        linewidth=1.1,
-        label="$a_{\\mathrm{eff}}$: diagnosed",
-    )
-    balance_axis.plot(
-        uniform_flux["x (m)"] / 1000.0,
-        uniform_flux["diagnosed effective surface mass balance (m/yr)"],
-        color="#b2182b",
-        linewidth=1.1,
-        linestyle="--",
-        label="$a_{\\mathrm{eff}}$: uniform ablation",
-    )
-    balance_axis.set_ylabel("Effective surface mass balance (m yr$^{-1}$)")
-    lines = flux_axis.lines + balance_axis.lines
-    flux_axis.legend(
-        lines,
-        [line.get_label() for line in lines],
-        frameon=False,
-        fontsize=8,
-        loc="upper center",
-        bbox_to_anchor=(0.5, 0.99),
-        ncol=2,
-        columnspacing=0.9,
-        handlelength=2.0,
-    )
+    _draw_material_curve_evolution(axes[5], primary)
 
     for label, contour, axis in (
         ("$u$ (m yr$^{-1}$)", u_contour, axes[1]),
