@@ -627,6 +627,10 @@ def make_sampler(
     horizontal_margin: float = 0.5,
     sigma_lower: float = SAMPLER_SIGMA_LOWER,
     sigma_upper: float = SAMPLER_SIGMA_UPPER,
+    domain_left: float = 0.0,
+    domain_right: float = LENGTH,
+    analytic_bed_function=None,
+    analytic_surface_function=None,
 ):
     """Sample velocity and its physical gradient on a terrain grid.
 
@@ -639,6 +643,8 @@ def make_sampler(
     """
     if not 0.0 < sigma_lower < sigma_upper < 1.0:
         raise ValueError("require 0 < sigma_lower < sigma_upper < 1")
+    if domain_right - domain_left <= 2.0 * horizontal_margin:
+        raise ValueError("sampling domain is narrower than its two margins")
     mesh = velocity.function_space().mesh()
     coordinates = mesh.coordinates.dat.data_ro
     zero = fd.Constant((0.0, 0.0))
@@ -655,13 +661,21 @@ def make_sampler(
     represented_bed_slope = represented_bed.derivative()
     represented_surface_slope = represented_surface.derivative()
 
-    x = np.linspace(horizontal_margin, LENGTH - horizontal_margin, nx_sample)
+    x = np.linspace(
+        domain_left + horizontal_margin,
+        domain_right - horizontal_margin,
+        nx_sample,
+    )
     sigma = np.linspace(sigma_lower, sigma_upper, nz_sample)
     bed = represented_bed(x)
     surface = represented_surface(x)
     thickness = surface - bed
-    analytic_bed = bed_elevation(x, case)
-    analytic_surface = surface_elevation(x)
+    if analytic_bed_function is None:
+        analytic_bed_function = lambda values: bed_elevation(values, case)
+    if analytic_surface_function is None:
+        analytic_surface_function = surface_elevation
+    analytic_bed = analytic_bed_function(x)
+    analytic_surface = analytic_surface_function(x)
     X = np.tile(x, (nz_sample, 1))
     Z = bed[None, :] + sigma[:, None] * thickness[None, :]
     points = np.column_stack((X.ravel(), Z.ravel()))
@@ -789,7 +803,7 @@ def make_sampler(
             integrated_surface_mass_balance
         ),
     }
-    left_mask = x <= 0.25 * LENGTH
+    left_mask = x <= domain_left + 0.25 * (domain_right - domain_left)
     left_w = values[:, left_mask, 1]
     diagnostics.update(
         {
@@ -816,6 +830,8 @@ def make_sampler(
         ),
         "diagnostics": diagnostics,
         "horizontal margin": horizontal_margin,
+        "domain left": domain_left,
+        "domain right": domain_right,
         "sigma lower": sigma_lower,
         "sigma upper": sigma_upper,
     }
@@ -891,7 +907,7 @@ def trace_incoming_material(
                 "terrain-sampler buffer"
             )
         source_count = len(source_sigma)
-    start_x = LENGTH - 2.0 * sampler["horizontal margin"]
+    start_x = sampler["domain right"] - 2.0 * sampler["horizontal margin"]
     start_bed = float(sampler["bed"](start_x))
     start_thickness = float(sampler["thickness"](start_x))
     positions = np.column_stack(
@@ -1025,8 +1041,14 @@ def trace_incoming_material(
         current_sigma = _terrain_sigma(current[:, :2], sampler)
         local_sigma = _terrain_sigma(candidate[:, :2], sampler)
         nonfinite = ~np.all(np.isfinite(candidate), axis=1)
-        left = candidate[:, 0] <= sampler["horizontal margin"]
-        right = candidate[:, 0] >= LENGTH - sampler["horizontal margin"]
+        left_boundary = (
+            sampler["domain left"] + sampler["horizontal margin"]
+        )
+        right_boundary = (
+            sampler["domain right"] - sampler["horizontal margin"]
+        )
+        left = candidate[:, 0] <= left_boundary
+        right = candidate[:, 0] >= right_boundary
         bed = local_sigma <= sampler["sigma lower"]
         surface = local_sigma >= sampler["sigma upper"]
         leaving = nonfinite | left | right | bed | surface
@@ -1038,16 +1060,14 @@ def trace_incoming_material(
             elif left[local_index]:
                 status = "left_exit"
                 fraction = (
-                    current[local_index, 0] - sampler["horizontal margin"]
+                    current[local_index, 0] - left_boundary
                 ) / (
                     current[local_index, 0] - candidate[local_index, 0]
                 )
             elif right[local_index]:
                 status = "right_exit"
                 fraction = (
-                    LENGTH
-                    - sampler["horizontal margin"]
-                    - current[local_index, 0]
+                    right_boundary - current[local_index, 0]
                 ) / (
                     candidate[local_index, 0] - current[local_index, 0]
                 )
