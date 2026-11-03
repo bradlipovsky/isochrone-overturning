@@ -27,7 +27,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.colors import TwoSlopeNorm
+from matplotlib.colors import Normalize, TwoSlopeNorm
 import numpy as np
 import pandas as pd
 
@@ -855,9 +855,25 @@ def material_curve_snapshots(
         raise RuntimeError("could not identify selected horizontal source")
     selected_row = horizontal.iloc[0]
     minimum_age = float(selected_row["age at minimum J (yr)"])
-    snapshot_ages = np.array(
-        (100_000.0, 115_000.0, 125_000.0, zero_age, minimum_age),
-        dtype=float,
+    snapshot_ages = np.unique(
+        np.array(
+            (
+                0.0,
+                20_000.0,
+                40_000.0,
+                60_000.0,
+                80_000.0,
+                100_000.0,
+                115_000.0,
+                122_000.0,
+                126_000.0,
+                129_000.0,
+                zero_age,
+                133_000.0,
+                minimum_age,
+            ),
+            dtype=float,
+        )
     )
 
     positions = initial_positions.copy()
@@ -955,9 +971,8 @@ def _consecutive_groups(indices):
     return np.split(indices, np.flatnonzero(np.diff(indices) > 1) + 1)
 
 
-def _draw_material_curve_evolution(axis, result):
-    """Show a short near-bed isochrone segment developing a resolved fold."""
-    curve = material_curve_snapshots(result)
+def _draw_material_curve_evolution(axis, result, curve, cmap, age_norm):
+    """Show the full advection history of the near-bed material segment."""
     sampler = result["sampler"]
     plotted_positions = np.vstack(
         [
@@ -984,21 +999,14 @@ def _draw_material_curve_evolution(axis, result):
     axis.plot(
         x / 1000.0, sampler["surface"](x), color="0.15", linewidth=1.0
     )
-    colors = plt.cm.viridis(np.linspace(0.08, 0.88, len(curve["snapshots"])))
+    colors = [
+        cmap(age_norm(snapshot["age"] / 1000.0))
+        for snapshot in curve["snapshots"]
+    ]
     for snapshot_index, (snapshot, color) in enumerate(
         zip(curve["snapshots"], colors)
     ):
         valid_indices = np.flatnonzero(snapshot["valid"])
-        if np.isclose(snapshot["age"], curve["zero age"]):
-            label = rf"$t_{{J=0}}={snapshot['age'] / 1000.0:.0f}$ kyr"
-        elif np.isclose(snapshot["age"], curve["minimum age"]):
-            label = (
-                rf"$t_{{J_{{min}}}}={snapshot['age'] / 1000.0:.0f}$ kyr, "
-                rf"$J_{{end}}={snapshot['endpoint J']:.2f}$"
-            )
-        else:
-            label = f"{snapshot['age'] / 1000.0:.0f} kyr"
-        first_group = True
         for group in _consecutive_groups(valid_indices):
             if len(group) < 2:
                 continue
@@ -1006,11 +1014,13 @@ def _draw_material_curve_evolution(axis, result):
                 snapshot["positions"][group, 0] / 1000.0,
                 snapshot["positions"][group, 1],
                 color=color,
-                linewidth=1.7,
-                label=label if first_group else None,
+                linewidth=(
+                    1.8
+                    if np.isclose(snapshot["age"], curve["minimum age"])
+                    else 1.25
+                ),
                 zorder=3 + snapshot_index,
             )
-            first_group = False
         if len(valid_indices):
             endpoint = valid_indices[-1]
             axis.plot(
@@ -1021,31 +1031,15 @@ def _draw_material_curve_evolution(axis, result):
                 color=color,
                 zorder=8,
             )
-        if snapshot_index == len(curve["snapshots"]) - 1:
-            negative = np.flatnonzero(snapshot["segment J"] < 0.0)
-            negative = negative[:: max(1, len(negative) // 12)]
-            if len(negative):
-                midpoints = 0.5 * (
-                    snapshot["positions"][negative]
-                    + snapshot["positions"][negative + 1]
-                )
-                axis.scatter(
-                    midpoints[:, 0] / 1000.0,
-                    midpoints[:, 1],
-                    s=15,
-                    facecolors="none",
-                    edgecolors="#b2182b",
-                    linewidths=0.8,
-                    label=r"open circles: $\partial x/\partial x_0<0$",
-                    zorder=9,
-                )
     axis.text(
         0.02,
         0.03,
         (
-            "initial segment at right inlet:\n"
-            f"30 m horizontal; $\\sigma_0={curve['source sigma']:.3f}$, "
-            "$m_0=0$"
+            f"30 m horizontal inlet segment: $\\sigma_0="
+            f"{curve['source sigma']:.3f}$, $m_0=0$\n"
+            f"$t_{{J=0}}={curve['zero age'] / 1000.0:.1f}$ kyr; "
+            f"$J_{{\\mathrm{{end,min}}}}={curve['minimum J']:.3f}$ at "
+            f"{curve['minimum age'] / 1000.0:.1f} kyr"
         ),
         transform=axis.transAxes,
         fontsize=7.2,
@@ -1058,65 +1052,190 @@ def _draw_material_curve_evolution(axis, result):
         ylim=(floor, float(np.max(sampler["surface"](x)) + 8.0)),
         xlabel="Distance (km)",
         ylabel="Elevation (m)",
-        title="Near-bed isochrone segment develops a fold",
+        title="Near-bed isochrone evolution",
     )
-    axis.legend(frameon=False, fontsize=6.5, loc="upper left", ncol=2)
 
-    inset = axis.inset_axes((0.59, 0.08, 0.38, 0.43))
-    for snapshot, color in zip(curve["snapshots"][2:], colors[2:]):
+    return colors
+
+
+def _draw_fold_closeup(axis, result, curve, colors):
+    """Resolve the narrow re-entrant hook once the endpoint reaches J < 0."""
+    sampler = result["sampler"]
+    late = [
+        (snapshot, color)
+        for snapshot, color in zip(curve["snapshots"], colors)
+        if snapshot["age"] >= 122_000.0
+    ]
+    fold_positions = np.vstack(
+        [snapshot["positions"][snapshot["valid"]] for snapshot, _ in late]
+    )
+    x_padding = max(0.15, 0.08 * np.ptp(fold_positions[:, 0]))
+    y_padding = max(4.0, 0.05 * np.ptp(fold_positions[:, 1]))
+    x_limits = (
+        float(np.min(fold_positions[:, 0]) - x_padding),
+        float(np.max(fold_positions[:, 0]) + x_padding),
+    )
+    y_limits = (
+        float(np.min(fold_positions[:, 1]) - y_padding),
+        float(np.max(fold_positions[:, 1]) + y_padding),
+    )
+    x = np.linspace(*x_limits, 401)
+    surface = sampler["surface"](x)
+    if np.min(surface) <= y_limits[1]:
+        axis.plot(x, surface, color="0.15", linewidth=1.0, label="surface")
+
+    negative_label_used = False
+    for snapshot, color in late:
         valid_indices = np.flatnonzero(snapshot["valid"])
         for group in _consecutive_groups(valid_indices):
             if len(group) < 2:
                 continue
-            inset.plot(
+            axis.plot(
                 snapshot["positions"][group, 0],
                 snapshot["positions"][group, 1],
                 color=color,
-                linewidth=1.4,
+                linewidth=1.8,
+                zorder=2,
             )
         negative = np.flatnonzero(snapshot["segment J"] < 0.0)
-        negative = negative[:: max(1, len(negative) // 8)]
+        negative = negative[:: max(1, len(negative) // 10)]
         if len(negative):
             midpoints = 0.5 * (
                 snapshot["positions"][negative]
                 + snapshot["positions"][negative + 1]
             )
-            inset.scatter(
+            axis.scatter(
                 midpoints[:, 0],
                 midpoints[:, 1],
-                s=11,
+                s=18,
                 facecolors="none",
                 edgecolors="#b2182b",
-                linewidths=0.65,
-                zorder=5,
+                linewidths=0.75,
+                label=(
+                    r"$\partial x/\partial x_0<0$"
+                    if not negative_label_used
+                    else None
+                ),
+                zorder=4,
             )
-    fold_positions = np.vstack(
-        [
-            snapshot["positions"][snapshot["valid"]]
-            for snapshot in curve["snapshots"][2:]
-        ]
+            negative_label_used = True
+    axis.set(
+        xlim=x_limits,
+        ylim=y_limits,
+        xlabel="Distance, $x$ (m)",
+        ylabel="Elevation (m)",
+        title="Fold close-up",
     )
-    inset_x_padding = max(0.15, 0.08 * np.ptp(fold_positions[:, 0]))
-    inset_y_padding = max(4.0, 0.05 * np.ptp(fold_positions[:, 1]))
-    inset.set(
-        xlim=(
-            np.min(fold_positions[:, 0]) - inset_x_padding,
-            np.max(fold_positions[:, 0]) + inset_x_padding,
-        ),
-        ylim=(
-            np.min(fold_positions[:, 1]) - inset_y_padding,
-            np.max(fold_positions[:, 1]) + inset_y_padding,
-        ),
-        xlabel="$x$ (m)",
-        title="fold close-up",
+    axis.text(
+        0.98,
+        0.98,
+        "horizontal scale exaggerated",
+        transform=axis.transAxes,
+        ha="right",
+        va="top",
+        fontsize=7.0,
+        color="0.30",
     )
-    inset.tick_params(labelsize=6.0)
-    inset.xaxis.label.set_size(6.2)
-    inset.title.set_size(6.5)
-    return curve
+    if negative_label_used:
+        axis.legend(frameon=False, fontsize=7.0, loc="lower right")
 
 
-def make_figure(results, case_frame):
+def _convergence_cases(case_frame):
+    """Return truncation, production, and exact-margin mesh sequences."""
+    ordered = case_frame.sort_values(["left thickness (m)", "resolution (m)"])
+    traction_free = ordered[ordered["surface mode"] == "traction_free"]
+    exact = traction_free[traction_free["left thickness (m)"] == 0.0]
+    truncated = traction_free[traction_free["left thickness (m)"] > 0.0]
+    production = exact[exact["case"] == "point_margin"]
+    if len(production) != 1:
+        raise RuntimeError("production point-margin case is missing")
+    return truncated, production.iloc[0], exact
+
+
+def make_convergence_figure(case_frame):
+    """Write the point-margin numerical-convergence supplement figure."""
+    truncated, production, exact = _convergence_cases(case_frame)
+    figure, axes = plt.subplots(
+        1, 2, figsize=(9.0, 3.9), constrained_layout=True
+    )
+    axes[0].plot(
+        truncated["left thickness (m)"],
+        truncated["minimum J, m0=0"],
+        marker="o",
+        color="0.20",
+        label="traction-free truncations",
+    )
+    axes[0].scatter(
+        0.0,
+        production["minimum J, m0=0"],
+        marker="s",
+        s=42,
+        facecolors="none",
+        edgecolors="#2166ac",
+        label="true point margin",
+        zorder=4,
+    )
+    axes[0].set(
+        ylim=(-0.205, -0.115),
+        xlabel="Thickness of artificial left truncation (m)",
+        ylabel="Minimum $J$ for horizontal incoming layers",
+        title="Truncation limit",
+    )
+    axes[0].legend(frameon=False, fontsize=8.0, loc="upper left")
+
+    exact_by_resolution = exact.sort_values("resolution (m)")
+    axes[1].plot(
+        exact_by_resolution["resolution (m)"],
+        exact_by_resolution["minimum J, m0=0"],
+        marker="s",
+        color="#2166ac",
+        linewidth=1.2,
+    )
+    axes[1].scatter(
+        production["resolution (m)"],
+        production["minimum J, m0=0"],
+        s=48,
+        facecolors="white",
+        edgecolors="#2166ac",
+        linewidths=1.2,
+        zorder=4,
+    )
+    axes[1].annotate(
+        "production mesh",
+        xy=(
+            production["resolution (m)"],
+            production["minimum J, m0=0"],
+        ),
+        xytext=(4, 9),
+        textcoords="offset points",
+        fontsize=8.0,
+    )
+    axes[1].set(
+        xlabel="Nominal mesh resolution (m)",
+        ylabel="Minimum $J$ for horizontal incoming layers",
+        title="Exact point-margin mesh sequence",
+    )
+    for label, axis in zip("AB", axes):
+        axis.text(
+            -0.12,
+            1.03,
+            label,
+            transform=axis.transAxes,
+            fontsize=13,
+            fontweight="bold",
+            ha="left",
+            va="bottom",
+        )
+    FIGURE_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    png = FIGURE_DIRECTORY / "allan_hills_nunatak_margin_convergence.png"
+    pdf = FIGURE_DIRECTORY / "allan_hills_nunatak_margin_convergence.pdf"
+    figure.savefig(png, dpi=220)
+    figure.savefig(pdf)
+    plt.close(figure)
+    return png, pdf
+
+
+def make_figure(results):
     primary = next(
         result for result in results if result["configuration"].key == "point_margin"
     )
@@ -1128,50 +1247,13 @@ def make_figure(results, case_frame):
     u_contour = _draw_flow(axes[1], primary, 0, "Horizontal flow and paths")
     w_contour = _draw_flow(axes[2], primary, 1, "Vertical velocity")
     j_image = _draw_j_map(axes[3], primary)
-
-    ordered = case_frame.sort_values(["left thickness (m)", "resolution (m)"])
-    traction_free = ordered[ordered["surface mode"] == "traction_free"]
-    exact = traction_free[traction_free["left thickness (m)"] == 0.0]
-    truncated = traction_free[traction_free["left thickness (m)"] > 0.0]
-    axes[4].plot(
-        truncated["left thickness (m)"],
-        truncated["minimum J, m0=0"],
-        marker="o",
-        color="0.20",
-        label="traction-free truncations",
+    curve = material_curve_snapshots(primary)
+    age_cmap = plt.get_cmap("viridis")
+    age_norm = Normalize(0.0, curve["minimum age"] / 1000.0)
+    colors = _draw_material_curve_evolution(
+        axes[4], primary, curve, age_cmap, age_norm
     )
-    axes[4].scatter(
-        np.zeros(len(exact)),
-        exact["minimum J, m0=0"],
-        marker="s",
-        facecolors="none",
-        edgecolors="#2166ac",
-        label="true point margin (mesh sequence)",
-        zorder=4,
-    )
-    axes[4].axhline(0.0, color="0.4", linewidth=0.8)
-    axes[4].set(
-        xlabel="Thickness of artificial left truncation (m)",
-        ylabel="Minimum $J$ for horizontal incoming layers",
-        title="Does the point-margin result converge?",
-    )
-    axes[4].legend(frameon=False, fontsize=7.5, loc="upper left")
-    inset = axes[4].inset_axes((0.53, 0.42, 0.43, 0.25))
-    exact_by_resolution = exact.sort_values("resolution (m)")
-    inset.plot(
-        exact_by_resolution["resolution (m)"],
-        exact_by_resolution["minimum J, m0=0"],
-        marker="s",
-        color="#2166ac",
-        linewidth=0.9,
-    )
-    inset.set_title("point-margin mesh", fontsize=6.5)
-    inset.set_xlabel("resolution (m)", fontsize=6.5)
-    inset.set_ylabel("$J_{min}$", fontsize=6.5)
-    inset.tick_params(labelsize=6.0)
-    inset.set_facecolor((1.0, 1.0, 1.0, 0.90))
-
-    _draw_material_curve_evolution(axes[5], primary)
+    _draw_fold_closeup(axes[5], primary, curve, colors)
 
     for label, contour, axis in (
         ("$u$ (m yr$^{-1}$)", u_contour, axes[1]),
@@ -1187,6 +1269,17 @@ def make_figure(results, case_frame):
             ticks=np.linspace(contour.norm.vmin, contour.norm.vmax, 5),
             format="%.3g",
         )
+    age_mappable = plt.cm.ScalarMappable(norm=age_norm, cmap=age_cmap)
+    age_mappable.set_array([])
+    figure.colorbar(
+        age_mappable,
+        ax=[axes[4], axes[5]],
+        orientation="horizontal",
+        pad=0.12,
+        label="Material-line age (kyr)",
+        ticks=(0.0, 30.0, 60.0, 90.0, 120.0, curve["minimum age"] / 1000.0),
+        format="%.0f",
+    )
     for label, axis in zip("ABCDEF", axes):
         axis.text(
             -0.10,
@@ -1372,7 +1465,8 @@ def main():
         )
         return
     case_frame, _, _ = write_outputs(results)
-    make_figure(results, case_frame)
+    make_figure(results)
+    make_convergence_figure(case_frame)
     write_report(case_frame)
     print(case_frame.to_string(index=False), flush=True)
 
