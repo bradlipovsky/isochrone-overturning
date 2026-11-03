@@ -4,6 +4,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
 \usepackage{microtype}
+\usepackage{amsmath,bm}
 \usepackage[margin=1in]{geometry}
 \usepackage{xcolor}
 \usepackage[hidelinks]{hyperref}
@@ -30,12 +31,13 @@ Although this work is glaciologically focused, I am not sure that there are suff
 
 \medskip
 
-\noindent\textcolor{responseblue}{The revised Discussion returns to Allan Hills after the numerical example and relates the diagnostic to the near-stagnant basal flow, three-dimensional diversion around the nunatak, and multiple possible source regions inferred there. We did not add a radargram because the presently cited radar observations constrain spatial continuity and transport but do not provide a dated reflector that can be connected directly to the age reversals in these two cores. Instead, the revised figure uses the dated cores as the direct observational connection and states the continuity limitation explicitly.}
+\noindent\textcolor{responseblue}{The revised Discussion returns to Allan Hills after the numerical experiments and relates the diagnostic to the near-stagnant basal flow, three-dimensional diversion around the nunatak, and multiple possible source regions inferred there. We did not add a radargram because the presently cited radar observations constrain spatial continuity and transport but do not provide a dated reflector that can be connected directly to the age reversals in these two cores. Instead, the revised figure uses the dated cores as the direct observational connection and states the continuity limitation explicitly.}
 
 \medskip
 
-\noindent\textcolor{responseblue}{We also did not add an Allan Hills-specific two-dimensional calculation. Existing reconstruction indicates strongly three-dimensional flow, so a two-dimensional site calculation could give a misleading test. The revised text states that evaluating steady overturning at Allan Hills requires a three-dimensional, multi-source material map.}
+\noindent\textcolor{responseblue}{We also added an explicitly idealized two-dimensional point-margin experiment motivated by the observed thick-ice-to-thin-ice convergence near the nunatak. It shows that this boundary-value flow can reverse an ordered incoming material line under the stated inflow and surface-flux closure. It does not test the surface-deposition map, and we do not present it as an Allan Hills reconstruction. The revised text concludes that a site-specific test requires a three-dimensional, multi-source material map constrained by measured geometry, basal traction and surface mass balance.}
 
+\pagebreak[4]
 \subsection*{R1C2: Method of characteristics}
 
 \noindent\textbf{Comment.}
@@ -47,6 +49,31 @@ It would be interesting to see an interpretation of the results that leans on th
 
 \medskip
 
-\noindent\textcolor{responseblue}{We also revised the trajectory-diagnostic section to identify Equations~(57) and (58) explicitly as a method-of-characteristics implementation. Equation~(57) traces a characteristic from the deposition boundary, Equation~(58) accumulates the signed shear history that controls separation from neighboring surface origins, and Equation~(59) gives the resulting Jacobian without finite differencing neighboring trajectories. The revised Discussion then states how this construction would be applied to a glacier: launch characteristics from candidate accumulation sources, follow them through a reconstructed velocity field to the core or radar transect, and evolve the source-patch Jacobian. At Allan Hills this application must be three-dimensional and allow multiple source regions.}
+\noindent\textcolor{responseblue}{We also revised the trajectory-diagnostic section to identify Equations~(57) and (58) explicitly as a method-of-characteristics implementation. Equation~(57) traces a characteristic from the deposition boundary, Equation~(58) accumulates the signed shear history that controls separation from neighboring surface origins, and Equation~(59) gives the resulting Jacobian without finite differencing neighboring trajectories. The revised manuscript now also gives the equivalent deformation-gradient calculation, \(\mathrm{d}\bm{F}/\mathrm{d}t=\nabla\bm{u}\,\bm{F}\) and \(J=T_x\), used for the new experiments. This form remains regular through counterflow. The revised Discussion states how this construction would be applied to a glacier: launch characteristics from candidate accumulation sources, follow them through a reconstructed velocity field to the core or radar transect, and evolve the source-patch Jacobian. At Allan Hills this application must be three-dimensional and allow multiple source regions.}
+
+\section*{Reviewer 2}
+
+\subsection*{R2C2: Figure 3 and additional numerical experiments}
+
+\noindent\textbf{Comment.}
+\begin{quote}
+Figure 3 is the only result figure and carries almost all evidence for the manuscript's claim. However, I think Figure 3 could use substantial explanation. [...] One more general question regarding the model setup. The model domain is rather small (about 320 m long and 160 m deep trough). [...] Maybe the author can simply show more results from the simulation, such as velocity, streamlines etc., so that the reader can better understand how this simulation is different from a re-circulating flow in a trough.
+
+I also think one simple idealized simulation is too less to demonstrate the overturn. It may worth conducting more simulations of varying bed/surface, viscosity, temperature, sliding law, viscosity etc. No need to conduct simulations covering all of those, but more than one simulation would demonstrate the robustness of this model and the derivation.
+\end{quote}
+
+\noindent\textcolor{responseblue}{\textbf{Response.} One admissible counterexample would be sufficient to disprove a universal order-preservation claim; robustness instead concerns the physical generality of the mechanism. Admissibility, however, requires the source map and boundary class to match the claim being tested. The original circular-trough calculation used nonperiodic open lateral cuts, so we removed it and added two complementary full-Stokes experiments. The rheology and linear sliding law are held fixed, but the source and boundary closures differ. These are distinct mechanism tests rather than a controlled geometry-only comparison, and the point-margin line is not presented as a counterexample for surface-deposited stratigraphy.}
+
+\medskip
+
+\noindent\textcolor{responseblue}{The material-line reversal experiment is a finite, convergent point-margin flow motivated by the Allan Hills cross section. Ice thickness increases from zero at an exposed-rock margin to 360~m over 2~km. The right boundary has an explicitly plotted SIA-shaped horizontal inflow and zero vertical velocity; the bed is impermeable with linear sliding, and the upper surface is traction free. The new main-text figure shows the geometry and boundary conditions, horizontal and vertical velocity, selected paths, the parameter map of minimum \(J\), the elapsed evolution of one ordered incoming line and a fold close-up. On the sampled grid, horizontal lines reach \(J_{\min}=-0.1936\). A uniform-ablation control on the same geometry remains ordered at \(J_{\min}=0.3075\), showing that the result depends on the surface-flux closure as well as geometry. The three-mesh sequence and the limit of positive-thickness left truncations are shown in a separate supplementary figure.}
+
+\medskip
+
+\noindent\textcolor{responseblue}{The negative control uses exactly periodic lateral boundaries and one sinusoidal bed wavelength, \(b=-H+A\cos(2\pi x/\lambda)\). We swept five mean thicknesses, 13 amplitudes and 16 wavelengths while retaining the same viscosity and sliding law. All 750 resolved numerical cases and 80 analytical flat-bed limits preserve order; the smallest resolved value is \(J=0.6428\). A further 210 short-wave cells fall below the stated numerical surface-signal threshold and are left unclassified. This comparison shows that finite-amplitude bed roughness can strongly deform a layer without generically overturning it.}
+
+\medskip
+
+\noindent\textcolor{responseblue}{For both experiments we now calculate signed tangent orientation by integrating the variational equation along each steady characteristic: \(\mathrm{d}\bm{F}/\mathrm{d}t=\nabla\bm{u}\,\bm{F}\), \(\bm{T}=\bm{F}\bm{T}_0\) and \(J=T_x\). For surface-deposited sources this is the order Jacobian; for the prescribed point-margin inlet line it is a line-orientation metric. The calculation requires no time-dependent layer simulation and remains regular when horizontal velocity vanishes or reverses. The manuscript defines this distinction before presenting the experiments.}
 
 \end{document}

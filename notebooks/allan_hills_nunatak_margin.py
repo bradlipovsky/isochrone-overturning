@@ -633,28 +633,91 @@ def _draw_geometry(axis):
     axis.plot(rock_x / 1000.0, exposed_rock, color="0.15", linewidth=1.2)
     axis.plot(x / 1000.0, bed, color="0.15", linewidth=1.2)
     axis.plot(x / 1000.0, surface, color="#174a6e", linewidth=1.4)
-    axis.text(-0.13, 350.0, "exposed\nrock", ha="center", va="center")
+    axis.text(-0.14, 345.0, "exposed\nrock", ha="center", va="center")
     axis.annotate(
         "point margin\n$H=0$, no left flux",
         xy=(0.0, float(surface_elevation(0.0))),
-        xytext=(0.25, 335.0),
+        xytext=(0.24, 325.0),
         arrowprops={"arrowstyle": "->", "linewidth": 0.9},
         ha="left",
         va="center",
     )
-    axis.annotate(
-        "$u=u_{\\mathrm{SIA}}(z)$\n$w=0$",
-        xy=(1.67, 300.0),
-        xytext=(1.98, 300.0),
-        arrowprops={"arrowstyle": "->", "linewidth": 1.0},
-        ha="right",
-        va="center",
+
+    # Draw the actual n=1 SIA-plus-slip shape imposed at the right inlet.
+    # Arrow lengths use the same polynomial as _right_inflow_horizontal;
+    # only their common plotting scale is arbitrary.
+    right_bed = float(bed_elevation(LENGTH))
+    right_surface = float(surface_elevation(LENGTH))
+    profile_z = np.linspace(right_bed + 18.0, right_surface - 18.0, 8)
+    profile_y = profile_z - right_bed
+    profile_speed = (
+        RIGHT_THICKNESS / core.BASAL_DRAG
+        + (
+            RIGHT_THICKNESS * profile_y - 0.5 * profile_y**2
+        ) / core.VISCOSITY
     )
-    axis.text(0.58, 0.96, "traction-free surface",
-              transform=axis.transAxes, ha="center", va="top",
-              color="#174a6e")
-    axis.text(0.98, 0.04, "bed: no penetration + linear sliding",
-              transform=axis.transAxes, ha="right", va="bottom", fontsize=8)
+    arrow_lengths = 0.22 * profile_speed / np.max(profile_speed)
+    profile_tail = 1.985
+    profile_heads = profile_tail - arrow_lengths
+    axis.plot(
+        profile_heads,
+        profile_z,
+        color="#174a6e",
+        linewidth=0.8,
+        zorder=4,
+    )
+    for head_x, z_value in zip(profile_heads, profile_z):
+        axis.annotate(
+            "",
+            xy=(head_x, z_value),
+            xytext=(profile_tail, z_value),
+            arrowprops={
+                "arrowstyle": "-|>",
+                "color": "#174a6e",
+                "linewidth": 0.85,
+                "mutation_scale": 7.0,
+            },
+            zorder=4,
+        )
+    axis.plot(
+        (LENGTH / 1000.0, LENGTH / 1000.0),
+        (right_bed, right_surface),
+        color="0.15",
+        linewidth=1.0,
+        zorder=3,
+    )
+    axis.text(
+        1.10,
+        252.0,
+        (
+            "scaled $n=1$ SIA inflow + slip\n"
+            "$u_R=-r_q\\rho g s_x"
+            "[H/\\beta+(Hy-y^2/2)/\\eta]$\n"
+            "$y=z-b_R$, $r_q=q_R/q_{\\mathrm{SIA}}$; $w_R=0$"
+        ),
+        ha="center",
+        va="center",
+        fontsize=7.2,
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.82},
+        zorder=5,
+    )
+    axis.text(
+        0.70,
+        405.0,
+        "traction-free surface",
+        ha="center",
+        va="center",
+        color="#174a6e",
+    )
+    axis.text(
+        0.56,
+        0.04,
+        "bed: no penetration + linear sliding",
+        transform=axis.transAxes,
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
     axis.set(
         xlim=(-0.26, 2.0),
         ylim=(floor, np.max(surface) + 20.0),
@@ -1032,27 +1095,28 @@ def _draw_material_curve_evolution(axis, result, curve, cmap, age_norm):
                 zorder=8,
             )
     axis.text(
-        0.02,
-        0.03,
+        0.65,
+        0.64,
         (
             f"30 m horizontal inlet segment: $\\sigma_0="
             f"{curve['source sigma']:.3f}$, $m_0=0$\n"
-            f"$t_{{J=0}}={curve['zero age'] / 1000.0:.1f}$ kyr; "
+            f"$J_{{\\mathrm{{end}}}}=0$ at "
+            f"{curve['zero age'] / 1000.0:.1f} kyr\n"
             f"$J_{{\\mathrm{{end,min}}}}={curve['minimum J']:.3f}$ at "
             f"{curve['minimum age'] / 1000.0:.1f} kyr"
         ),
         transform=axis.transAxes,
         fontsize=7.2,
-        ha="left",
-        va="bottom",
-        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.78},
+        ha="center",
+        va="center",
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.86},
     )
     axis.set(
         xlim=np.asarray(x_limits_m) / 1000.0,
         ylim=(floor, float(np.max(sampler["surface"](x)) + 8.0)),
         xlabel="Distance (km)",
         ylabel="Elevation (m)",
-        title="Near-bed isochrone evolution",
+        title="Near-bed material-line evolution",
     )
 
     return colors
@@ -1084,7 +1148,27 @@ def _draw_fold_closeup(axis, result, curve, colors):
     if np.min(surface) <= y_limits[1]:
         axis.plot(x, surface, color="0.15", linewidth=1.0, label="surface")
 
-    negative_label_used = False
+    negative_snapshots = [
+        snapshot
+        for snapshot, _ in late
+        if np.any(snapshot["segment J"] < 0.0)
+    ]
+    negative_colors = (
+        "#0072B2",
+        "#009E73",
+        "#CC79A7",
+        "#E69F00",
+        "#56B4E9",
+        "#332288",
+    )
+    negative_markers = ("o", "s", "^", "D", "P", "X")
+    negative_style = {
+        snapshot["age"]: (
+            negative_colors[index % len(negative_colors)],
+            negative_markers[index % len(negative_markers)],
+        )
+        for index, snapshot in enumerate(negative_snapshots)
+    }
     for snapshot, color in late:
         valid_indices = np.flatnonzero(snapshot["valid"])
         for group in _consecutive_groups(valid_indices):
@@ -1100,6 +1184,7 @@ def _draw_fold_closeup(axis, result, curve, colors):
         negative = np.flatnonzero(snapshot["segment J"] < 0.0)
         negative = negative[:: max(1, len(negative) // 10)]
         if len(negative):
+            marker_color, marker = negative_style[snapshot["age"]]
             midpoints = 0.5 * (
                 snapshot["positions"][negative]
                 + snapshot["positions"][negative + 1]
@@ -1107,37 +1192,35 @@ def _draw_fold_closeup(axis, result, curve, colors):
             axis.scatter(
                 midpoints[:, 0],
                 midpoints[:, 1],
-                s=18,
-                facecolors="none",
-                edgecolors="#b2182b",
-                linewidths=0.75,
-                label=(
-                    r"$\partial x/\partial x_0<0$"
-                    if not negative_label_used
-                    else None
-                ),
+                s=24,
+                marker=marker,
+                facecolors="white",
+                edgecolors=marker_color,
+                linewidths=1.05,
+                label=f"{snapshot['age'] / 1000.0:.1f} kyr",
                 zorder=4,
             )
-            negative_label_used = True
     axis.set(
         xlim=x_limits,
         ylim=y_limits,
-        xlabel="Distance, $x$ (m)",
+        xlabel="Distance, $x$ (m; horizontal scale exaggerated)",
         ylabel="Elevation (m)",
         title="Fold close-up",
     )
-    axis.text(
-        0.98,
-        0.98,
-        "horizontal scale exaggerated",
-        transform=axis.transAxes,
-        ha="right",
-        va="top",
-        fontsize=7.0,
-        color="0.30",
-    )
-    if negative_label_used:
-        axis.legend(frameon=False, fontsize=7.0, loc="lower right")
+    if negative_snapshots:
+        axis.legend(
+            frameon=True,
+            facecolor="white",
+            edgecolor="none",
+            framealpha=0.88,
+            fontsize=6.5,
+            title=r"$J<0$ markers (elapsed time)",
+            title_fontsize=6.7,
+            loc="upper right",
+            borderpad=0.35,
+            handletextpad=0.35,
+            labelspacing=0.25,
+        )
 
 
 def _convergence_cases(case_frame):
@@ -1276,7 +1359,7 @@ def make_figure(results):
         ax=[axes[4], axes[5]],
         orientation="horizontal",
         pad=0.12,
-        label="Material-line age (kyr)",
+        label="Elapsed time (kyr)",
         ticks=(0.0, 30.0, 60.0, 90.0, 120.0, curve["minimum age"] / 1000.0),
         format="%.0f",
     )
