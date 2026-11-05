@@ -1125,11 +1125,17 @@ def _draw_material_curve_evolution(axis, result, curve, cmap, age_norm):
 def _draw_fold_closeup(axis, result, curve, colors):
     """Resolve the narrow re-entrant hook once the endpoint reaches J < 0."""
     sampler = result["sampler"]
+    closeup_ages = (122_000.0, curve["zero age"], curve["minimum age"])
     late = [
         (snapshot, color)
         for snapshot, color in zip(curve["snapshots"], colors)
-        if snapshot["age"] >= 122_000.0
+        if any(
+            np.isclose(snapshot["age"], selected_age)
+            for selected_age in closeup_ages
+        )
     ]
+    if len(late) != len(closeup_ages):
+        raise RuntimeError("fold close-up snapshots are missing")
     fold_positions = np.vstack(
         [snapshot["positions"][snapshot["valid"]] for snapshot, _ in late]
     )
