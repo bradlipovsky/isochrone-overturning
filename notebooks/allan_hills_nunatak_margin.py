@@ -1096,7 +1096,7 @@ def _draw_material_curve_evolution(axis, result, curve, cmap, age_norm):
                 zorder=8,
             )
     axis.text(
-        0.65,
+        0.54,
         0.64,
         (
             f"30 m horizontal inlet segment: $\\sigma_0="
@@ -1361,28 +1361,21 @@ def make_figure(results):
         (locator_left_km, zoom_y_limits[0]),
         locator_width_km,
         zoom_y_limits[1] - zoom_y_limits[0],
-        facecolor=(178 / 255, 24 / 255, 43 / 255, 0.09),
-        edgecolor="#b2182b",
-        linewidth=1.35,
+        facecolor="none",
+        edgecolor="black",
+        linewidth=0.7,
         linestyle="--",
         zorder=10,
     )
     axes[4].add_patch(zoom_box)
-    axes[4].annotate(
-        "F zoom",
-        xy=(locator_left_km + locator_width_km, zoom_y_limits[1]),
-        xytext=(7, 4),
-        textcoords="offset points",
-        color="#8c1515",
+    axes[4].text(
+        locator_left_km + locator_width_km + 0.012,
+        zoom_y_limits[1] - 12.0,
+        "Panel F.",
+        color="black",
         fontsize=7.2,
-        fontweight="bold",
         ha="left",
-        va="bottom",
-        arrowprops={
-            "arrowstyle": "-",
-            "color": "#8c1515",
-            "linewidth": 0.8,
-        },
+        va="top",
         zorder=11,
     )
 
