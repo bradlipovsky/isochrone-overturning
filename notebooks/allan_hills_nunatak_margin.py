@@ -28,6 +28,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize, TwoSlopeNorm
+from matplotlib.patches import Rectangle
 import numpy as np
 import pandas as pd
 
@@ -1227,6 +1228,7 @@ def _draw_fold_closeup(axis, result, curve, colors):
             handletextpad=0.35,
             labelspacing=0.25,
         )
+    return x_limits, y_limits
 
 
 def _convergence_cases(case_frame):
@@ -1342,7 +1344,47 @@ def make_figure(results):
     colors = _draw_material_curve_evolution(
         axes[4], primary, curve, age_cmap, age_norm
     )
-    _draw_fold_closeup(axes[5], primary, curve, colors)
+    zoom_x_limits, zoom_y_limits = _draw_fold_closeup(
+        axes[5], primary, curve, colors
+    )
+    exact_zoom_width_km = (
+        zoom_x_limits[1] - zoom_x_limits[0]
+    ) / 1000.0
+    # The exact 3-4 m span is sub-pixel on panel E's kilometre-scale axis.
+    # Center a minimum-width locator on it so the requested box is visible.
+    locator_width_km = max(exact_zoom_width_km, 0.03)
+    locator_left_km = (
+        0.5 * (zoom_x_limits[0] + zoom_x_limits[1]) / 1000.0
+        - 0.5 * locator_width_km
+    )
+    zoom_box = Rectangle(
+        (locator_left_km, zoom_y_limits[0]),
+        locator_width_km,
+        zoom_y_limits[1] - zoom_y_limits[0],
+        facecolor=(178 / 255, 24 / 255, 43 / 255, 0.09),
+        edgecolor="#b2182b",
+        linewidth=1.35,
+        linestyle="--",
+        zorder=10,
+    )
+    axes[4].add_patch(zoom_box)
+    axes[4].annotate(
+        "F zoom",
+        xy=(locator_left_km + locator_width_km, zoom_y_limits[1]),
+        xytext=(7, 4),
+        textcoords="offset points",
+        color="#8c1515",
+        fontsize=7.2,
+        fontweight="bold",
+        ha="left",
+        va="bottom",
+        arrowprops={
+            "arrowstyle": "-",
+            "color": "#8c1515",
+            "linewidth": 0.8,
+        },
+        zorder=11,
+    )
 
     for label, contour, axis in (
         ("$u$ (m yr$^{-1}$)", u_contour, axes[1]),
