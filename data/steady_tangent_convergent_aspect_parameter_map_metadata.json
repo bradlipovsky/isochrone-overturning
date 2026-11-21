@@ -1,0 +1,106 @@
+{
+  "diagnostic_method_version": "convergent-steady-v3-aspect-central90-ablation-buffer",
+  "ice_thickness_m": 200.0,
+  "sliding_number_beta_H_over_eta": 0.08,
+  "linear_viscosity_Pa_yr": 250000000.0,
+  "basal_drag_Pa_yr_per_m": 100000.0,
+  "aspect_ratios_L_over_H": [
+    15.0,
+    20.0,
+    30.0,
+    45.0,
+    60.0
+  ],
+  "total_lengths_km": [
+    3.0,
+    4.0,
+    6.0,
+    9.0,
+    12.0
+  ],
+  "length_ratios_q": [
+    1.0,
+    2.0,
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    7.0,
+    8.0,
+    9.0,
+    10.0,
+    12.0
+  ],
+  "relief_ratios_delta_b_over_H": [
+    0.25,
+    0.5,
+    0.75,
+    1.0,
+    1.25,
+    1.5,
+    1.75,
+    2.0,
+    2.25,
+    2.5,
+    2.75,
+    3.0,
+    3.25,
+    3.5,
+    3.75,
+    4.0
+  ],
+  "expected_cell_count": 880,
+  "table_cell_count": 880,
+  "resolved_cell_count": 880,
+  "overturned_cell_count": 243,
+  "unresolved_cell_count": 7,
+  "ordered_cell_count": 630,
+  "minimum_resolved_J": -12.155501975853817,
+  "maximum_resolved_J": 1.02650313367599,
+  "source_flux_quantiles": [
+    0.05,
+    0.95
+  ],
+  "source_count_per_accumulation_family": 81,
+  "production_stokes_mesh_nx_nz": [
+    180,
+    24
+  ],
+  "production_velocity_sampler_nx_nz": [
+    1201,
+    101
+  ],
+  "production_characteristic_time_step_yr": 25.0,
+  "maximum_age_safety_cap_new_aspects_yr": 480000.0,
+  "maximum_age_safety_cap_reused_L_over_H_30_yr": 120000.0,
+  "safety_cap_trajectory_count": 0,
+  "point_location_sampler_retry_cell_count": 1,
+  "ablation_surface_buffer_fraction_of_H": 0.08333333333333333,
+  "reflection_unique_half_only": true,
+  "validation": {
+    "intermediate-aspect closest-to-zero ordered": {
+      "variant_count": 4,
+      "minimum_J": 0.0702560031527962,
+      "maximum_J": 0.1967299332443876,
+      "sign_stable": true
+    },
+    "long-aspect long-residence ordered": {
+      "variant_count": 4,
+      "minimum_J": 1.0001285632104764,
+      "maximum_J": 1.0002569931706906,
+      "sign_stable": true
+    },
+    "short-aspect high-relief ordered": {
+      "variant_count": 4,
+      "minimum_J": 0.4771422397522933,
+      "maximum_J": 0.5098392326861172,
+      "sign_stable": true
+    },
+    "short-aspect low-relief overturn": {
+      "variant_count": 4,
+      "minimum_J": -12.155669643676925,
+      "maximum_J": -9.450552504432634,
+      "sign_stable": true
+    }
+  }
+}

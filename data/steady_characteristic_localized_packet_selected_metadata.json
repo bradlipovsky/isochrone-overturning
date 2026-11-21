@@ -1,0 +1,34 @@
+{
+  "method version": "localized-von-mises-riegel-v1__sinusoidal-steady-v2-exact-surface-ablation-only-buffer",
+  "mode": "selected",
+  "bed": "b=-H+A[cos(theta)+p*r*(V_kappa(theta-phi)-mean(V_kappa))]/M",
+  "invariants": [
+    "mean thickness H",
+    "minimum thickness H-A",
+    "exact periodicity"
+  ],
+  "cell count": 24,
+  "status counts": {
+    "success": 24
+  },
+  "lowest numerical primary J (unfiltered)": {
+    "minimum J": -754.9365550571832,
+    "raw minimum J": -754.9365550571832,
+    "A/H": 0.95,
+    "L/H": 6.0,
+    "ell/H": 0.0833333333333333,
+    "phase/(2pi)": 0.25,
+    "polarity": 1,
+    "maximum identity residual": 67.11627110466611
+  },
+  "lowest primary J with identity residual <= 10%": {
+    "minimum J": -0.9390617475544129,
+    "raw minimum J": -0.9390617475544129,
+    "A/H": 0.9,
+    "L/H": 6.0,
+    "ell/H": 0.0833333333333333,
+    "phase/(2pi)": 0.25,
+    "polarity": 1,
+    "maximum identity residual": 0.0549524656902813
+  }
+}

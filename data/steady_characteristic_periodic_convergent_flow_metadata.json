@@ -1,0 +1,41 @@
+{
+  "description": "Representative velocity field used in the periodic-convergence summary figure",
+  "diagnostic method version": "periodic-convergent-wrapped-gaussian-v9-flow-divide-split",
+  "q = L_right / L_left": 12.0,
+  "bed relief / thickness": 2.0,
+  "wrapped-Gaussian sigma / short flank length": 0.1,
+  "mean driving slope (rad)": 0.0,
+  "period (m)": 6000.0,
+  "thickness (m)": 200.0,
+  "mesh": [
+    360,
+    48
+  ],
+  "sampler": [
+    1801,
+    241
+  ],
+  "stokes diagnostics": {
+    "mesh cells": 34560,
+    "gravity power": 723155793.7646996,
+    "basal dissipation / gravity power": 0.48882762608470487,
+    "physical strong-boundary energy imbalance": 0.05591226535940839,
+    "relative discrete weak-form residual": -1.50339488403086e-13,
+    "rms basal normal speed (m/yr)": 0.00012722051829013194,
+    "surface vertical flux (m2/yr)": -1.2080336730946328e-12,
+    "mean surface vertical flux (m/yr)": -2.0133894551577213e-16,
+    "minimum nodal u (m/yr)": -1.1885907257362356,
+    "maximum nodal u (m/yr)": 0.17604986064586595
+  },
+  "sampler diagnostics": {
+    "minimum sampled u (m/yr)": -1.1885912274561712,
+    "maximum sampled u (m/yr)": 0.17604268579945906,
+    "minimum sampled w (m/yr)": -0.15732226786306477,
+    "maximum sampled w (m/yr)": 0.1307414674632584,
+    "streamfunction retained Fourier mode": 180,
+    "rms reconstructed/direct surface-normal mismatch (m/yr)": 0.0009226987831115326,
+    "maximum reconstructed bed-normal speed (m/yr)": 0.0
+  },
+  "surface rows": 1201,
+  "flow rows": 1089
+}

@@ -23,3 +23,14 @@ latexmk -pdfps manuscript.tex
 ```
 
 The PostScript route preserves the manuscript's EPS figure files directly.
+
+## Revision files
+
+- `main_v0.tex` and `main_v0.pdf` are the frozen original submission. Do not
+  edit them.
+- `main_v1.tex` and `main_v1.pdf` are the revised manuscript.
+- `manuscript.tex` and `manuscript.pdf` mirror the revised manuscript for the
+  standard build workflow.
+- `main_diff.tex` and `main_diff.pdf` compare `main_v0.tex` with `main_v1.tex`.
+  `manuscript-diff` is the alternate color-font rendering of the same
+  comparison.
