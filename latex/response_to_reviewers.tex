@@ -4,76 +4,225 @@
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
 \usepackage{microtype}
-\usepackage{amsmath,bm}
-\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage[margin=0.9in]{geometry}
+\usepackage{enumitem}
 \usepackage{xcolor}
 \usepackage[hidelinks]{hyperref}
 
+\setlist[enumerate]{itemsep=2.5pt,topsep=4pt}
+
 \definecolor{responseblue}{RGB}{0,70,140}
 
-\title{Response to Reviewers\\[4pt]\large Isochrone overturning in steady glacier flow}
+\newcommand{\response}[1]{\noindent\textcolor{responseblue}{#1}}
+
+\title{Response to Reviewers\\[4pt]\large Isochrone overturning in steady glacier flow (JOG-2026-0127)}
 \author{Bradley Paul Lipovsky}
 \date{}
 
 \begin{document}
 \maketitle
 
-\section*{Reviewer 1}
+\noindent I thank the Scientific Editor and both reviewers for their thorough, constructive and technically sharp reviews. Their comments led to substantial improvements in the glaciological grounding, mathematical organization, physical clarity and numerical evidence of the manuscript. In particular, I added an Allan Hills observational context figure, reorganized the kinematic derivation around its physical question, moved the formal proofs and the Parrenin--Hindmarsh coordinate comparison into lettered appendices, clarified the shallow-ice and thin-film scaling assumptions, expanded the conceptual material-map schematic (now Figure~2) to illustrate all three order regimes, and replaced the original open-cut circular-trough calculation with two complementary Stokes experiments (a finite convergent point-margin flow and a 750-case periodic sinusoidal-bed sweep).
 
-\subsection*{R1C1: Applications to actual glaciers and folds}
+Below, each reviewer comment is quoted or summarized in black and followed by my response in blue. Equation, figure and appendix numbers refer to the revised manuscript unless noted as original submission numbers.
+
+% ============================================================================
+\section*{Reviewer 1}
+% ============================================================================
+
+\subsection*{General comment: Venue fit and presentation for \emph{Journal of Glaciology}}
+
+\noindent\textbf{Comment.}
+\begin{quote}
+That said, I am not sure that the Journal of Glaciology is the best venue for this work, given the superficial engagement with the glaciological context, e.g., the Allan Hills, and the theorems with proofs. It would likely flow better at an applied mathematics or fluid dynamics journal. I did, however, learn a good deal by reading the text and I think that with suitable revisions it could be published in the Journal of Glaciology, even though it would not be my first choice in journal.
+\end{quote}
+
+\response{\textbf{Response.} Thank you for this candid assessment. To make the manuscript flow more naturally for a \emph{Journal of Glaciology} readership, we deepened the glaciological framing (adding the Allan Hills map and dated core reversals in Figure~1, connecting to NEEM folded basal ice and non-Newtonian basal secondary flows in the Introduction, and adding a nunatak-motivated point-margin calculation alongside the periodic sinusoidal-bed control) and moved the formal proofs (Appendix~C) and the Parrenin--Hindmarsh coordinate comparison (Appendix~E) out of the main text so that the main narrative stays focused on glacier mechanics and stratigraphic interpretation.}
+
+\subsection*{R1C1: Applications to actual glaciers and folds (Remark 1)}
 
 \noindent\textbf{Comment.}
 \begin{quote}
 Although this work is glaciologically focused, I am not sure that there are sufficient applications to actual glaciers and their folds. The work is framed in terms of the Allan Hills, but for the unindoctrinated reader (or, in this case, referee), this context could be deepened. A schematic of the Allan Hills setting would be a useful start. Then returning to a real glacier after the Stokes numerical solution. That is, a calculation and larger contextualization than what is currently in the Discussion section. Are there radargrams that show the effects that the author is modeling? Including these types of connections to glacier system would ground the paper.
 \end{quote}
 
-\noindent\textcolor{responseblue}{\textbf{Response.} Thank you. We added a new Allan Hills context figure near the beginning of the Introduction. The first panel maps ALHIC1901 and ALHIC1902 on a 10~m Sentinel-2 image and locates Allan Hills within Antarctica. The other panels show the published \(^{40}\mathrm{Ar}_{\mathrm{atm}}\) age--depth relations for the two cores, with intervals of decreasing age with increasing depth highlighted. We also added text that describes the 1.5~km separation of the cores, their contrasting modelled flow regimes, and the continuity assumption needed to interpret an age reversal as an overturned continuous isochrone.}
+\response{\textbf{Response.} Thank you. We added a new Allan Hills context figure (Figure~1) near the beginning of the Introduction. Panel~(a) maps ALHIC1901 and ALHIC1902 on a 10~m Sentinel-2 image and locates Allan Hills within Antarctica. Panels~(b--c) show the published \(^{40}\mathrm{Ar}_{\mathrm{atm}}\) age--depth relations for the two cores, with intervals of decreasing age with increasing depth highlighted. We also added text describing the 1.5~km separation of the cores, their contrasting modelled flow regimes, and the continuity assumption needed to interpret an age reversal as an overturned continuous isochrone.}
 
 \medskip
 
-\noindent\textcolor{responseblue}{The revised Discussion returns to Allan Hills after the numerical experiments and relates the diagnostic to the near-stagnant basal flow, three-dimensional diversion around the nunatak, and multiple possible source regions inferred there. We did not add a radargram because the presently cited radar observations constrain spatial continuity and transport but do not provide a dated reflector that can be connected directly to the age reversals in these two cores. Instead, the revised figure uses the dated cores as the direct observational connection and states the continuity limitation explicitly.}
+\response{The revised Discussion returns to Allan Hills after the numerical experiments and relates the diagnostic to the near-stagnant basal flow, three-dimensional diversion around the nunatak, and multiple possible source regions inferred there. We did not add a radargram because the presently cited radar observations constrain spatial continuity and transport but do not provide a dated reflector that can be connected directly to the age reversals in these two cores. Instead, Figure~1 uses the dated cores as the direct observational connection and states the continuity limitation explicitly.}
 
 \medskip
 
-\noindent\textcolor{responseblue}{We also added an explicitly idealized two-dimensional point-margin experiment motivated by the observed thick-ice-to-thin-ice convergence near the nunatak. It is not a reconstruction of Allan Hills; the simplified geometry retains selected regional features while isolating a boundary-value mechanism that may apply more generally and does not depend on the exact geometry of one site. The calculation shows that this flow can reverse an ordered incoming material line under the stated inflow and surface-flux closure. It does not test the surface-deposition map. A site-specific test still requires a three-dimensional, multi-source material map constrained by measured geometry, basal traction and surface mass balance.}
+\response{We also added an explicitly idealized two-dimensional point-margin experiment (Figure~4) motivated by the observed thick-ice-to-thin-ice convergence near the nunatak. It is not a reconstruction of Allan Hills; the simplified geometry retains selected regional features while isolating a boundary-value mechanism that may apply more generally and does not depend on the exact geometry of one site. The calculation shows that this flow can reverse an ordered incoming material line under the stated inflow and surface-flux closure. It does not test the surface-deposition map. A site-specific test still requires a three-dimensional, multi-source material map constrained by measured geometry, basal traction and surface mass balance.}
 
-\pagebreak[4]
-\subsection*{R1C2: Method of characteristics}
+\subsection*{R1C2: Method of characteristics (Remark 2)}
 
 \noindent\textbf{Comment.}
 \begin{quote}
 It would be interesting to see an interpretation of the results that leans on the method of characteristics, e.g., along the lines of equations (57) and (58). It is operating in the background through the analysis of the Jacobian. I think that highlighting the connection could facilitate the discussion of the applicability of the results to a specific glacier system.
 \end{quote}
 
-\noindent\textcolor{responseblue}{\textbf{Response.} Thank you. We agree that the method of characteristics was already present in the analysis but was not identified clearly. We added text after the steady age equation to state that particle trajectories are its characteristics, age is elapsed travel time along them, and the deposition coordinate \(x_0\) labels them. In this interpretation, the order Jacobian is the sensitivity of the equal-age characteristic map to its initial surface label. No new governing equations are required because the existing Jacobian analysis already gives this characteristic sensitivity.}
+\response{\textbf{Response.} Thank you. We agree that the method of characteristics was already operating in the background but was not stated explicitly. We added text immediately after the steady age equation (now Equation~5) noting that particle trajectories are its characteristics, age is elapsed travel time along them, and the deposition coordinate \(x_0\) labels them; the order Jacobian is therefore the characteristic sensitivity of the equal-age map to its initial surface label.}
 
 \medskip
 
-\noindent\textcolor{responseblue}{We also revised the trajectory-diagnostic section to identify Equations~(57) and (58) explicitly as a method-of-characteristics implementation. Equation~(57) traces a characteristic from the deposition boundary, Equation~(58) accumulates the signed shear history that controls separation from neighboring surface origins, and Equation~(59) gives the resulting Jacobian without finite differencing neighboring trajectories. The revised manuscript now also gives the equivalent deformation-gradient calculation, \(\mathrm{d}\bm{F}/\mathrm{d}t=\nabla\bm{u}\,\bm{F}\) and \(J=T_x\), used for the new experiments. This form remains regular through counterflow. The revised Discussion states how this construction would be applied to a glacier: launch characteristics from candidate accumulation sources, follow them through a reconstructed velocity field to the core or radar transect, and evolve the source-patch Jacobian. At Allan Hills this application must be three-dimensional and allow multiple source regions.}
+\response{We also revised the trajectory-diagnostic section to identify Equations~(47)--(49) (originally Equations~57--59) explicitly as a method-of-characteristics implementation: Equation~(47) traces a characteristic from the deposition boundary, Equation~(48) accumulates the signed shear history controlling separation from neighboring surface origins, and Equation~(49) yields the resulting Jacobian without finite differencing neighboring trajectories. We further added the equivalent deformation-gradient formulation, \(\mathrm{d}\bm{F}/\mathrm{d}t=\nabla\bm{u}\,\bm{F}\) and \(\mathcal{J}_{\mathrm{T}}=T_x\) (Equations~50--51), which remains regular through counterflow. The revised Discussion explains how this construction applies to a specific glacier: launch characteristics from candidate accumulation sources, integrate them through a reconstructed velocity field to the core or radar transect, and evolve the source-patch Jacobian (which at Allan Hills must be three-dimensional and allow multiple source regions).}
 
-\section*{Reviewer 2}
-
-\subsection*{R2C2: Figure 3 and additional numerical experiments}
+\subsection*{R1C3: Role of accumulation versus melt and returning streamlines (Remark 3)}
 
 \noindent\textbf{Comment.}
 \begin{quote}
-Figure 3 is the only result figure and carries almost all evidence for the manuscript's claim. However, I think Figure 3 could use substantial explanation. [...] One more general question regarding the model setup. The model domain is rather small (about 320 m long and 160 m deep trough). [...] Maybe the author can simply show more results from the simulation, such as velocity, streamlines etc., so that the reader can better understand how this simulation is different from a re-circulating flow in a trough.
-
-I also think one simple idealized simulation is too less to demonstrate the overturn. It may worth conducting more simulations of varying bed/surface, viscosity, temperature, sliding law, viscosity etc. No need to conduct simulations covering all of those, but more than one simulation would demonstrate the robustness of this model and the derivation.
+I am curious about the role of accumulation versus melt. Does accumulation only operate across a portion of the surface? Is the current text not focused on the streamlines that eventually hit the surface again?
 \end{quote}
 
-\noindent\textcolor{responseblue}{\textbf{Response.} One admissible counterexample would be sufficient to disprove a universal order-preservation claim; robustness instead concerns the physical generality of the mechanism. Admissibility, however, requires the source map and boundary class to match the claim being tested. The original circular-trough calculation used nonperiodic open lateral cuts, so we removed it and added two complementary full-Stokes experiments. The rheology and linear sliding law are held fixed, but the source and boundary closures differ. These are distinct mechanism tests rather than a controlled geometry-only comparison, and the point-margin line is not presented as a counterexample for surface-deposited stratigraphy.}
+\response{\textbf{Response.} Yes---accumulation need operate only across the originating portion of the upper surface where trajectories enter the glacier (\(\dot a(x_0)>0\)). Downstream, a trajectory may remain internal or emerge again into a surface ablation zone (\(\dot a<0\)) or encounter basal melt; this re-emergence is precisely what occurs in blue-ice areas such as Allan Hills and in our periodic sinusoidal-bed experiment (Figure~5), where diagnosed surface mass balance alternates between accumulation and ablation zones. Ablation and basal melting simply truncate a trajectory at its exit and do not invalidate the order Jacobian along the interior trajectory prior to exit. We added explicit statements clarifying this point immediately after Equation~(4) and in the Discussion subsection \emph{Limits of the steady coordinate construction}. What the single-label construction cannot treat without generalization is ice that never originates on an accumulation surface (such as basal freeze-on or closed recirculation cells) or domains with multiple disconnected accumulation zones.}
+
+\subsection*{R1C4: AI-usage disclosure and percentage estimate (Remark 4)}
+
+\noindent\textbf{Comment.}
+\begin{quote}
+This is the first paper that I have reviewed with a clear AI-usage statement and I commend the author for their transparency. Reading the text and the style of language, I am struck by the seeming pervasive influence of AI and I cannot help but wonder what fraction of the work was completed as the output of a large language model. Estimating that percentage for the reader would be helpful.
+\end{quote}
+
+\response{\textbf{Response.} Thank you for engaging thoughtfully with the AI-usage statement. Rather than reporting a single percentage---which is difficult to define meaningfully across heterogeneous activities such as problem conception, mathematical verification, prose editing and numerical scripting---we expanded the Acknowledgements to provide a transparent task-by-task breakdown of author versus tool roles, updated to include both the initial submission and the peer-review revision. Specifically, the author conceived the research question, set the physical assumptions and theoretical framing, directed all analyses, independently checked all cited sources, derivations, code and numerical outputs, revised all AI-assisted prose, and takes full responsibility for the work; large-language-model tools (OpenAI Codex during initial development and revisions, and Google Antigravity/Gemini during final peer-review revisions) assisted with literature searches, prose drafting and editing, LaTeX formatting, numerical-code implementation and exploratory parameter sweeps.}
+
+\subsection*{R1C5: Appendix lettering and connection to the continuum-mechanics Jacobian (Remark 5)}
+
+\noindent\textbf{Comment.}
+\begin{quote}
+As highlighted in the Appendix (which should have letters associated with the sections?), what is the connection between the Jacobian the author derives and the continuum mechanics Jacobian for the mapping from a reference configuration \(X\) to the current position \(x\), given by \(J = \det|\partial x/\partial X|\). It has a similar character and must be related to the fact that \(x_0\) sets the original location for the fluid parcels, as in equation (15) in the text.
+\end{quote}
+
+\response{\textbf{Response.} Both points have been addressed. First, the \texttt{igs} class defaults to unnumbered sections (\texttt{secnumdepth=0}), which had suppressed appendix letters; we enabled appendix section numbering so the appendices are now explicitly lettered Appendix~A through Appendix~H (with corresponding equation numbering C1--C9, D1--D6, E1--E3, etc.).}
 
 \medskip
 
-\noindent\textcolor{responseblue}{The material-line experiment uses a deliberately idealized finite convergent geometry motivated by broad features of the Allan Hills cross section, not a reconstruction of that site. It retains an exposed-rock point margin, strong thickening toward the right and opposing shallow flows so that the mechanism test does not depend on exact local geometry. Ice thickness increases from zero at the point margin to 360~m over 2~km. The right boundary has an explicitly plotted SIA-shaped horizontal inflow and zero vertical velocity; the bed is impermeable with linear sliding, and the upper surface is traction free. The main-text figure shows (a) geometry and boundary conditions, (b--c) horizontal and vertical velocity with selected paths, (d) minimum \(J\) over incoming height and slope, (e) elapsed material-line evolution and (f) a fold close-up. In panels (e--f), a negative-\(J\) interval migrates along a vertically extended S-shaped line, so local segments pass from ordered to unordered and back to ordered. On the sampled grid, horizontal lines reach \(J_{\min}=-0.1936\). A uniform-ablation control on the same geometry remains ordered at \(J_{\min}=0.3075\), showing that the result depends on the surface-flux closure as well as geometry. The three-mesh sequence and the limit of positive-thickness left truncations are shown in a separate supplementary figure.}
+\response{Second, we added an explicit explanation in Section~2 (\emph{Exact order theorem}) and a complete derivation in Appendix~D (\emph{Inverse-coordinate identities and continuum-mechanics Jacobian}, Equations~D4--D6). For incompressible two-dimensional flow (\(\nabla\cdot\bm{u}=0\)), the continuum-mechanics area Jacobian \(\det\bm{F}=\det(\partial\bm{X}/\partial\bm{X}_0)=1\) identically everywhere, and the two-dimensional \((\tau,x_0)\mapsto(x,z)\) Jacobian is \(\det[\partial(x,z)/\partial(\tau,x_0)]=\dot a_0>0\); neither area determinant can vanish or change sign when an isochrone overturns. Instead, our isochrone-order Jacobian \(\mathcal{J}=\left.\partial x/\partial x_0\right|_{\tau}\) is the horizontal component of the pushed-forward surface-deposition tangent \(\bm{T}=\bm{F}\bm{T}_0\) for \(\bm{T}_0=[1,s_x(x_0)]^{\mathsf T}\): \(\mathcal{J}=(\bm{F}\bm{T}_0)_x=F_{11}+s_x(x_0)F_{12}\) (Equation~D6, matching Equation~51). Because \(\det\bm{F}=1\) preserves material area, when the horizontal projection \(\mathcal{J}\) vanishes at a vertical tangent, the vertical projection \((\bm{F}\bm{T}_0)_z=\dot a_0\tau_x=\dot a_0/u\) remains strictly positive (Equation~13), ensuring that overturning is a smooth rotation rather than a material singularity.}
+
+\subsection*{R1S1--R1S10: Specific comments}
+
+\begin{enumerate}
+  \item \textbf{Line 5 (include epoch time periods):} \textcolor{responseblue}{Done. We added the epoch time ranges in both the Abstract (\emph{Miocene (23--5.3~Ma)}) and Introduction (\emph{Pliocene (5.3--2.6~Ma) and Miocene (23--5.3~Ma)}).}
+  \item \textbf{Line 7 (rephrase ``initially ordered layers''):} \textcolor{responseblue}{Done. Rephrased to ``Whether steady glacier flow can overturn layers deposited in chronological order remains uncertain.''}
+  \item \textbf{Line 26 (swap ``useful only'' to ``most useful''):} \textcolor{responseblue}{Done. The opening sentence of the Introduction now reads ``Recovering old ice is most useful where its age and stratigraphic context can be established.''}
+  \item \textbf{Around line 50 (mention Dahl-Jensen et al., 2013):} \textcolor{responseblue}{Done. Added a sentence in the Introduction noting that Dahl-Jensen and others (2013) reconstructed the Eemian interglacial record from folded basal ice in the NEEM core using chronological markers to unwrap stratigraphic inversions, and added the reference to \texttt{references.bib}.}
+  \item \textbf{Around line 66 (cite Schoof and Clarke, 2008):} \textcolor{responseblue}{Done. Added a citation to Schoof and Clarke (2008) in both the Introduction and Discussion noting that non-Newtonian normal-stress differences can drive secondary spiral flows in basal ice, and added the reference to \texttt{references.bib}.}
+  \item \textbf{Line 187 (move Parrenin--Hindmarsh section to Appendix):} \textcolor{responseblue}{Done (also requested by Reviewer~2, Minor Comment~15). Moved to Appendix~E, leaving a one-sentence pointer in the main text.}
+  \item \textbf{Line 201 (``Stokes flow'' suffices rather than ``Full Stokes''):} \textcolor{responseblue}{Done. Replaced ``full-Stokes'' / ``Full-Stokes'' with ``Stokes'' / ``Stokes flow'' throughout section headings, prose and tables, and updated the non-shallow residual notation from \(R_{\mathrm{FS}}\) to \(R_{\mathrm{S}}\) for consistency.}
+  \item \textbf{Line 274 (move proofs to Appendix with full steps):} \textcolor{responseblue}{Done. Moved the formal proofs of both Theorem~1 and Proposition~1 to Appendix~C, where every intermediate step (Leibniz differentiation of the travel-time integral, streamline spacing \(z_\psi=1/u\), implicit differentiation at fixed \(\tau\), and the integral bound) is written out explicitly.}
+  \item \textbf{Equation (61) (write \(-\bm{t}\cdot\bm{\sigma}\cdot\bm{n}\)):} \textcolor{responseblue}{Done. Equation~(53) (originally Equation~61) now writes \(\tau_b=-\bm{t}\cdot\bm{\sigma}\cdot\bm{n}\).}
+  \item \textbf{Line 333 (explain role of dissipating mechanical energy):} \textcolor{responseblue}{Done. Right after Equation~(53), we now explain explicitly that \(C>0\) implies nonnegative basal power dissipation \(\tau_b u_t=C\tau_b^2\geq0\) per unit bed length, ensuring that the bed passively resists motion rather than injecting mechanical work to drive flow or force overturning.}
+\end{enumerate}
+
+% ============================================================================
+\section*{Reviewer 2}
+% ============================================================================
+
+\subsection*{General comment: Accessibility, motivation and numerical evidence}
+
+\noindent\textbf{Comment.}
+\begin{quote}
+However, I find the manuscript difficult to follow because the physical questions are addressed by the substantial derivations that are not consistently explained. The relationship between the analytical results and the numerical example also needs to be demonstrated more directly. Figure~3 is central to the paper's claim (which is also the only results figure), but its present presentation makes it unnecessarily difficult to identify what overturns, how this is established, and which conclusions each panel supports. I also believe one numerical experiment using a very idealized model setup is not robust enough to demonstrate the manuscript's conclusion.
+\end{quote}
+
+\response{\textbf{Response.} Thank you for these detailed, concrete suggestions. We reorganized the kinematic section around its physical question, moved formal derivations and the Parrenin--Hindmarsh comparison to Appendices~C and~E, expanded the conceptual diagram (now Figure~2) to illustrate all three stratigraphic regimes, replaced the circular-trough Figure~3 with two complementary Stokes experiments showing velocity, streamlines, parameter maps and fold evolution (Figures~4, 5 and~S1), and tightened the shallow-ice and thin-film derivations. Detailed point-by-point responses follow.}
+
+\subsection*{R2C1: Relation to Allan Hills (Major Comment 1)}
+
+\noindent\textbf{Comment.}
+\begin{quote}
+Most of the manuscript contains mathematical derivations for theoretical stratigraphy overturn conditions, with one numerical experiment on a 2D synthetic test case using a circular-arc bed, constant scalar viscosity, and linear sliding law. It is not clear to me how this very simple setup relates to Allan Hills since the model does not resemble the geometry, rheology, basal conditions, and surface mass balance of Allan Hills. [...] I suggest the author either consider restructuring the numerical model to partially mimic, if not fully mimic, Allan Hills. Or, simply remove the implication for Allan Hills and make this a theoretical study.
+\end{quote}
+
+\response{\textbf{Response.} We addressed this concern in three ways. First, we added an Allan Hills observational context figure (Figure~1) showing the locations and published \(^{40}\mathrm{Ar}_{\mathrm{atm}}\) age--depth reversals of ALHIC1901 and ALHIC1902, motivating why a clean mechanical test for steady overturning is needed. Second, we removed the circular-arc trough experiment and replaced it with a finite convergent point-margin experiment (Figure~4) motivated by broad geometric features near the Allan Hills nunatak (an exposed-rock point margin, thickening from \(0\) to \(360~\mathrm{m}\) over \(2~\mathrm{km}\), and opposing shallow flows), paired with a periodic sinusoidal-bed negative control (Figure~5). Third, we stated explicitly in the Abstract, Section~\emph{Stokes numerical experiments}, Discussion and Conclusions that the two-dimensional idealized point-margin problem is a mechanism test rather than a reconstruction or prediction for Allan Hills; applying the diagnostic to Allan Hills itself requires a three-dimensional, multi-source velocity reconstruction constrained by site observations.}
+
+\subsection*{R2C2: Figure 3 and additional numerical experiments (Major Comment 2)}
+
+\noindent\textbf{Comment.}
+\begin{quote}
+Figure~3 is the only result figure and carries almost all evidence for the manuscript's claim. However, I think Figure~3 could use substantial explanation. [...] Why not just show the proposed diagnostics, such as plotting \(\mathcal{P}\), \(\mathcal{R}\), \(1+\mathcal{P}-\mathcal{R}\) directly? [...] Maybe the author can simply show more results from the simulation, such as velocity, streamlines etc., so that the reader can better understand how this simulation is different from a re-circulating flow in a trough. I also think one simple idealized simulation is too less to demonstrate the overturn. It may worth conducting more simulations of varying bed/surface, viscosity, temperature, sliding law, viscosity etc.
+\end{quote}
+
+\response{\textbf{Response.} One admissible counterexample would be sufficient to disprove a universal order-preservation claim; robustness instead concerns the physical generality of the mechanism. Admissibility, however, requires the source map and boundary class to match the claim being tested. The original circular-trough calculation used nonperiodic open lateral cuts, so we removed it and added two complementary Stokes experiments. The rheology and linear sliding law are held fixed, while the geometry, source map and boundary closures differ. These are distinct mechanism tests rather than a controlled geometry-only comparison, and the point-margin line is not presented as a counterexample for surface-deposited stratigraphy.}
 
 \medskip
 
-\noindent\textcolor{responseblue}{The negative control uses exactly periodic lateral boundaries and one sinusoidal bed wavelength, \(b=-H+A\cos(2\pi x/\lambda)\). Panel (a) defines this periodic cell, and panels (b--f) map minimum \(J\) over amplitude and wavelength at five mean thicknesses. The sweep contains 13 amplitudes and 16 wavelengths at each thickness while retaining the same viscosity and sliding law. All 750 resolved numerical cases and 80 analytical flat-bed limits preserve order; the smallest resolved value is \(J=0.6428\). A further 210 short-wave cells fall below the stated numerical surface-signal threshold and are left unclassified. This comparison shows that finite-amplitude bed roughness can strongly deform a layer without generically overturning it.}
+\response{The material-line experiment (Figure~4) uses a deliberately idealized finite convergent geometry motivated by broad features of the Allan Hills cross section, not a reconstruction of that site. Ice thickness increases from zero at the left point margin to \(360~\mathrm{m}\) over \(2~\mathrm{km}\). The right boundary has an explicitly plotted SIA-shaped horizontal inflow and \(w=0\); the bed is impermeable with linear sliding, and the upper surface is traction free. Figure~4 shows (a)~geometry and boundary conditions, (b--c)~horizontal velocity with selected paths and vertical velocity (demonstrating directly that the paths remain open and exit the surface rather than recirculating), (d)~minimum \(J\) over incoming height and slope, (e)~elapsed material-line evolution, and (f)~a fold close-up. In panels~(e--f), a negative-\(J\) interval migrates along a vertically extended S-shaped line, so local segments pass from ordered to unordered and back to ordered. On the sampled grid, horizontal lines reach \(J_{\min}=-0.1936\). A uniform-ablation control on the same geometry remains ordered at \(J_{\min}=0.3075\), showing that the result depends on the surface-flux closure as well as geometry. Three-mesh refinement and the limit of positive-thickness left truncations are shown in Figure~S1 (Appendix~H).}
 
 \medskip
 
-\noindent\textcolor{responseblue}{For both experiments we now calculate signed tangent orientation by integrating the variational equation along each steady characteristic: \(\mathrm{d}\bm{F}/\mathrm{d}t=\nabla\bm{u}\,\bm{F}\), \(\bm{T}=\bm{F}\bm{T}_0\) and \(J=T_x\). For surface-deposited sources this is the order Jacobian; for the prescribed point-margin inlet line it is a line-orientation metric. The calculation requires no time-dependent layer simulation and remains regular when horizontal velocity vanishes or reverses. The manuscript defines this distinction before presenting the experiments.}
+\response{The negative control (Figure~5) uses exactly periodic lateral boundaries and one sinusoidal bed wavelength, \(b(x)=-H+A\cos(2\pi x/\lambda)\). Panel~(a) defines this periodic cell, and panels~(b--f) map minimum \(J\) over amplitude and wavelength at five mean thicknesses (\(H=50, 100, 160, 240, 320~\mathrm{m}\), spanning 13 amplitudes and 16 wavelengths at each thickness while retaining the same viscosity and sliding law). All 750 resolved numerical cases and 80 analytical flat-bed limits preserve order; the smallest resolved value is \(J=0.6428\). A further 210 short-wave cells fall below the stated numerical surface-signal threshold and are left unclassified. This comparison shows that finite-amplitude bed roughness can strongly deform a layer without generically overturning it.}
+
+\medskip
+
+\response{Regarding the choice of plotted diagnostic: for both experiments we calculate signed tangent orientation directly by integrating the variational equation along each steady characteristic, \(\mathrm{d}\bm{F}/\mathrm{d}t=\nabla\bm{u}\,\bm{F}\), \(\bm{T}=\bm{F}\bm{T}_0\) and \(\mathcal{J}_{\mathrm{T}}=T_x\) (Equations~50--51). We now explain in the opening paragraph of \emph{Stokes numerical experiments} why we report \(\mathcal{J}_{\mathrm{T}}\) rather than \(1+\mathcal{P}-\mathcal{R}\): in the point-margin experiment, converging currents contain vanishing and reversing horizontal velocity \(u\), where the \(u^{-3}\) integrals defining \(\mathcal{P}\) and \(\mathcal{R}\) become singular, whereas \(\mathcal{J}_{\mathrm{T}}\) contains no division by \(u\) and remains smooth everywhere. Along one-way surface-sourced trajectories in the periodic sinusoidal-bed sweep, \(\mathcal{J}_{\mathrm{T}}\) coincides identically with \(\mathcal{J}=(u/u_{s0})(1+\mathcal{P}-\mathcal{R})\), so using \(\mathcal{J}_{\mathrm{T}}\) provides a single consistent, singularity-free diagnostic across both experiments.}
+
+\subsection*{R2C3: Reorganize derivations around their physical purpose and show missing steps (Major Comment 3)}
+
+\noindent\textbf{Comment.}
+\begin{quote}
+The reader is introduced to many variables and coordinate transformations before being given a clear explanation of their purpose. Some of the details are not needed while at the same time some important derivations are missing. [...] I suggest beginning this section with the physical question: two neighboring particles deposited at different surface positions are advected with the ice flow for the same elapsed time. Do their horizontal orderings remain unchanged? The author could then introduce \(\mathcal{J}\) as the measure of that ordering and state that the goal is to express it in terms of the velocity field encountered along the particle trajectory.
+\end{quote}
+
+\response{\textbf{Response.} Thank you---we followed this exact restructuring. Section~\emph{Steady age transport and the order Jacobian} now opens directly with the physical question of two neighboring parcels deposited at \(x_0\) and \(x_0+\delta x_0\) and advected for the same elapsed time, defines stratigraphic order and introduces \(\mathcal{J}=\left.\partial x/\partial x_0\right|_{\tau}\) immediately in Equation~(1) along with the three-regime schematic in Figure~2. We removed the verbose streamfunction preliminaries and moved the Parrenin--Hindmarsh \((\pi,\theta)\) comparison (including the \(x_0\)-versus-\(\pi_0\) discussion) to Appendix~E. We also wrote out the full step-by-step derivation from the travel-time integral \(\tau(x,\psi)\) (Equation~10) to \(\tau_\psi\) and \(\mathcal{J}\) in Appendix~C (Equations~C1--C8), showing explicitly how Leibniz's rule, streamline spacing \(z_\psi=1/u\), and implicit differentiation of \(\tau(x,\psi)=\text{const}\) yield \(x=x(\psi,\tau)\) and \(\left.\partial x/\partial\psi\right|_\tau=-u\tau_\psi\). We also reviewed Appendix~A (Table~1) to remove unused notation (such as the Poisson bracket) and keep every listed symbol tied directly to the revised text.}
+
+\subsection*{R2C4: Stratigraphic age \(\tau\) versus time since deposition \(t\), and ``passive'' / ``non-diffusive'' (Major Comment 4)}
+
+\noindent\textbf{Comment.}
+\begin{quote}
+The author should define clearly what \(\tau\) and \(t\) means and how they are different. [...] When the trajectory clock is set to zero at deposition, the particle's age equals that elapsed time. Please also explain that ``passive'' means age does not affect the flow, and ``non-diffusive'' means no diffusive mixing of the age field is included. Neither term implies that age is conserved along a trajectory.
+\end{quote}
+
+\response{\textbf{Response.} Done. Immediately before and after Equation~(5), we now state explicitly that ``passive'' means age does not affect ice density, viscosity or velocity, that ``non-diffusive'' means diffusive mixing of age is neglected, and that neither assumption implies age is conserved along a trajectory. We also state directly that along any trajectory started at deposition (\(t=0\), \(\tau=0\)), the elapsed time since deposition \(t\) and stratigraphic age \(\tau\) are the same physical clock (\(\tau=t\)): \(\tau(x,z)\) denotes the steady Eulerian age field, while \(t\) parameterizes trajectory integration (reiterated in the trajectory-diagnostic section before Equation~47).}
+
+\subsection*{R2C5: Why streamfunctions, age coordinates and Jacobian derivations are needed (Major Comment 5)}
+
+\noindent\textbf{Comment.}
+\begin{quote}
+What determines whether \(x_1\) is smaller or larger than \(x_2\) is some integration of velocity in \(x\) direction as the particles flow downstream. Then why are all derivations (streamfunctions, age coordinates, Jacobian etc.) before Equation~22 needed?
+\end{quote}
+
+\response{\textbf{Response.} Thank you for raising this conceptual question. We now address it directly in the second paragraph of Section~\emph{Steady age transport and the order Jacobian}. Integrating \(u\) along individual particle pairs numerically can tell us whether two specific parcels swap order in a particular velocity field, but it does not reveal \emph{which dynamical features} of the velocity field cause overturning, does not separate speed changes from vertical shear, does not yield analytical preservation theorems (shallow-ice, thin-film, localized-obstacle and periodic-roughness bounds), and does not connect directly to the vertical age gradient measured in an ice core. Introducing the streamfunction \(\psi\) allows us to compare neighboring trajectories analytically at fixed \(x\) using exact incompressibility (\(z_\psi=1/u\)), collapsing the two-dimensional advection problem into the one-dimensional cumulative budget \(\mathcal{J}=(u/u_{s0})(1+\mathcal{P}-\mathcal{R})\) and yielding the exact observational identity \(\mathcal{J}=-\dot a_0\tau_z=\lambda_z^{-1}\). Conversely, where one-way flow breaks down (as in the point-margin experiment), we revert directly to integrating the flow-map variational equations along trajectories (Equations~50--51).}
+
+\subsection*{R2C6: Shallow-ice order preservation assumptions (Major Comment 6)}
+
+\noindent\textbf{Comment.}
+\begin{quote}
+The step linking the sign of shear stress to the sign of \(u_z\) is too compressed. Equation~44 alone is not the entire argument. [...] The inherent assumption is leading-order shallow-ice approximation to the strain rate, which gives \(\tau_{xz}\sim\eta u_z\). Please state this approximation explicitly rather than attributing the sign correspondence to isotropic rheology alone. I do think the authors should consider or distinguish uphill-flow segments, stagnation, changing flow direction from the current downhill-only flow.
+\end{quote}
+
+\response{\textbf{Response.} Agreed---thank you for catching this gap. We rewrote the \emph{Shallow-ice flow} subsection (Equations~34--35) to state both leading-order SIA approximations explicitly: (1)~the hydrostatic shear-stress balance \(\tau_{xz}\simeq-\rho g(s-z)s_x\) and (2)~the leading-order SIA strain-rate approximation neglecting \(w_x\) relative to \(u_z\), which reduces isotropic Glen-type rheology to \(\tau_{xz}\simeq\eta u_z\). We also framed the conclusion explicitly as an order-preservation result for steady, surface-generated stratigraphy under leading-order SIA with strictly downhill surface slope (\(s_x<0\)) and positive downstream velocity (\(u>0\)), and explicitly noted that the result does not extend to ice divides, stagnation points, flow reversals or segments with adverse surface slope (\(s_x>0\)). The Abstract and Conclusions were updated to reflect this qualification as well.}
+
+\subsection*{R2C7: Thin-film scaling of \(R_{\mathrm{S}}\) and substitution into \(\mathcal{F}\) (Major Comment 7)}
+
+\noindent\textbf{Comment.}
+\begin{quote}
+Equations~47--49 introduce an important preservation argument, but the scaling of \(R_{\mathrm{FS}}\) is assumed rather than demonstrated. Please provide a short explanation of the characteristic horizontal and vertical velocities, stress and viscosity scales, and spatial variation scales required for \(R_{\mathrm{FS}}=O(\varepsilon^2 U/H)\). Please also remind the reader that \(\mathcal{F}\), defined in Equation~41, is the dimensionless accumulated contribution of \(R_{\mathrm{FS}}\) whereas \(R_{\mathrm{FS}}\) is a local contribution to the velocity gradient. [...] A short substitution showing how Equation~47 gives Equation~48, including the assumptions about trajectory length and characteristic speed, would make the argument easier to evaluate.
+\end{quote}
+
+\response{\textbf{Response.} Done. We rewrote the \emph{Regular thin-film Stokes flow} subsection (Equations~36--39, with \(R_{\mathrm{FS}}\) renamed \(R_{\mathrm{S}}\) per Reviewer~1's terminology suggestion) to derive \(R_{\mathrm{S}}=O(\varepsilon^2 U/H)\) explicitly from the characteristic scales \(H\), \(L=H/\varepsilon\), horizontal speed \(U\), vertical speed \(W=O(\varepsilon U)\) from incompressibility, characteristic viscosity \(\eta_0\), leading shear stress \(\tau_{xz}=O(\eta_0 U/H)\), longitudinal stress \(\tau_{xx}=O(\varepsilon\eta_0 U/H)\), nonhydrostatic pressure \(p_{\mathrm{nh}}=O(\varepsilon\eta_0 U/H)\) from vertical force balance, and surface shear stress \(\tau_{xz}^{s}=O(\varepsilon^2\eta_0 U/H)\) from the traction-free surface condition with \(s_x=O(\varepsilon)\). We then explicitly remind the reader that \(R_{\mathrm{S}}\) is a local velocity-gradient residual (units \(\mathrm{yr^{-1}}\)) whereas \(\mathcal{F}\) (Equation~31) is its dimensionless trajectory-integrated contribution, and write out the direct substitution over a trajectory segment of length \(\Delta x=O(L)=O(H/\varepsilon)\) with \(u, u_{s0}\sim U\) and \(\dot a_0=O(\dot a)\) in Equation~(38): \(\mathcal{F}\sim (\dot a\,U)(\varepsilon^2 U/H) U^{-3}(H/\varepsilon)=O\bigl((\dot a/U)\varepsilon\bigr)\).}
+
+\subsection*{R2M8--R2M23: Minor comments}
+
+\begin{enumerate}\setcounter{enumi}{7}
+  \item \textbf{Figure~1 (add three streamline scenarios: ordered, vertical tangent, overturned limb):} \textcolor{responseblue}{Done. Redesigned Figure~2 (originally Figure~1) as a three-panel schematic built from an exact incompressible kinematic map showing (a)~ordered stratigraphy (\(\mathcal{J}>0\), \(\delta x>0\)), (b)~vertical tangent (\(\mathcal{J}=0\), \(\delta x/\delta x_0\to 0\)), and (c)~overturned limb (\(\mathcal{J}<0\), \(\delta x<0\), highlighted in red).}
+  \item \textbf{Lines 94--96 (clarify last sentence of paragraph):} \textcolor{responseblue}{Done. Rewrote this sentence to state clearly that the Discussion subsection on limits of the steady coordinate construction examines cases in which Equations~(2)--(5) break down, including basal sources, multiple accumulation zones, stagnation and closed recirculation.}
+  \item \textbf{Figure~1 annotation (\(\tau\) labelled as ``isochrone \(\tau\)'' instead of age):} \textcolor{responseblue}{Done. Updated all three panels of Figure~2 (originally Figure~1) to read ``isochrone (age \(\tau\))''.}
+  \item \textbf{Lines 97--99 (basic fluid mechanics description of streamlines):} \textcolor{responseblue}{Done. Removed this elementary sentence so Equation~(6) introduces \(\psi\) directly.}
+  \item \textbf{Line 103 (``wherever the assumptions hold''---what assumptions?):} \textcolor{responseblue}{Done. Replaced with ``wherever Equations~(2)--(5) hold.''}
+  \item \textbf{Line 105 (define ``stratigraphic order'' vs.\ ``stratigraphic age''):} \textcolor{responseblue}{Done. Explicitly defined \emph{stratigraphic order} in the opening paragraph of Section~2 as the horizontal spatial sequence of parcels along an equal-age surface, distinct from stratigraphic age \(\tau\) itself.}
+  \item \textbf{Lines 117--120 (purpose of \(x_0\) vs.\ \(\pi_0\) paragraph):} \textcolor{responseblue}{Done. Removed this standalone paragraph from Section~2 and integrated it cleanly as the opening sentence of Appendix~E (\emph{Relation to the Parrenin--Hindmarsh \((\pi,\theta)\) coordinates}).}
+  \item \textbf{Lines 187--200 (move Parrenin--Hindmarsh section to Appendix):} \textcolor{responseblue}{Done (also requested by Reviewer~1, Specific Comment~6). Moved to Appendix~E.}
+  \item \textbf{Line 207 (why specify \(\eta>0\) and ``may depend on''?):} \textcolor{responseblue}{Done. Clarified in the text following Equation~(24) that \(\eta\) is the positive scalar effective viscosity---constant for linear-viscous ice (as in our numerical experiments) or dependent on temperature and effective strain rate for Glen-law ice---and that positivity of \(\eta\) is explicitly needed for the stress--shear sign relations that follow.}
+  \item \textbf{Lines 225--248 (confusing section on reverse shear vs.\ recirculating eddies):} \textcolor{responseblue}{Done. Rewrote the subsection \emph{Stokes mechanics permits reverse shear} cleanly into two focused paragraphs: the first explains why Stokes stress and velocity-gradient terms in \(R_{\mathrm{S}}\) permit local \(u_z<0\) even when \(s_x\leq 0\), and the second distinguishes closed recirculating eddies from open-trajectory isochrone overturning.}
+  \item \textbf{Line 232 (define ``one-way-flow assumption''):} \textcolor{responseblue}{Done. Explicitly defined ``one-way flow'' both at Equation~(3) and in \emph{Stokes mechanics permits reverse shear} as \(u(x,z)>0\) along trajectories, excluding flow reversal and closed recirculation (distinct from preserving depositional order).}
+  \item \textbf{Lines 234--236 (trim Moffatt 1964 details):} \textcolor{responseblue}{Done. Removed the detailed similarity-exponent and \(146^{\circ}\) included-angle discussion.}
+  \item \textbf{Line 234 (``two stationary rigid planes''):} \textcolor{responseblue}{Done. Removed along with the overly detailed Moffatt (1964) corner-flow description.}
+  \item \textbf{Line 247 (citation for ``published rough-bed solutions''):} \textcolor{responseblue}{Done. Merged into the first paragraph of \emph{Stokes mechanics permits reverse shear} with explicit citations to Gudmundsson (1997a) and Waddington (2010).}
+  \item \textbf{Line 214 (\(\tau_{xz}=\eta(u_z+w_x)\) vs.\ factor of 2):} \textcolor{responseblue}{Thank you for checking this convention carefully. In our constitutive law (Equation~24), \(\bm{\tau}=2\eta\bm{D}\) with the symmetric strain-rate tensor \(\bm{D}=\frac{1}{2}(\nabla\bm{u}+\nabla\bm{u}^{\mathsf T})\), which is the standard glaciological convention (e.g., Cuffey and Paterson, 2010). Its off-diagonal component is \(D_{xz}=\frac{1}{2}(u_z+w_x)\), so the factor of 2 cancels: \(\tau_{xz}=2\eta D_{xz}=\eta(u_z+w_x)\) (consistent with the SIA relation \(u_z=\tau_{xz}/\eta\)). To make this cancellation transparent, we now write ``\(D_{xz}=\frac{1}{2}(u_z+w_x)\), so \(\tau_{xz}=2\eta D_{xz}=\eta(u_z+w_x)\)'' explicitly right before Equation~(28).}
+  \item \textbf{Boxed equations:} \textcolor{responseblue}{Done. Removed all \texttt{\textbackslash boxed\{\}} frames from equations throughout the manuscript.}
+\end{enumerate}
 
 \end{document}

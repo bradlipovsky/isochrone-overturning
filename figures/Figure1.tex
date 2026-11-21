@@ -1,67 +1,234 @@
 % Build from the repository root with:
+% pdflatex -output-directory=figures figures/Figure1.tex
 % latex -output-directory=figures figures/Figure1.tex
 % dvips -o figures/Figure1.ps figures/Figure1.dvi
 % ps2epsi figures/Figure1.ps figures/Figure1.eps
 
-\documentclass[tikz,border=2pt]{standalone}
+\documentclass[tikz,border=3pt]{standalone}
+\usepackage{amsmath}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,intersections,positioning}
+\usetikzlibrary{arrows.meta,positioning}
+
+\pgfmathdeclarefunction{speed}{1}{%
+  \pgfmathparse{3.0 - 1.0*tanh((#1-3.0)/1.0)}%
+}
 
 \begin{document}
 
-\begin{tikzpicture}[x=1cm,y=1cm,>=Latex,labelbox/.style={fill=white,inner sep=1.5pt}]
+% Exact incompressible steady coordinate map:
+%   x(x0,tau) = x0 + tau*U(x0),  z(x0,tau) = s(x0) - 0.50*tau*U(x0),
+% with s(x0) = 5.2 - 0.14*x0 and U(x0) = 3.0 - 1.0*tanh((x0-3.0)/1.0).
+% Surface accumulation is a_dot = 0.36*U(x0) > 0, streamlines are straight
+% parallel lines of slope -0.50, det[d(x,z)/d(tau,x0)] = 0.36*U(x0) > 0
+% (incompressible), and J = dx/dx0|_tau = 1 - tau*sech^2((x0-3.0)/1.0).
+% Panel (a): tau = 0.50 -> J_min = +0.50 > 0 (ordered stratigraphy)
+% Panel (b): tau = 1.00 -> J_min =  0.00 at x0 = 3.0 (vertical tangent)
+% Panel (c): tau = 1.95 -> J_min = -0.95 < 0 on x0 in (2.15, 3.85) (overturned limb)
 
-  % domain
-  \draw[thick] (0,4.5) -- (11,3.84) node[right] {surface $s(x)$};
+\begin{tikzpicture}[
+  x=0.48cm,
+  y=0.72cm,
+  >=Latex,
+  font=\footnotesize,
+  labelbox/.style={fill=white,inner sep=1.0pt},
+  trajectory/.style={->,thick,black!85},
+  isochrone/.style={dashed,very thick,black},
+  overturned/.style={solid,line width=1.6pt,red!75!black}
+]
 
-  \draw[thick] (0,0.5) .. controls (2,0.45) and (3.4,0.55) .. (4.5,0.8)
-    .. controls (5.2,1.4) and (5.8,1.45) .. (6.6,0.85)
-    .. controls (7.4,0.45) and (9.5,0.45) .. (11,0.35) node[right] {bed};
+  \pgfmathsetmacro{\qa}{2.3}
+  \pgfmathsetmacro{\qb}{3.7}
+  \pgfmathsetmacro{\Ua}{speed(\qa)}
+  \pgfmathsetmacro{\Ub}{speed(\qb)}
+  \pgfmathsetmacro{\Umid}{speed(3.0)}
+  % 11.6 * 0.48 cm = 5.568 cm per panel -> 6.15 cm shift leaves a clean ~0.58 cm gap
+  \pgfmathsetmacro{\panelshift}{6.15}
 
-  % accumulation arrows
-  % Shifted further upward to clear x_0 and x_0 + delta x_0
-  \foreach \x in {0.6,1.4,2.0,2.8,3.6} {
-    \pgfmathsetmacro{\ys}{4.5-0.06*\x}
-    \draw[->] (\x,5.65) -- (\x,\ys+0.48);
-  }
+  % ============================================================
+  % Panel (a): Ordered stratigraphy (J > 0)
+  % ============================================================
+  \begin{scope}
+    \pgfmathsetmacro{\tauval}{0.50}
+    \node[anchor=west,font=\small\bfseries] at (-0.1,6.35) {(a) Ordered stratigraphy ($\mathcal{J}>0$)};
 
-  \node[labelbox] at (2.0,6.05) {$\dot a>0$};
+    % Surface and bed
+    \draw[thick] (0,5.2) -- (11.6,{5.2-0.14*11.6});
+    \node[anchor=south east,rotate=-11.8] at (11.55,{5.2-0.14*11.55+0.12}) {surface $s(x)$};
 
-  % neighboring trajectories, each beginning at the accumulation surface
-  \draw[name path=streamline0,->,very thick]
-    (1.4,4.416) .. controls (2.8,3.75) and (4.4,2.35) .. (5.7,1.82)
-    .. controls (7.2,1.25) and (9.0,1.55) .. (10.4,1.18);
+    \draw[thick] (0,0.58) .. controls (2.2,0.50) and (3.8,0.66) .. (5.0,0.94)
+      .. controls (5.9,1.14) and (6.8,0.64) .. (7.9,0.50)
+      .. controls (9.2,0.38) and (10.5,0.44) .. (11.6,0.34);
+    \node[anchor=south east] at (11.55,0.44) {bed};
 
-  \draw[name path=streamline1,->,thick]
-    (2.0,4.38) .. controls (3.4,3.85) and (4.9,2.75) .. (6.1,2.18)
-    .. controls (7.5,1.65) and (9.2,1.92) .. (10.6,1.58);
+    % Accumulation arrows
+    \foreach \q in {0.6,1.25,5.85,6.55} {
+      \pgfmathsetmacro{\sz}{5.2-0.14*\q}
+      \draw[->,thin,black!65] (\q,\sz+0.68) -- (\q,\sz+0.12);
+    }
+    \node[anchor=west] at (6.75,4.90) {$\dot a>0$};
 
-  % Moved slightly upward and white background removed
-  \node at (8.2,1.68) {streamlines};
+    % Isochrone
+    \draw[isochrone]
+      plot[domain=0.1:5.9,samples=90,smooth,variable=\q]
+      ({\q+\tauval*speed(\q)},{5.2-0.14*\q-0.50*\tauval*speed(\q)});
 
-  % an equal-age surface intersecting both trajectories once
-  \draw[name path=agecurve,dashed,very thick]
-    (0.35,3.22) .. controls (3.0,3.06) and (4.8,2.72) .. (6.0,2.88)
-    .. controls (7.4,3.02) and (9.2,2.65) .. (10.75,2.42);
+    % Neighboring trajectories
+    \coordinate (a0) at (\qa,{5.2-0.14*\qa});
+    \coordinate (a1) at (\qb,{5.2-0.14*\qb});
+    \coordinate (ap0) at ({\qa+\tauval*\Ua},{5.2-0.14*\qa-0.50*\tauval*\Ua});
+    \coordinate (ap1) at ({\qb+\tauval*\Ub},{5.2-0.14*\qb-0.50*\tauval*\Ub});
 
-  \node[labelbox,right] at (10.3,2.7) {isochrone $\tau$};
+    \draw[trajectory] (a0) -- (ap0);
+    \draw[trajectory] (a1) -- (ap1);
 
-  % deposition and equal-age positions
-  \fill (1.4,4.416) circle (1.8pt);
-  \fill (2.0,4.38) circle (1.8pt);
+    \fill (a0) circle (1.7pt);
+    \fill (a1) circle (1.7pt);
+    \node[labelbox,above] at ({\qa-0.15},{5.2-0.14*\qa+0.12}) {$x_0$};
+    \node[labelbox,above] at ({\qb+0.55},{5.2-0.14*\qb+0.12}) {$x_0{+}\delta x_0$};
 
-  \node[labelbox,above left] at (1.35,4.45) {$x_0$};
-  \node[labelbox,above right] at (2.0,4.4) {$x_0+\delta x_0$};
+    \fill (ap0) circle (1.7pt);
+    \fill (ap1) circle (1.7pt);
+    \node[labelbox,below=3pt] at (ap0) {$x$};
+    \node[labelbox,below right=3pt and 0.5pt] at (ap1) {$x{+}\delta x$};
 
-  \path[name intersections={of=streamline0 and agecurve,by=p0}];
-  \path[name intersections={of=streamline1 and agecurve,by=p1}];
+    \node[anchor=west] at (0.35,2.75) {streamlines};
+    \draw[->,thin,black!65] (2.25,3.02) -- (3.00,4.35);
 
-  \fill (p0) circle (1.8pt) node[labelbox,below left=2pt] {$x$};
-  \fill (p1) circle (1.8pt) node[labelbox,above right=2pt] {$x+\delta x$};
+    \node[anchor=east,align=center] at (11.55,2.55) {isochrone\\(age $\tau$)};
+    \draw[->,thin,black!65] (8.85,2.90) -- (7.15,3.62);
 
-  % axes
-  \draw[->] (-0.25,0.25) -- (1.1,0.25) node[right] {$x$};
-  \draw[->] (-0.25,0.25) -- (-0.25,1.55) node[above] {$z$};
+    \node[anchor=west] at (3.6,1.85) {$\delta x>0$};
+
+    % Axes
+    \draw[->] (0.15,0.10) -- (1.65,0.10) node[right] {$x$};
+    \draw[->] (0.15,0.10) -- (0.15,1.25) node[above] {$z$};
+  \end{scope}
+
+  % ============================================================
+  % Panel (b): Vertical tangent (J = 0)
+  % ============================================================
+  \begin{scope}[xshift=\panelshift cm]
+    \pgfmathsetmacro{\tauval}{1.00}
+    \node[anchor=west,font=\small\bfseries] at (-0.1,6.35) {(b) Vertical tangent ($\mathcal{J}=0$)};
+
+    % Surface and bed
+    \draw[thick] (0,5.2) -- (11.6,{5.2-0.14*11.6});
+    \node[anchor=south east,rotate=-11.8] at (11.55,{5.2-0.14*11.55+0.12}) {surface $s(x)$};
+
+    \draw[thick] (0,0.58) .. controls (2.2,0.50) and (3.8,0.66) .. (5.0,0.94)
+      .. controls (5.9,1.14) and (6.8,0.64) .. (7.9,0.50)
+      .. controls (9.2,0.38) and (10.5,0.44) .. (11.6,0.34);
+    \node[anchor=south east] at (11.55,0.44) {bed};
+
+    % Accumulation arrows
+    \foreach \q in {0.6,1.25,5.85,6.55} {
+      \pgfmathsetmacro{\sz}{5.2-0.14*\q}
+      \draw[->,thin,black!65] (\q,\sz+0.68) -- (\q,\sz+0.12);
+    }
+    \node[anchor=west] at (6.75,4.90) {$\dot a>0$};
+
+    % Isochrone
+    \draw[isochrone]
+      plot[domain=0.1:5.9,samples=100,smooth,variable=\q]
+      ({\q+\tauval*speed(\q)},{5.2-0.14*\q-0.50*\tauval*speed(\q)});
+
+    % Vertical tangent reference line at x0 = 3.0
+    \coordinate (bmid) at ({3.0+\tauval*\Umid},{5.2-0.14*3.0-0.50*\tauval*\Umid});
+    \draw[dotted,thick,blue!65!black] ({3.0+\tauval*\Umid},2.15) -- ({3.0+\tauval*\Umid},4.10);
+
+    % Neighboring trajectories
+    \coordinate (b0) at (\qa,{5.2-0.14*\qa});
+    \coordinate (b1) at (\qb,{5.2-0.14*\qb});
+    \coordinate (bp0) at ({\qa+\tauval*\Ua},{5.2-0.14*\qa-0.50*\tauval*\Ua});
+    \coordinate (bp1) at ({\qb+\tauval*\Ub},{5.2-0.14*\qb-0.50*\tauval*\Ub});
+
+    \draw[trajectory] (b0) -- (bp0);
+    \draw[trajectory] (b1) -- (bp1);
+
+    \fill (b0) circle (1.7pt);
+    \fill (b1) circle (1.7pt);
+    \node[labelbox,above] at ({\qa-0.15},{5.2-0.14*\qa+0.12}) {$x_0$};
+    \node[labelbox,above] at ({\qb+0.55},{5.2-0.14*\qb+0.12}) {$x_0{+}\delta x_0$};
+
+    \fill (bp0) circle (1.7pt);
+    \fill (bp1) circle (1.7pt);
+    \fill[blue!65!black] (bmid) circle (2.1pt);
+
+    \node[anchor=west,align=left,text=blue!65!black] at (6.65,1.80) {vertical tangent\\($\mathcal{J}=0$)};
+    \draw[->,thin,blue!65!black] (6.60,2.15) -- (6.08,3.15);
+
+    \node[anchor=east,align=center] at (11.55,3.25) {isochrone\\(age $\tau$)};
+    \draw[->,thin,black!65] (8.90,3.30) -- (7.90,3.45);
+
+    \node[anchor=west] at (1.5,1.85) {$\delta x/\delta x_0\to 0$};
+
+    % Axes
+    \draw[->] (0.15,0.10) -- (1.65,0.10) node[right] {$x$};
+    \draw[->] (0.15,0.10) -- (0.15,1.25) node[above] {$z$};
+  \end{scope}
+
+  % ============================================================
+  % Panel (c): Overturned limb (J < 0)
+  % ============================================================
+  \begin{scope}[xshift={2*\panelshift cm}]
+    \pgfmathsetmacro{\tauval}{1.95}
+    \node[anchor=west,font=\small\bfseries] at (-0.1,6.35) {(c) Overturned limb ($\mathcal{J}<0$)};
+
+    % Surface and bed
+    \draw[thick] (0,5.2) -- (11.6,{5.2-0.14*11.6});
+    \node[anchor=south east,rotate=-11.8] at (11.55,{5.2-0.14*11.55+0.12}) {surface $s(x)$};
+
+    \draw[thick] (0,0.58) .. controls (2.2,0.50) and (3.8,0.66) .. (5.0,0.94)
+      .. controls (5.9,1.14) and (6.8,0.64) .. (7.9,0.50)
+      .. controls (9.2,0.38) and (10.5,0.44) .. (11.6,0.34);
+    \node[anchor=south east] at (11.55,0.44) {bed};
+
+    % Accumulation arrows
+    \foreach \q in {0.6,1.25,5.85,6.55} {
+      \pgfmathsetmacro{\sz}{5.2-0.14*\q}
+      \draw[->,thin,black!65] (\q,\sz+0.68) -- (\q,\sz+0.12);
+    }
+    \node[anchor=west] at (6.75,4.90) {$\dot a>0$};
+
+    % Full isochrone (dashed) and overturned segment J < 0 (red solid)
+    \draw[isochrone]
+      plot[domain=0.1:5.9,samples=120,smooth,variable=\q]
+      ({\q+\tauval*speed(\q)},{5.2-0.14*\q-0.50*\tauval*speed(\q)});
+
+    \draw[overturned]
+      plot[domain=2.14:3.86,samples=60,smooth,variable=\q]
+      ({\q+\tauval*speed(\q)},{5.2-0.14*\q-0.50*\tauval*speed(\q)});
+
+    % Neighboring trajectories
+    \coordinate (c0) at (\qa,{5.2-0.14*\qa});
+    \coordinate (c1) at (\qb,{5.2-0.14*\qb});
+    \coordinate (cp0) at ({\qa+\tauval*\Ua},{5.2-0.14*\qa-0.50*\tauval*\Ua});
+    \coordinate (cp1) at ({\qb+\tauval*\Ub},{5.2-0.14*\qb-0.50*\tauval*\Ub});
+
+    \draw[trajectory] (c0) -- (cp0);
+    \draw[trajectory] (c1) -- (cp1);
+
+    \fill (c0) circle (1.7pt);
+    \fill (c1) circle (1.7pt);
+    \node[labelbox,above] at ({\qa-0.15},{5.2-0.14*\qa+0.12}) {$x_0$};
+    \node[labelbox,above] at ({\qb+0.55},{5.2-0.14*\qb+0.12}) {$x_0{+}\delta x_0$};
+
+    \fill (cp0) circle (1.7pt);
+    \fill (cp1) circle (1.7pt);
+    \node[labelbox,below right=1pt] at (cp0) {$x$};
+    \node[labelbox,above left=1pt] at (cp1) {$x{+}\delta x$};
+
+    \node[anchor=west,text=red!75!black] at (0.65,2.30) {overturned limb};
+    \node[anchor=west,text=red!75!black] at (0.65,1.72) {$\delta x<0$};
+    \draw[->,thin,red!75!black] (4.85,2.08) -- (8.60,1.92);
+
+    \node[anchor=east,align=center] at (11.55,3.25) {isochrone\\(age $\tau$)};
+    \draw[->,thin,black!65] (9.95,2.75) -- (9.65,2.50);
+
+    % Axes
+    \draw[->] (0.15,0.10) -- (1.65,0.10) node[right] {$x$};
+    \draw[->] (0.15,0.10) -- (0.15,1.25) node[above] {$z$};
+  \end{scope}
 
 \end{tikzpicture}
 
