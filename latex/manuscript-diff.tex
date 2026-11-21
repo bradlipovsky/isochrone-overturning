@@ -1,7 +1,7 @@
 \documentclass[review]{igs}
 %DIF LATEXDIFF DIFFERENCE FILE
 %DIF DEL main_v0.tex   Sat Nov 21 12:41:36 2026
-%DIF ADD main_v1.tex   Sat Nov 21 13:42:33 2026
+%DIF ADD main_v1.tex   Sat Nov 21 15:23:48 2026
 
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
@@ -1108,8 +1108,8 @@ Symbol & Definition & Units \\
 \(x,z\) & Horizontal and vertical Cartesian coordinates; \(x\) increases downstream. & \(\mathrm{m}\) \\
 \(x_0\) & Horizontal coordinate of surface deposition; a material-origin label. & \(\mathrm{m}\) \\
 \(\xi,\zeta\) & Horizontal and vertical coordinates of integration. & \(\mathrm{m}\) \\
-\(z_0\) & Elevation of an unperturbed streamline in the periodic calculation. & \(\mathrm{m}\) \\
-\(s(x)\) & Free-surface elevation. & \(\mathrm{m}\) \\
+\(z_0\) & Elevation of an unperturbed streamline \DIFdelbegin \DIFdel{in the periodic calculation}\DIFdelend \DIFaddbegin \DIFadd{(periodic calculation) or right-inlet source point (point-margin experiment)}\DIFaddend . & \(\mathrm{m}\) \\
+\DIFdelbegin \DIFdel{\(s(x)\) }\DIFdelend \DIFaddbegin \DIFadd{\(s(x),b(x)\) }\DIFaddend & Free-surface \DIFdelbegin \DIFdel{elevation}\DIFdelend \DIFaddbegin \DIFadd{and bed elevations}\DIFaddend . & \(\mathrm{m}\) \\
 \(H,L,\ell\) & Ice thickness, horizontal forcing scale and length of a reverse-shear segment. & \(\mathrm{m}\) \\
 \(t,\tau,T\) & Time since deposition, stratigraphic age and trajectory duration or orbit period. & \(\mathrm{yr}\) \\
 \(\bm{u}=[u,w]^{\mathsf T}\) & Velocity vector and its horizontal and vertical components. & \(\mathrm{m\,yr^{-1}}\) \\
@@ -1143,7 +1143,7 @@ Symbol & Definition & Units \\
 \(\rho\) & Ice density. & \(\mathrm{kg\,m^{-3}}\) \\
 \(\bm{g},g\) & Gravitational acceleration and its magnitude. & \(\mathrm{m\,s^{-2}}\) \\
 \(\bm{\tau}\) & Deviatoric stress tensor; distinct from scalar age \(\tau\). & \(\mathrm{Pa}\) \\
-\(\tau_{xx},\tau_{xz},\tau_{xz}^{s}\) & Longitudinal stress, shear stress and surface shear stress. & \(\mathrm{Pa}\) \\
+\DIFdelbegin \DIFdel{\(\tau_{xx},\tau_{xz},\tau_{xz}^{s}\) }\DIFdelend \DIFaddbegin \DIFadd{\(\tau_{xx},\tau_{zz},\tau_{xz},\tau_{xz}^{s}\) }\DIFaddend & Longitudinal\DIFdelbegin \DIFdel{stress, shear stress }\DIFdelend \DIFaddbegin \DIFadd{, vertical, shear }\DIFaddend and surface shear \DIFdelbegin \DIFdel{stress}\DIFdelend \DIFaddbegin \DIFadd{deviatoric stresses}\DIFaddend . & \(\mathrm{Pa}\) \\
 \DIFdelbegin \DIFdel{\(\bm{D},\eta\) }\DIFdelend \DIFaddbegin \DIFadd{\(\bm{D},\eta,\eta_0\) }\DIFaddend & Strain-rate tensor\DIFdelbegin \DIFdel{and }\DIFdelend \DIFaddbegin \DIFadd{, }\DIFaddend scalar effective viscosity \DIFaddbegin \DIFadd{and characteristic viscosity scale}\DIFaddend . & \(\mathrm{yr^{-1}},\ \mathrm{Pa\,yr}\) \\
 \DIFdelbegin \DIFdel{\(G,R_{\mathrm{FS}}\) }\DIFdelend \DIFaddbegin \DIFadd{\(G,R_{\mathrm{S}}\) }\DIFaddend & Gravity-driven and residual \DIFdelbegin \DIFdel{full-Stokes }\DIFdelend \DIFaddbegin \DIFadd{Stokes }\DIFaddend contributions to \(u_z\). & \(\mathrm{yr^{-1}}\) \\
 \(\mathcal{G},\mathcal{F}\) & Cumulative gravity-driven and residual \DIFdelbegin \DIFdel{full-Stokes }\DIFdelend \DIFaddbegin \DIFadd{Stokes }\DIFaddend order contributions. & \(1\) \\
