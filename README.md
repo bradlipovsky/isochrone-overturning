@@ -180,8 +180,8 @@ Rather than claiming that steady flow explains Allan Hills stratigraphy, the ana
 Build and enter the containerized environment defined in [`Dockerfile`](Dockerfile):
 
 ```bash
-docker build -t allan-hills-stratigraphy .
-docker run --rm -it -v "$PWD":/workspace allan-hills-stratigraphy bash
+docker build -t isochrone-overturning .
+docker run --rm -it -v "$PWD":/workspace isochrone-overturning bash
 source /home/firedrake/firedrake/bin/activate
 ```
 
