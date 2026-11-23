@@ -1,129 +1,210 @@
-# Transient folding of ALHIC1901 stratigraphy
+# Isochrone overturning in steady glacier flow
 
-This project tests the conditions under which a transient, two-dimensional, free-surface Full-Stokes model with Glen-type rheology generates the stratigraphic inversions measured by [Shackleton et al. (2025)](https://doi.org/10.1073/pnas.2502681122) in the Allan Hills core ALHIC1901.
+Theoretical analysis, finite-element Stokes modeling, large-scale parameter-space sweeps, and manuscript source for ***Isochrone overturning in steady glacier flow*** (EarthArXiv preprint, September 2026; revised *Journal of Glaciology* submission `JOG-2026-0127`, November 2026).
 
-## Mechanical hypothesis
+Ice cores from the Allan Hills blue-ice area in East Antarctica recover ice and trapped air reaching into the Miocene (23–5.3 Ma), yet metre-scale age reversals, steep dips, and basal folds obscure the stratigraphic record ([Shackleton et al., 2025](https://doi.org/10.1073/pnas.2502681122); [Marks-Peterson et al., 2026](https://doi.org/10.1038/s41586-025-10032-y)). Whether steady glacier flow over fixed topography can turn surface-deposited layers upside down—or whether observed inversions require transient forcing, multiple sources, or rheological heterogeneity—has remained an open mechanical question.
 
-The working hypothesis has two parts.
+This project converts that observational ambiguity into a well-posed analytical criterion, a direct characteristic-based numerical diagnostic, and an audited multi-thousand-run evaluation suite.
 
-1. Something creates deformed isochrons. It is not clear if this "something" has to be a transient event or if it can be a static feature. Candidate ingredients include:
-  - Flow around an asymmetric  obstacle
-  - Long term tilting of the bed from mountain uplift
-  - Sublimation in blue ice regions of extent much greater than the ice thickness
-2. Subsequent compression and depth-dependent shear rotate these rumples into recumbent folds. 
+| Artifact | Location | Status |
+| --- | --- | --- |
+| Revised manuscript (*Journal of Glaciology*, `JOG-2026-0127`) | [`latex/manuscript.pdf`](latex/manuscript.pdf) / [`latex/manuscript.tex`](latex/manuscript.tex) | 39 pp., clean build |
+| EarthArXiv preprint (3 September 2026) | [`latex/eartharxiv-preprint.pdf`](latex/eartharxiv-preprint.pdf) | Submitted |
+| Point-by-point response to reviewers (40 items) | [`latex/response_to_reviewers.pdf`](latex/response_to_reviewers.pdf) | Complete |
+| Tracked-changes diff vs. original submission (`main_v0`) | [`latex/main_diff.pdf`](latex/main_diff.pdf) | Clean build |
+| Revision verification checklist | [`revision-checklist.md`](revision-checklist.md) | 40/40 reviewer items resolved |
+| Reproducible Firedrake/Icepack container | [`Dockerfile`](Dockerfile) | `firedrake-vanilla:2025-01` |
 
-## Model
+![Allan Hills blue-ice area setting and published age reversals](figures/allan_hills_context.png)
+*Figure 1 of the manuscript: Copernicus Sentinel-2 L2A setting of the Allan Hills blue-ice area and published $^{40}\mathrm{Ar}_{\mathrm{atm}}$ age–depth inversions in cores ALHIC1901 and ALHIC1902 ([Shackleton et al., 2025](https://doi.org/10.1073/pnas.2502681122); [Marks-Peterson et al., 2026](https://doi.org/10.1038/s41586-025-10032-y)).*
 
-At each time step, the ice velocity and pressure satisfy the quasi-static Full-Stokes equations
+---
+
+## Core formulation and analytical results
+
+Curvature alone does not diagnose overturning: strongly arched or draped isochrones can remain single-valued in depth. Instead, stratigraphic order—the horizontal sequence of neighboring parcels deposited along the surface at $x_0$ and $x_0 + \delta x_0$—is quantified directly by the signed **isochrone-order Jacobian**:
 
 $$
--\nabla\cdot\boldsymbol\sigma=\rho\mathbf g,
+\mathcal{J}(x, x_0) = \left.\frac{\partial x}{\partial x_0}\right|_{\tau} = -\dot{a}_0 \tau_z.
+$$
+
+Ordered stratigraphy corresponds to $\mathcal{J} > 0$, a vertical tangent to $\mathcal{J} = 0$, and an overturned limb to $\mathcal{J} < 0$. While layers remain ordered, $\mathcal{J} = \lambda_z^{-1}$ is the reciprocal of the vertical thinning function; unlike $\lambda_z$, $\mathcal{J}$ passes smoothly through zero at a vertical tangent while area conservation ($\det \mathbf{F} = 1$) keeps the layer tangent non-singular.
+
+Casting steady incompressible age transport ($u\tau_x + w\tau_z = 1$) in canonical streamfunction–age coordinates $(\tau, \psi)$ yields an exact trajectory-integrated order budget (Theorem 1):
+
+$$
+\mathcal{J} = \frac{u(x,z)}{u_{s0}}\bigl(1 + \mathcal{P} - \mathcal{R}\bigr),
 \qquad
-\nabla\cdot\mathbf u=0,
-$$
-
-with
-
-$$
-\boldsymbol\sigma=2\eta\dot{\boldsymbol\varepsilon}-p\mathbf I,
+\mathcal{P} = \dot{a}_0 u_{s0}\int_{x_0}^{x}\frac{u_z^+}{u^3}\,d\xi,
 \qquad
-\eta=\frac{1}{2}A^{-1/n}\dot\varepsilon_e^{(1-n)/n}.
+\mathcal{R} = \dot{a}_0 u_{s0}\int_{x_0}^{x}\frac{u_z^-}{u^3}\,d\xi.
 $$
 
-The default rheology is Glen $n=3$. The upper boundary is stress-free. Prescribed surface mass balance $a_s(x,t)$ enters through the kinematic free-surface equation
+Deposition supplies a unit baseline, ordinary positive vertical shear ($u_z > 0$) reinforces order through $\mathcal{P}$, and reverse shear ($u_z < 0$) erodes it through $\mathcal{R}$—weighted by $u^{-3}$, so slow near-stagnant ice amplifies reverse shear disproportionately. Local extrusion ($u_z < 0$) is therefore necessary but not sufficient: overturning begins only once $\mathcal{R} = 1 + \mathcal{P}$.
+
+Decomposing vertical shear directly from the Stokes momentum balance, $u_z = G + R_{\mathrm{S}}$ (gravitational driving shear $G$ plus non-shallow Stokes residual $R_{\mathrm{S}}$ from $-w_x$, longitudinal stress gradients $\tau_{xx,x}$, nonhydrostatic pressure gradients $-p_{\mathrm{nh},x}$, and surface shear stress), establishes four order-preservation regimes:
+
+- **Strictly downhill, one-way shallow-ice flow ($s_x < 0$, $u > 0$):** $u_z \ge 0$ pointwise, so $\mathcal{R} = 0$ and $\mathcal{J} > 0$ identically.
+- **Regular thin-film Stokes flow ($\varepsilon = H/L \ll 1$):** $R_{\mathrm{S}} = O(\varepsilon^2 U/H)$, giving integrated perturbation $\mathcal{F} = O\bigl((\dot{a}/U)\varepsilon\bigr)$, which cannot overcome the unit baseline whenever $(\dot{a}/U)\varepsilon \ll 1$.
+- **Localized obstacle bound (Proposition 1):** Reverse shear bounded by $\dot{\gamma}_{\mathrm{rev}}$ over horizontal length $\ell$ with $u \ge U_{\min}$ satisfies $\mathcal{R} \le \dot{a}_0 U_{\mathrm{dep}} \dot{\gamma}_{\mathrm{rev}} \ell / U_{\min}^3$; a solitary bump in non-stagnant throughflow yields $\mathcal{R} = O(\dot{a}/U)$.
+- **First-order periodic cancellation:** Small-amplitude periodic bed perturbations about uniform plug flow cancel to $O(\epsilon_b^2)$ across each full wavelength.
+
+---
+
+## Computational architecture and diagnostic design
+
+A central engineering outcome of this project is replacing time-dependent Lagrangian cohort advection—which suffered from arbitrary reporting horizons and common-first-exit censoring—with a **direct steady variational-tangent characteristic solver**:
 
 $$
-\frac{\partial h}{\partial t}
-+u_s\frac{\partial h}{\partial x}
--w_s=a_s(x,t).
+\frac{d\mathbf{X}}{dt} = \mathbf{u}(\mathbf{X}),
+\qquad
+\frac{d\mathbf{F}}{dt} = \nabla\mathbf{u}(\mathbf{X})\,\mathbf{F},
+\qquad
+\mathcal{J}_{\mathrm{T}} = T_x = F_{11} + m_0 F_{12}.
 $$
 
-Thus surface height and slope evolve and feed back into the next Stokes solve. Surface mass balance is not represented by a prescribed interior velocity. Bed-motion experiments similarly prescribe a stated bed geometry and boundary velocity, then evolve the overlying ice and free surface.
+1. **Stokes finite-element solve:** Steady incompressible Stokes flow is discretized with Taylor–Hood elements in [Firedrake](https://www.firedrakeproject.org/), enforcing basal impermeability via symmetric Nitsche terms and passive linear basal sliding ($u_t = C\tau_b$, $\tau_b = -\mathbf{t}\cdot\boldsymbol{\sigma}\cdot\mathbf{n}$, $C = 10^{-5}\ \mathrm{m\,yr^{-1}\,Pa^{-1}}$, ensuring strictly dissipative basal work $\tau_b u_t = C\tau_b^2 \ge 0$).
+2. **Direct variational characteristic integration:** Rather than finite-differencing adjacent particle trajectories or solving an Eulerian age PDE, each characteristic simultaneously integrates position and the deformation gradient (or equal-age material tangent $\mathbf{T} = \mathbf{F}\mathbf{T}_0$). Along one-way surface-sourced trajectories ($m_0 = s_x(x_0)$), $\mathcal{J}_{\mathrm{T}}$ equals $\mathcal{J}$ exactly; unlike the $u^{-3}$ integrals, it remains regular across $u = 0$ and horizontal counterflow, agrees with centered finite-difference maps to $\le 7.73\times 10^{-5}$, and follows every source independently to physical exit.
+3. **Scalable sweep and verification harness:** Parameter-space sweeps run in parallel across CPU workers (`ProcessPoolExecutor`) with schema-versioned, restartable CSV/JSON outputs, discrete weak-form residual checks (e.g., $\le 8.2\times 10^{-13}$ in the sinusoidal sweep), explicit signal-to-noise screening (masking short-wave cells whose surface velocity signal falls below 10× RMS basal normal leakage rather than misclassifying roundoff), and dedicated single-factor validation suites varying mesh spacing, time step, sampler resolution, source count, and domain truncation.
 
-Material layers carry deposition time or age as a Lagrangian label. The calculation may not insert, reflect, translate, clip, or overwrite an internal age field. New material labels may enter only through a stated physical boundary.
+---
 
-## Modeling sequence
+## Manuscript Stokes experiments
 
-The first calculation is a positive control: generate one steep seed and determine whether subsequent flow rotates it through vertical. Once that pathway works, increase the domain or forcing duration to seek the three ALHIC1901 folds.
+The revised manuscript pairs two contrasting steady Stokes experiments under the same linear viscosity ($\eta = 2.5\times 10^8\ \mathrm{Pa\,yr}$), density ($\rho = 917\ \mathrm{kg\,m^{-3}}$), and passive linear sliding law ($C = 10^{-5}\ \mathrm{m\,yr^{-1}\,Pa^{-1}}$).
 
-The initial experiments are:
+### 1. Convergent point-margin flow (idealized nunatak analogue)
 
-1. a transient bedrock-uplift or bed-topography event, because it perturbs deep layers directly -- this should involve a uniform tilting of the bed in the range of 5-45 deg/Ma and could be accomplished by rotating the gravity vector so that the bed starts out steep and then gradually flattens;
-2. an accumulation–sublimation pattern with an evolving free surface;
-3. background deformation after the forcing ends, with compression and shear diagnosed using the Waddington–Bolzan–Alley quantities;
-4. a fit to the ALHIC1901 ages only after the forward model produces three reversals without internal manipulation.
+An idealized 2 km domain thickens smoothly from a true zero-thickness grounded point margin ($H(0)=0$, zero left boundary facet or flux) to $360\ \mathrm{m}$ at the right inlet, where a reduced linear-viscous SIA inflow ($1\%$ of reference flux, $w=0$) converges against rightward surface-slope-driven flow near the wedge tip beneath a traction-free surface.
 
-The smallest useful parameter set is event amplitude, horizontal width or wavelength, event duration, event time, and the independently specified background flux or surface slope. Parameters should be varied over stated physical ranges, not constrained to manufacture a fold.
+- **Overturning without recirculation:** All trajectories are open, rising and exiting through the surface. Horizontal incoming lines reach a mesh-converged minimum $J_{\min} = -0.1936$ (varying from $-0.1946$ to $-0.1934$ across 30, 20, and 13 m meshes, and converging monotonically as positive-thickness left truncations shrink from 20 m to 2.5 m). Restricting sources to $\sigma_0 \ge 0.05$ still gives $J_{\min} = -0.0574$; moving the source plane 20 m inside the inlet gives $J_{\min} = -0.1769$.
+- **Fold evolution:** A 30 m horizontal near-bed segment ($\sigma_0 = 0.049$) forms an S-shaped fold whose endpoint crosses $J = 0$ at $130.2\ \mathrm{kyr}$ and reaches $J = -0.072$ at $136.2\ \mathrm{kyr}$.
+- **Boundary-closure sensitivity:** Replacing the traction-free surface with prescribed uniform steady ablation on the exact same geometry eliminates overturning ($J_{\min} = 0.3075$), showing that surface/lateral mass-flux closure—not margin geometry alone—controls counterflow overturning.
 
-## Success metrics
+![Steady reversal of an incoming material line in a convergent point-margin flow](figures/allan_hills_nunatak_margin.png)
+*Figure 4 of the manuscript: geometry, velocity fields and open trajectories, inlet-parameter map of minimum $J = T_x$, and S-shaped fold evolution in the convergent point-margin flow ([report](notebooks/allan_hills_nunatak_margin_report.md), [convergence](figures/allan_hills_nunatak_margin_convergence.png)).*
 
-A model is structurally successful only if a vertical synthetic core contains three age reversals near the observed peak depths of 144.99, 148.58, and 152.91 m. The initial tolerances are 0.5 m for each peak and 0.5 Ma pointwise age RMS. 
+### 2. Periodic sinusoidal-bed control (750 resolved runs)
 
-The [original unified surface-forcing and ALHIC1901 notebook](notebooks/unified_smb_alhic1901_fit.ipynb) replaces the freely fitted wrinkle with a material-coordinate map generated by the n=3 surface cell, then shortens and shears that packet with the n=3 slab. The best tested history uses an aggressive 0.10 m yr$^{-1}$, 60 m-wavelength surface pattern for 200 yr, horizontal shortening to 0.87 of its original wavelength, and 47.7 kyr of later shear. It reproduces all three target folds with 0.412 Ma pointwise RMS misfit and peak-depth errors no larger than 0.31 m. However, this result imposes the decisive structure: a fitted packet top truncates the transferred surface map at 140.96 m core depth and assigns the uniform young limiting age above it. The notebook is retained for comparison, but its fold match is not evidence that the modeled surface forcing creates the observed stratigraphy.
+A single periodic cell with flat upper surface, bed $b(x) = -H + A\cos(2\pi x/\lambda)$, and $0.05\ \mathrm{rad}$ mean slope tests whether smooth, finite-amplitude bed roughness generically overturns surface-deposited stratigraphy across five mean thicknesses ($H \in \{50, 100, 160, 240, 320\}\ \mathrm{m}$), 13 amplitudes ($A/H = 0$–$0.85$), and 16 wavelengths ($\lambda/H = 1/12$–$12$).
 
-The original [linear-rheology comparison](notebooks/unified_smb_alhic1901_fit_linear.ipynb) repeats that clipped workflow with Glen $n=1$. Its 0.420 Ma RMS match likewise depends on the prescribed packet boundary and is retained only as a diagnostic comparison.
+- **Universal order preservation across the resolved map:** All **750 resolved numerical cells** and **80 analytical flat-bed limits** remain ordered. The global minimum is $J_{\min} = 0.6428$ (raw-to-exit minimum $0.4428$) at $H = 50\ \mathrm{m}$, $A/H = 0.85$, $\lambda/H = 3$, with peak distortion at intermediate coupling wavelengths ($\lambda/H \approx 2$–$4$) and recovery toward $J = 1$ in both short-wave screened and long-wave lubrication limits.
+- **Explicit numerical-reach boundary:** 210 short-wave cells where the surface signal falls below 10× RMS basal normal leakage are explicitly left unclassified (dotted region) rather than interpreted.
+- **No counterflow folding:** Small Eulerian reverse-flow pockets appear in 160 cells (peak speed $\approx 1.8\%$ of maximum), yet no retained surface-deposition characteristic ever reverses horizontal direction.
 
-The new unclipped calculations apply the surface-forced material map continuously over the actual 160 m column, using surface Full-Stokes cells whose lower no-slip boundary is the actual bed. They contain no packet top, reflection, translation, interior clipping, or replacement age. The [unclipped $n=3$ notebook](notebooks/unified_smb_alhic1901_fit_unclipped.ipynb) and [unclipped $n=1$ notebook](notebooks/unified_smb_alhic1901_fit_linear_unclipped.ipynb) both produce zero target-interval folds for all 11 forcing histories. The largest material-coordinate displacement anywhere between 139.5 and 155.5 m is $4.77\times10^{-6}$ m for $n=3$ and $3.88\times10^{-4}$ m for $n=1$. A widened, non-bound-limited age-law fit reaches 0.527 Ma pointwise RMS and 0.452 Ma depth-weighted RMS, but remains monotonic and misses all three reversals. The continuous surface-forcing model therefore fails the structural target even though a monotonic curve can approximate the average age trend.
+![Steady isochrone order over periodic sinusoidal beds](figures/steady_characteristic_sinusoidal_parameter_map.png)
+*Figure 5 of the manuscript: minimum steady-characteristic order metric $J = T_x$ across 1,040 grid cells (750 resolved Stokes solves, 80 flat-bed limits, 210 leakage-screened cells) ([report](notebooks/steady_characteristic_sinusoidal_parameter_map.md), [validation](notebooks/steady_characteristic_sinusoidal_validation.md)).*
 
-The [coupled-initialization notebook](notebooks/coupled_initialization_histories.ipynb) tests onset timing within the original clipped construction. It inherits the imposed packet boundary and therefore does not rescue or validate that mechanism. It is retained to document why timing changes could not address the more consequential initialization error.
+---
 
-## First transient result
+## Project evolution: falsification log and extended parameter campaign
 
-[Issue #24](https://github.com/bradlipovsky/allan-hills-stratigraphy/issues/24) begins this program with a finite-duration bed-forcing experiment in [`transient_free_surface_bed_seed.ipynb`](notebooks/transient_free_surface_bed_seed.ipynb). A 15 m-amplitude, 500 m-wavelength bed displacement develops over 1000 yr, after which the bed is fixed and the Full-Stokes/free-surface model continues to 1800 yr. Initially horizontal layers at the ALHIC1901 fold depths acquire 29.7 m of relief but only 10.5° maximum dip; no material tangent overturns. The maximum ice-volume residual is $1.61\times10^{-5}$.
+The repository preserves the full scientific trajectory—over **4,000 resolved Stokes finite-element solves** and hundreds of convergence audits—including early hypotheses that were explicitly falsified and methodological confounds that forced tighter evaluation criteria.
 
-This is a useful negative result for broad bed forcing: large vertical relief alone does not create a Waddington seed. The next calculation should test narrower forcing, for which relief produces larger layer slope, while establishing time-step and mesh convergence and extending the robust post-event integration.
+### Phase 1 — Initial ALHIC1901 hypotheses and caught artifacts (July–August 2026)
 
-## Static asymmetric bed-obstacle baseline
+| Experiment | Key finding | Diagnostic lesson | Artifacts |
+| --- | --- | --- | --- |
+| Surface mass-balance forcing (`n=3`, `n=1`) | Clipped workflow matched 3 ALHIC1901 folds ($0.412\ \mathrm{Ma}$ RMS), but **unclipped** continuous column runs yielded **0 folds** (max displacement $\le 3.88\times 10^{-4}\ \mathrm{m}$ across 11 histories). | Apparent match was driven by an imposed interior packet top at 140.96 m; banned internal age/layer manipulation from all subsequent models. | [`unified_smb_alhic1901_fit_unclipped.ipynb`](notebooks/unified_smb_alhic1901_fit_unclipped.ipynb) |
+| Transient bed uplift & static asymmetric obstacles | 15 m / 500 m transient bed displacement reached $10.5^\circ$ dip; 51–$68^\circ$ static no-slip bumps/pits reached $33.8^\circ$–$43.9^\circ$ tilt over 25 kyr; **0 overturns**. | Large vertical relief and draping alone do not produce a recumbent fold. | [`transient_free_surface_bed_seed.ipynb`](notebooks/transient_free_surface_bed_seed.ipynb), [`asymmetric_bed_obstacles.ipynb`](notebooks/asymmetric_bed_obstacles.ipynb) |
+| Prescribed basal speed vs. passive linear sliding | Earlier steady fold examples failed to overturn under passive $u_t = C\tau_b$ ($J_{\min} \ge 0.576$); energy audit showed prescribed-speed beds injected **34–114× gravitational power**. | Enforced strictly dissipative basal boundary conditions ($C\tau_b^2 \ge 0$) as a non-negotiable physical check. | [`linear_sliding_law_test.ipynb`](notebooks/linear_sliding_law_test.ipynb) |
+| Circular-trough dissipative counterexample | Smooth circular trough with passive linear sliding overturned ($J_{\min} = -0.224$, 98.0% basal dissipation, open streamlines $u \ge 0.100\ \mathrm{m\,yr^{-1}}$). | Disproved a universal dissipativity no-folding conjecture and distinguished open-streamline overturning from closed Moffatt eddies; prompted broad geometry surveys. | [`dissipative_sliding_counterexample.ipynb`](notebooks/dissipative_sliding_counterexample.ipynb) |
 
-The executed [`asymmetric_bed_obstacles.ipynb`](notebooks/asymmetric_bed_obstacles.ipynb) tests five fixed no-slip obstacles for 25 kyr in the transient free-surface Full-Stokes model. Material lines begin horizontal on the flat bed upstream, and their deformation-gradient tensors are integrated without remapping. The controls are a 0.1-thickness symmetric bump, a 0.5-thickness symmetric bump, both orientations of a 0.5-thickness asymmetric bump, and a 0.5-thickness asymmetric pit. The large obstacles have maximum bed slopes of 51--68°.
+### Phase 2 — Extended steady-characteristic geometry surveys (October–November 2026)
 
-No material tangent overturns. At initial core depths of 140--153 m, the asymmetric pit gives the largest rotation, 33.8°. The steep-upstream asymmetric bump reaches 43.9° at higher levels but only 4.4° in the target-depth layers; reversing it reduces the all-layer maximum to 8.8°. The maximum volume residual among the cases is $5.58\times10^{-5}$, and every tracked particle remains at least 4.5 m above the represented bed. Size, sign, and orientation therefore change the generated rumple, but static obstacle flow does not produce an ALHIC1901 fold in this baseline.
+To separate single-example existence from geometric prevalence during *Journal of Glaciology* peer review, the direct variational-tangent solver was deployed across the additional geometry families summarized below:
 
-## Linear sliding-law test
+| Geometry family | Resolved solves (grid) | Overturned? | Key result and physical insight | Report |
+| --- | --- | --- | --- | --- |
+| Periodic two-harmonic asymmetric beds | 1,281 (1,629 cells) | No | Adding an asymmetric second harmonic leaves every resolved case ordered down to $A/H = 0.95$ ($J_{\min} = 0.4443$ primary, $0.1739$ raw). | [`steady_characteristic_two_harmonic_parameter_map.md`](notebooks/steady_characteristic_two_harmonic_parameter_map.md) |
+| Finite elliptical troughs (hydrostatic open cuts) | 421 valid (702 cells) | Yes (277) | Direct-to-exit tracking exposed 162–228 overturns hidden by finite-age / first-exit censoring; separated counterflow (80 cases) from unidirectional overturning (197 cases). | [`steady_characteristic_elliptical_parameter_map.md`](notebooks/steady_characteristic_elliptical_parameter_map.md) |
+| Asymmetric convergent basins (aspect & $\kappa$ sweeps) | 880 aspect; 715 valid $\kappa$ | Yes | Overturning occurs for $L/H \le 30$ (243/528 cells, $J_{\min} = -12.16$) and vanishes for $L/H \ge 45$; flattening the surface ($\kappa = \Delta s/\Delta b < 1$) systematically lowers $J$. | [`steady_tangent_convergent_aspect_parameter_map.md`](notebooks/steady_tangent_convergent_aspect_parameter_map.md), [`steady_tangent_convergent_kappa_parameter_map.md`](notebooks/steady_tangent_convergent_kappa_parameter_map.md) |
+| Smooth periodic convergent continuation | 71 | Narrow band | Sub-percent flux band overturns next to a separatrix while opposing branches coexist; vanishes once mean slope restores one-way flow. | [`steady_characteristic_periodic_convergent.md`](notebooks/steady_characteristic_periodic_convergent.md) |
+| Periodic icefall-to-tongue transitions | 75 (+4 analytic) | No | Severe thickness/slope transitions (bed slope up to 2.31) stay ordered ($J_{\min} = 0.7102$). | [`steady_characteristic_icefall_transition.md`](notebooks/steady_characteristic_icefall_transition.md) |
+| Legacy periodic beds & finite bed spikes | 15 periodic; 6 spikes | No | Full-exit audit (up to 322 kyr) keeps all 15 trough/sill/riegel beds ordered ($J_{\min} = 0.467$); isolated finite spikes remain ordered ($J_{\min} = 0.2583$). | [`steady_characteristic_legacy_periodic.md`](notebooks/steady_characteristic_legacy_periodic.md), [`finite_spike_results.md`](notebooks/finite_spike_results.md) |
+| Smooth localized two-scale bed packet | 40 pilot + refined audits | Extreme pinch only | Broad trough + narrow riegel overturns only near pinching ($A/H = 0.90$, slope $17.2$; $J_{\min} = -0.271$, $0.92\%$ flux). | [`steady_characteristic_localized_packet_report.md`](notebooks/steady_characteristic_localized_packet_report.md) |
 
-The executed [`linear_sliding_law_test.ipynb`](notebooks/linear_sliding_law_test.ipynb) replaces the prescribed $0.20$ m yr$^{-1}$ basal speed in the steady fold examples with the passive law $u_t=C\tau_b$. The tested mobilities, $C=0.5\times10^{-6}$ to $10\times10^{-6}$ m yr$^{-1}$ Pa$^{-1}$, span flat-bed speeds of 0.022--0.432 m yr$^{-1}$. The finite-element solution reproduces the analytical flat-bed speed to machine precision.
+---
 
-The large obstacles reduce mean basal speed to 0.0026--0.0054 m yr$^{-1}$. Neither material map overturns before surface re-emergence: the minimum order Jacobian remains 0.875--0.941 in the persistent-extrusion geometry and 0.576--0.724 in the slow-flow geometry. The sign remains positive on three meshes. In contrast, the reaction traction required by the original prescribed-speed boundary does positive tangential work at about 34--35 and 102--114 times the gravitational power across the three meshes. The original folds are therefore driven by the moving boundary; the same geometries do not fold under passive linear sliding.
+## Diagnostic hierarchy and forward research agenda
 
-## Dissipative sliding counterexample
+Rather than claiming that steady flow explains Allan Hills stratigraphy, the analysis defines an actionable **evaluation hierarchy** for old-ice sites (Allan Hills, Little Dome C, and blue-ice margins):
 
-The executed [`dissipative_sliding_counterexample.ipynb`](notebooks/dissipative_sliding_counterexample.ipynb) tests whether the preceding result can be generalized to all dissipative beds. It cannot. The model uses a smooth circular trough, a traction-free surface, and the constant law $u_t=C\tau_b$, with $C=10^{-5}$ m yr$^{-1}$ Pa$^{-1}$. No velocity is prescribed. Gravity supplies the mechanical power, while basal drag removes 98.0% of it.
+1. **Steady-order screening:** Integrate $\mathcal{P}$, $\mathcal{R}$, and $\mathcal{J}$ along source-to-core trajectories in a reconstructed steady flow field; a positive budget excludes steady overturning.
+2. **Full material-map escalation:** Where ice approaches stagnation (e.g., $\sim 0.4$–$0.5\ \mathrm{mm\,yr^{-1}}$ basal speeds inferred upstream of the Allan Hills nunatak by Manos et al., 2026), recirculates, or draws from multiple accumulation zones / basal freeze-on, replace the scalar $u^{-3}$ budget with direct deformation-gradient tracking.
+3. **3D and transient extension:** Extend $\dot{\mathbf{F}} = (\nabla\mathbf{u})\mathbf{F}$ to the two-dimensional surface-patch Jacobian in 3D flow around nunataks—testing steady 3D convergence against transient changes in geometry, ablation, or basal traction and anisotropic fabric buckling.
+4. **Observational integration:** Combine trajectory-order predictions with direct imaging of steeply dipping englacial horizons targeted by COLDEX Phase II radar surveys and core-scale age/fabric constraints.
 
-At 1.66 kyr, the order Jacobian spans $-0.0845$ to $0.0267$ and the isochrone contains a vertical tangent and an overturned limb. At 1.82 kyr, its minimum is $-0.224$. These values change by less than $4\times10^{-5}$ over three curved meshes, and horizontal velocity remains above 0.10 m yr$^{-1}$ along every tracked trajectory. Basal dissipativity is therefore not a no-overturning condition; the trajectory order budget remains the relevant test.
+---
 
-The resolved flow is rotational but is not a Moffatt eddy. The minimum horizontal speed over every velocity degree of freedom is 0.10047 m yr$^{-1}$ on all three meshes. Its streamlines are therefore open and cannot form a closed recirculation cell. This distinction is also mathematical: integrating $\mathrm{D}\tau/\mathrm{D}t=1$ around a closed orbit of period $T$ would require both $\tau(T)-\tau(0)=T$ and $\tau(T)=\tau(0)$. A closed eddy does not admit the steady, uniquely surface-sourced age field assumed by the order theorem.
+## Repository structure
 
-## Finite-thickness geometry survey
+```text
+.
+├── Dockerfile                   # Reproducible Firedrake (2025-01) + Icepack + notebook environment
+├── AGENTS.md                    # Minimalist, first-principles modeling and verification conventions
+├── revision-checklist.md        # 44-item audit table tracking JOG-2026-0127 peer-review revisions
+├── latex/
+│   ├── manuscript.tex / .pdf     # Revised Journal of Glaciology manuscript (39 pp.)
+│   ├── main_v0.tex / .pdf        # Frozen original submission (1 September 2026)
+│   ├── main_v1.tex / .pdf        # Mirror of revised submission
+│   ├── main_diff.pdf             # latexdiff tracked changes vs. main_v0
+│   ├── eartharxiv-preprint.pdf   # EarthArXiv preprint wrapper + PDF
+│   ├── response_to_reviewers.pdf # Point-by-point responses to Reviewer 1 and Reviewer 2
+│   └── references.bib            # BibTeX bibliography
+├── notebooks/                   # 47 Python solvers/sweeps/plotters, 26 notebooks, 19 markdown reports
+│   ├── allan_hills_nunatak_margin.py        # Manuscript Fig. 4 point-margin Stokes solver & diagnostic
+│   ├── allan_hills_nunatak_validation.py    # Independent mesh/step/sampler/inlet audit
+│   ├── steady_characteristic_sinusoidal_*   # Manuscript Fig. 5 1,040-cell sweep & validation
+│   ├── steady_characteristic_*              # Extended two-harmonic, elliptical, icefall, packet sweeps
+│   ├── steady_tangent_convergent_*          # Convergent-basin aspect-ratio and kappa sweeps
+│   └── other-ideas/                         # Exploratory early mechanisms archived for transparency
+├── data/                        # 59 schema-versioned CSV/CSV.GZ result and validation tables + Excel core data
+└── figures/                     # Publication-grade PDF/PNG/EPS figures and Allan Hills context script
+```
 
-The executed [`dissipative_sliding_geometry_survey.ipynb`](notebooks/dissipative_sliding_geometry_survey.ipynb) tests whether the passive counterexample survives in more conventional glacier geometries. The domains are periodic and therefore have no lateral wall. They retain 10--50 m of ice outside a broad or U-shaped overdeepening. A separate calculation places 130 m of relief at the free surface above a flat bed. Each calculation uses the same density, viscosity, slope, and basal drag as the circular-trough counterexample. Surface mass balance is diagnosed from the steady kinematic boundary condition.
+---
 
-None of the four surface-deposition maps overturns before re-emergence. Their minimum order Jacobians are 0.742, 0.554, 0.512, and 0.863. The closest case is the U-shaped trough with 25 m boundary thickness; its three-mesh sequence is 0.512, 0.531, and 0.521. Horizontal speed remains positive along every contributing trajectory. The calculation therefore predicts strong layer rotation but no overturned limb for these geometries. This negative result shows that the passive circular-trough fold is geometrically special; it does not establish that finite-thickness glaciers cannot fold in steady flow.
+## Reproducing the calculations and manuscript
 
-## Reviewer 2 steady-geometry survey
+### Numerical experiments (Firedrake + Icepack)
 
-The executed [`reviewer2_geometry_survey.ipynb`](notebooks/reviewer2_geometry_survey.ipynb) separates the logical role of a counterexample from the prevalence of its mechanism. One admissible steady-flow example is sufficient to disprove a universal preservation claim; the expanded survey asks whether the result is confined to one circular trough.
+Build and enter the containerized environment defined in [`Dockerfile`](Dockerfile):
 
-It is not. A finite narrow elliptical trough with 150 m maximum thickness and 70 m at both hydrostatic open cuts has a fixed-interior three-mesh sequence $J_{\min}=-0.5922,-0.5942,-0.5948$. The raw full-residence diagnostic reaches about -0.960. Source-count, time-step, and five cut-location tests retain the sign. The left and right boundary powers are individually large and nearly balanced, so this establishes robustness within the hydrostatic-open-boundary family rather than independence from that boundary condition. See [`realistic_geometry_results.md`](notebooks/realistic_geometry_results.md).
+```bash
+docker build -t allan-hills-stratigraphy .
+docker run --rm -it -v "$PWD":/workspace allan-hills-stratigraphy bash
+source /home/firedrake/firedrake/bin/activate
+```
 
-The symmetric finite ellipse has four geometric parameters after translations, not two. The new [two-dimensional thickness map](figures/realistic_geometry_elliptical_parameter_map.png) varies boundary and center thickness while fixing horizontal radius and half-domain length. Ten of 55 valid cells have fixed-interior $J<0$ by the 4 kyr ceiling, with a mesh-stable sampled transition between the 60/180 m and 70/180 m boundary/center cases. The contour is age-conditioned: several positive 4 kyr cases overturn in 8 kyr tests.
+Run the manuscript experiments or quick smoke checks from `/workspace`:
 
-The contrast cases are selective rather than universal no-folding results:
+```bash
+# Convergent point-margin experiment and convergence/truncation suite (Figure 4 & Figure S1)
+python notebooks/allan_hills_nunatak_margin.py
+python notebooks/allan_hills_nunatak_validation.py
 
-- Fifteen periodic overdeepening, sill, riegel, and double-obstacle beds retain $J>0$ through 80 kyr; some markers remain active at that cutoff.
-- Six isolated spikes in a finite 1.2 km open reach retain $J>0$ through complete sampled residence. The finest near-pinch case has $J_{\min}=0.2583$, and even a source 0.01 m inside the accumulation boundary has $J_{\min}=0.2328$. In this fixed-surface solution, diagnosed accumulation is on the lee side and the surface-sourced layers flow away from the spike. See [`finite_spike_results.md`](notebooks/finite_spike_results.md).
-- The baseline finite-sliding convergent basin remains ordered, but a [90-case geometry map](notebooks/stagnation_flow_results/convergent_flow_geometry_phase_map.png) finds eight overturned cases at high relief and strong left/right asymmetry. At $L_R/L_L=7$, the transition is bracketed between $\Delta b/H=2.25$ and 2.50 and is stable to mesh and material-map refinement. See [`stagnation_flow_report.md`](notebooks/stagnation_flow_report.md).
-- The [analytical convergent-flow benchmark](notebooks/stagnation_flow_results/analytical_convergent_flow_benchmark.png) overturns its shallow-side source. It has zero tangential traction with nonzero boundary-parallel speed, however, and is therefore free slip rather than the finite linear law used in the manuscript.
+# Periodic sinusoidal-bed quick smoke test, full parallel sweep (Figure 5), and validation audit
+python notebooks/steady_characteristic_sinusoidal_parameter_map.py --smoke-grid
+python notebooks/steady_characteristic_sinusoidal_parameter_sweep.py --jobs 4
+python notebooks/steady_characteristic_sinusoidal_validation.py
+```
 
-The new scripts, flattened CSV diagnostics, and PNG/PDF figures are in [`notebooks`](notebooks), [`data`](data), and [`figures`](figures). All finite-mobility models retain $C=10^{-5}$ m yr$^{-1}$ Pa$^{-1}$.
+### Manuscript PDF
 
-## Existing notebooks
+```bash
+cd latex
+latexmk -pdf manuscript.tex
+```
 
-The earlier notebooks remain in the repository as a record of model development. In particular, the original unified notebooks imposed a fitted basal packet and sharp interior boundary; their apparent matches are not evidence for the present mechanical hypothesis. The relevant positive control is [`full_stokes_waddington_fold.ipynb`](notebooks/full_stokes_waddington_fold.ipynb), which shows that resolved Glen flow can overturn a sufficiently steep prescribed seed. The next step is to create that seed dynamically in the transient free-surface model defined here.
+---
 
 ## Primary references
 
-- [Shackleton et al. (2025), *Miocene and Pliocene ice and air from the Allan Hills blue ice area*](https://doi.org/10.1073/pnas.2502681122)
-- [Waddington, Bolzan, and Alley (2001), *Potential for stratigraphic folding near ice-sheet centers*](https://doi.org/10.3189/172756501781831756)
-- [Jacobson and Waddington (2004), *Recumbent folding in ice sheets: a core-referential study*](https://doi.org/10.3189/172756504781830204)
-- [Moffatt (1964), *Viscous and resistive eddies near a sharp corner*](https://doi.org/10.1017/S0022112064000015)
-- [Meyer and Creyts (2017), *Formation of ice eddies in subglacial mountain valleys*](https://doi.org/10.1002/2017JF004329)
+- [Shackleton et al. (2025), *Miocene and Pliocene ice and air from the Allan Hills blue ice area, East Antarctica*, PNAS](https://doi.org/10.1073/pnas.2502681122)
+- [Marks-Peterson et al. (2026), *Broadly stable atmospheric CO2 and CH4 levels over the past 3 million years*, Nature](https://doi.org/10.1038/s41586-025-10032-y)
+- Manos et al. (2026), *Ice flow controls on old ice preservation in the Allan Hills, Antarctica* (preprint)
+- [Parrenin and Hindmarsh (2007), *Influence of a non-uniform velocity field on isochrone geometry along a steady flowline of an ice sheet*, Journal of Glaciology](https://doi.org/10.3189/002214307784409298)
+- [Waddington, Bolzan, and Alley (2001), *Potential for stratigraphic folding near ice-sheet centers*, Journal of Glaciology](https://doi.org/10.3189/172756501781831756)
+- [Jacobson and Waddington (2004), *Recumbent folding in ice sheets: a core-referential study*, Journal of Glaciology](https://doi.org/10.3189/172756504781830204)
+- [Gudmundsson (1997), *Basal-flow characteristics of a linear medium sliding frictionless over small bedrock undulations*, Journal of Glaciology](https://doi.org/10.3189/S0022143000002823)
