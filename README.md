@@ -12,7 +12,7 @@ This project converts that observational ambiguity into a well-posed analytical 
 | EarthArXiv preprint (3 September 2026) | [`latex/eartharxiv-preprint.pdf`](latex/eartharxiv-preprint.pdf) | Submitted |
 | Point-by-point response to reviewers (40 items) | [`latex/response_to_reviewers.pdf`](latex/response_to_reviewers.pdf) | Complete |
 | Tracked-changes diff vs. original submission (`main_v0`) | [`latex/main_diff.pdf`](latex/main_diff.pdf) | Clean build |
-| Revision verification checklist | [`revision-checklist.md`](revision-checklist.md) | 40/40 reviewer items resolved |
+| Revision verification checklist | [`latex/revision-checklist.md`](latex/revision-checklist.md) | 40/40 reviewer items resolved |
 | Reproducible Firedrake/Icepack container | [`Dockerfile`](Dockerfile) | `firedrake-vanilla:2025-01` |
 
 ![Allan Hills blue-ice area setting and published age reversals](figures/allan_hills_context.png)
@@ -73,7 +73,7 @@ As documented in the manuscript acknowledgements, this repository was built over
 
 - **First-principles task constraints ([`AGENTS.md`](AGENTS.md)):** Agent sessions are constrained against contrived shortcuts—no synthetic interior layer clipping, no heuristic constraints, explicit units and boundary conditions, and strict separation between observations, calculations, and inferences.
 - **Handcrafted analytical and numerical graders:** Rather than trusting aggregate fit metrics, every solver family is checked against closed-form analytical limits (machine-precision flat-bed sliding, exact $`J \to 1`$ recovery down to $`A = 0.001\ \mathrm{m}`$, lubrication-limit monotonicity, and analytical convergent-flow benchmarks), independent cross-method diagnostics (variational tangent vs. centered finite-difference vs. Eulerian audits), and single-factor mesh/step/sampler/inlet convergence tables.
-- **Adversarial failure-mode auditing:** Several early implementations passed superficial targets while violating physical or numerical specifications—including a surface-forcing fit that reached 0.412 Ma RMS only by clipping the interior packet boundary, prescribed-speed folds powered by unphysical basal work (34–114× gravity), finite-horizon cohorts that censored 162–228 overturns, and short-wave roundoff below the basal-leakage floor. Catching and formalizing these failure modes drove the final diagnostic design and the 44-item SHA-256-audited build checklist in [`revision-checklist.md`](revision-checklist.md).
+- **Adversarial failure-mode auditing:** Several early implementations passed superficial targets while violating physical or numerical specifications—including a surface-forcing fit that reached 0.412 Ma RMS only by clipping the interior packet boundary, prescribed-speed folds powered by unphysical basal work (34–114× gravity), finite-horizon cohorts that censored 162–228 overturns, and short-wave roundoff below the basal-leakage floor. Catching and formalizing these failure modes drove the final diagnostic design and the 44-item SHA-256-audited build checklist in [`latex/revision-checklist.md`](latex/revision-checklist.md).
 
 ---
 
@@ -149,9 +149,8 @@ Rather than claiming that steady flow explains Allan Hills stratigraphy, the ana
 
 ```text
 .
-├── Dockerfile                   # Reproducible Firedrake (2025-01) + Icepack + notebook environment
-├── AGENTS.md                    # Minimalist, first-principles modeling and verification conventions
-├── revision-checklist.md        # 44-item audit table tracking JOG-2026-0127 peer-review revisions
+├── Dockerfile                    # Reproducible Firedrake (2025-01) + Icepack + notebook environment
+├── AGENTS.md                     # Minimalist, first-principles modeling and verification conventions
 ├── latex/
 │   ├── manuscript.tex / .pdf     # Revised Journal of Glaciology manuscript (39 pp.)
 │   ├── main_v0.tex / .pdf        # Frozen original submission (1 September 2026)
@@ -159,6 +158,7 @@ Rather than claiming that steady flow explains Allan Hills stratigraphy, the ana
 │   ├── main_diff.pdf             # latexdiff tracked changes vs. main_v0
 │   ├── eartharxiv-preprint.pdf   # EarthArXiv preprint wrapper + PDF
 │   ├── response_to_reviewers.pdf # Point-by-point responses to Reviewer 1 and Reviewer 2
+│   ├── revision-checklist.md     # 44-item audit table tracking JOG-2026-0127 peer-review revisions
 │   └── references.bib            # BibTeX bibliography
 ├── notebooks/                   # 47 Python solvers/sweeps/plotters, 26 notebooks, 19 markdown reports
 │   ├── allan_hills_nunatak_margin.py        # Manuscript Fig. 4 point-margin Stokes solver & diagnostic
