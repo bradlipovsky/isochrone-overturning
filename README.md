@@ -1,6 +1,6 @@
 # Isochrone overturning in steady glacier flow
 
-Theoretical analysis, finite-element Stokes modeling, large-scale parameter-space sweeps, and manuscript source for ***Isochrone overturning in steady glacier flow*** (EarthArXiv preprint, September 2026; revised *Journal of Glaciology* submission `JOG-2026-0127`, November 2026).
+Theoretical analysis, finite-element Stokes modeling, large-scale parameter-space sweeps, and manuscript source for ***Isochrone overturning in steady glacier flow*** (EarthArXiv preprint, September 2026; revised *Journal of Glaciology* submission `JOG-2026-0127`, November 2026). This work made significant use of coding agents (Codex Astra 5.1 and Gemini 4 Carbon).
 
 Ice cores from the Allan Hills blue-ice area in East Antarctica recover ice and trapped air reaching into the Miocene (23–5.3 Ma), yet metre-scale age reversals, steep dips, and basal folds obscure the stratigraphic record ([Shackleton et al., 2025](https://doi.org/10.1073/pnas.2502681122); [Marks-Peterson et al., 2026](https://doi.org/10.1038/s41586-025-10032-y)). Whether steady glacier flow over fixed topography can turn surface-deposited layers upside down—or whether observed inversions require transient forcing, multiple sources, or rheological heterogeneity—has remained an open mechanical question.
 
