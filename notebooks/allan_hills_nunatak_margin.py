@@ -28,7 +28,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize, TwoSlopeNorm
-from matplotlib.patches import Rectangle
+from matplotlib.patches import FancyArrowPatch, Rectangle
+from matplotlib.path import Path as MplPath
 import numpy as np
 import pandas as pd
 
@@ -1525,6 +1526,38 @@ def _draw_fold_closeup(axis, result, curve, colors):
             label=f"{snapshot['age'] / 1000.0:.1f} kyr",
         )
         legend_handles.append(proxy)
+
+    if result["configuration"].rheology == "linear":
+        arrow_triplets = (
+            ((495.08, 236.5), (494.34, 249.5), (494.96, 276.0)),
+            ((495.05, 314.0), (495.67, 335.0), (494.95, 355.5)),
+        )
+    else:
+        arrow_triplets = (
+            ((518.65, 217.0), (516.30, 234.5), (518.45, 265.0)),
+            ((520.05, 316.0), (521.88, 354.0), (521.15, 375.5)),
+        )
+    t_param = np.linspace(0.0, 1.0, 81)
+    for p0, p1, p2 in arrow_triplets:
+        bezier = (
+            ((1.0 - t_param) ** 2)[:, None] * np.asarray(p0, dtype=float)
+            + (2.0 * (1.0 - t_param) * t_param)[:, None]
+            * np.asarray(p1, dtype=float)
+            + (t_param**2)[:, None] * np.asarray(p2, dtype=float)
+        )
+        axis.add_patch(
+            FancyArrowPatch(
+                path=MplPath(bezier),
+                arrowstyle="-|>",
+                mutation_scale=9.5,
+                linewidth=1.0,
+                edgecolor="black",
+                facecolor="black",
+                shrinkA=0.0,
+                shrinkB=0.0,
+                zorder=8,
+            )
+        )
 
     axis.set(
         xlim=x_limits,
