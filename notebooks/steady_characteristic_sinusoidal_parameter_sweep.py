@@ -20,10 +20,16 @@ import pandas as pd
 from steady_characteristic_sinusoidal_parameter_map import (
     BASAL_DRAG,
     DIAGNOSTIC_METHOD_VERSION,
+    GLEN_EXPONENT,
+    GLEN_FLUIDITY,
+    GLEN_FLUIDITY_PA_S,
+    GLEN_STRAIN_RATE_REG,
     NITSCHE_PENALTY,
     SURFACE_SLOPE,
     VISCOSITY,
     SinusoidalGeometry,
+    characteristic_viscosity,
+    diagnostic_method_version_for_rheology,
     solve_parameter_case,
 )
 
@@ -86,7 +92,13 @@ def resolution_for_ratio(wavelength_ratio):
     )
 
 
-def task_tuple(mean_thickness, amplitude_ratio, wavelength_ratio, maximum_age):
+def task_tuple(
+    mean_thickness,
+    amplitude_ratio,
+    wavelength_ratio,
+    maximum_age,
+    rheology="linear",
+):
     (
         mesh_nx,
         mesh_nz,
@@ -109,6 +121,7 @@ def task_tuple(mean_thickness, amplitude_ratio, wavelength_ratio, maximum_age):
         PRODUCTION_RETAINED_FLUX_FRACTION,
         PRODUCTION_TIME_STEP,
         float(maximum_age),
+        str(rheology),
     )
 
 
@@ -127,6 +140,7 @@ def solve_task(task):
         retained_flux_fraction,
         time_step,
         maximum_age,
+        rheology,
     ) = task
     geometry = SinusoidalGeometry(
         wavelength=wavelength_ratio * mean_thickness,
@@ -148,8 +162,12 @@ def solve_task(task):
         minimum_surface_signal_to_basal_leakage=(
             MINIMUM_SURFACE_SIGNAL_TO_BASAL_LEAKAGE
         ),
+        rheology=rheology,
     )
-    row["sliding thickness ratio beta H / eta"] = mean_thickness / 2500.0
+    char_eta = characteristic_viscosity(mean_thickness, rheology)
+    row["sliding thickness ratio beta H / eta"] = (
+        BASAL_DRAG * mean_thickness / char_eta
+    )
     surface_signal = float(
         row.get("maximum absolute surface mass balance (m/yr)", np.nan)
     )
@@ -212,7 +230,7 @@ def task_key_from_row(row):
 def task_key_from_task(task):
     """Match :func:`task_key_from_row` for an unsolved task tuple."""
     key = []
-    for value in task[:-1]:
+    for value in task[:-2]:
         if isinstance(value, (float, np.floating)):
             key.append(round(float(value), 12))
         else:
@@ -230,8 +248,9 @@ def sorted_table(rows):
     ).reset_index(drop=True)
 
 
-def write_metadata(table, output):
+def write_metadata(table, output, rheology="linear"):
     """Write a compact machine-readable record of grid, method, and result."""
+    method_version = diagnostic_method_version_for_rheology(rheology)
     numerical = table.loc[table["status"].eq("success")].copy()
     status_counts = {
         str(key): int(value)
@@ -263,22 +282,34 @@ def write_metadata(table, output):
         aggfunc="first",
     )
     thickness_spread = comparable.max(axis=1) - comparable.min(axis=1)
-    metadata = {
-        "diagnostic method version": DIAGNOSTIC_METHOD_VERSION,
-        "geometry": "b(x) = -H + A cos(2 pi x / lambda), 0 <= x < lambda",
-        "domain": "one exactly periodic wavelength with a flat surface",
-        "dimensionless controls": [
-            "A/H",
-            "lambda/H",
-            "beta H / eta",
-        ],
-        "physical constants": {
+    if rheology == "linear":
+        physical_constants = {
+            "rheology": "linear",
             "viscosity (Pa yr)": VISCOSITY,
             "basal drag (Pa yr/m)": BASAL_DRAG,
             "linear-slip length eta/beta (m)": VISCOSITY / BASAL_DRAG,
             "surface slope (rad)": SURFACE_SLOPE,
             "Nitsche penalty": NITSCHE_PENALTY,
-        },
+        }
+        controls = ["A/H", "lambda/H", "beta H / eta"]
+    else:
+        physical_constants = {
+            "rheology": "glen",
+            "Glen exponent n": GLEN_EXPONENT,
+            "Glen fluidity A_G (Pa^-3 s^-1)": GLEN_FLUIDITY_PA_S,
+            "Glen fluidity A_G (Pa^-3 yr^-1)": GLEN_FLUIDITY,
+            "strain-rate regularization D_0 (yr^-1)": GLEN_STRAIN_RATE_REG,
+            "basal drag (Pa yr/m)": BASAL_DRAG,
+            "surface slope (rad)": SURFACE_SLOPE,
+            "Nitsche penalty": NITSCHE_PENALTY,
+        }
+        controls = ["A/H", "lambda/H", "beta H / eta_G"]
+    metadata = {
+        "diagnostic method version": method_version,
+        "geometry": "b(x) = -H + A cos(2 pi x / lambda), 0 <= x < lambda",
+        "domain": "one exactly periodic wavelength with a flat surface",
+        "dimensionless controls": controls,
+        "physical constants": physical_constants,
         "production grid": {
             "mean thicknesses (m)": MEAN_THICKNESSES.tolist(),
             "amplitude / mean thickness": AMPLITUDE_RATIOS.tolist(),
@@ -347,7 +378,10 @@ def write_metadata(table, output):
     return metadata_output
 
 
-def run_grid(output, jobs=1, maximum_age=PRODUCTION_MAXIMUM_AGE):
+def run_grid(
+    output, jobs=1, maximum_age=PRODUCTION_MAXIMUM_AGE, rheology="linear"
+):
+    method_version = diagnostic_method_version_for_rheology(rheology)
     reusable = {}
     successful_diagnostic_columns = (
         "mesh vertical grading power",
@@ -370,8 +404,7 @@ def run_grid(output, jobs=1, maximum_age=PRODUCTION_MAXIMUM_AGE):
             for _, row in existing.iterrows():
                 status = str(row["status"])
                 current_method = (
-                    row["diagnostic method version"]
-                    == DIAGNOSTIC_METHOD_VERSION
+                    row["diagnostic method version"] == method_version
                 )
                 reusable_status = (
                     status == "success"
@@ -397,6 +430,7 @@ def run_grid(output, jobs=1, maximum_age=PRODUCTION_MAXIMUM_AGE):
                     amplitude_ratio,
                     wavelength_ratio,
                     maximum_age,
+                    rheology=rheology,
                 )
                 key = task_key_from_task(task)
                 if key in reusable:
@@ -454,6 +488,11 @@ def run_grid(output, jobs=1, maximum_age=PRODUCTION_MAXIMUM_AGE):
 def parse_arguments():
     repository = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--rheology",
+        choices=("linear", "glen"),
+        default="linear",
+    )
     parser.add_argument("--jobs", type=int, default=1)
     parser.add_argument(
         "--maximum-age", type=float, default=PRODUCTION_MAXIMUM_AGE
@@ -461,18 +500,31 @@ def parse_arguments():
     parser.add_argument(
         "--output",
         type=Path,
-        default=repository
-        / "data"
-        / "steady_characteristic_sinusoidal_parameter_map.csv",
+        default=None,
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.output is None:
+        suffix = "" if args.rheology == "linear" else f"_{args.rheology}"
+        args.output = (
+            repository
+            / "data"
+            / f"steady_characteristic_sinusoidal{suffix}_parameter_map.csv"
+        )
+    return args
 
 
 def main():
     args = parse_arguments()
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    table = run_grid(args.output, jobs=args.jobs, maximum_age=args.maximum_age)
-    metadata_output = write_metadata(table, args.output)
+    table = run_grid(
+        args.output,
+        jobs=args.jobs,
+        maximum_age=args.maximum_age,
+        rheology=args.rheology,
+    )
+    metadata_output = write_metadata(
+        table, args.output, rheology=args.rheology
+    )
     print(table["status"].value_counts(dropna=False).to_string())
     print(f"Wrote {metadata_output}")
 

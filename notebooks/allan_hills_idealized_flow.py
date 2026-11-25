@@ -62,6 +62,8 @@ import pandas as pd
 from scipy.interpolate import PchipInterpolator, RegularGridInterpolator
 from scipy.ndimage import distance_transform_edt
 
+_trapezoid = getattr(np, "trapezoid", getattr(np, "trapz", None))
+
 try:
     import firedrake as fd
 except ImportError:  # Let --help and static inspection work without Firedrake.
@@ -255,7 +257,7 @@ def variable_ice_thickness_slope(x):
 def volume_mean_thickness() -> float:
     """Mean thickness of the variable geometry."""
     x = np.linspace(0.0, LENGTH, 20_001)
-    return float(np.trapz(variable_ice_thickness(x), x) / LENGTH)
+    return float(_trapezoid(variable_ice_thickness(x), x) / LENGTH)
 
 
 UNIFORM_THICKNESS = volume_mean_thickness()
@@ -577,7 +579,7 @@ def solve_stokes(case: Case, nx: int, nz: int):
             np.max(ice_thickness(np.linspace(0.0, LENGTH, 4001), case))
         ),
         "mean thickness (m)": float(
-            np.trapz(
+            _trapezoid(
                 ice_thickness(np.linspace(0.0, LENGTH, 4001), case),
                 np.linspace(0.0, LENGTH, 4001),
             )
@@ -767,7 +769,7 @@ def make_sampler(
         - surface_velocity[:, 1]
     )
     integrated_surface_mass_balance = float(
-        np.trapz(surface_mass_balance, x)
+        _trapezoid(surface_mass_balance, x)
     )
     sampled_divergence = (
         gradient_values[..., 0, 0] + gradient_values[..., 1, 1]

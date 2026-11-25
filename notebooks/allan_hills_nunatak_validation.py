@@ -1,7 +1,7 @@
 """Diagnostic convergence tests for the true Allan Hills point margin."""
 
+import argparse
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -10,10 +10,7 @@ import allan_hills_idealized_flow as core
 import allan_hills_nunatak_margin as margin
 
 
-OUTPUT = (
-    Path(__file__).resolve().parents[1]
-    / "data/allan_hills_nunatak_validation.csv"
-)
+ROOT = Path(__file__).resolve().parents[1]
 
 VARIANTS = (
     {
@@ -69,7 +66,21 @@ VARIANTS = (
 )
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--rheology",
+        choices=("linear", "glen"),
+        default="linear",
+        help="Constitutive law: linear viscous (n=1) or isotropic Glen (n=3).",
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
+    suffix = "" if args.rheology == "linear" else f"_{args.rheology}"
+    output = ROOT / f"data/allan_hills_nunatak{suffix}_validation.csv"
     margin.require_environment()
     configuration = margin.MarginConfiguration(
         "point_margin_validation",
@@ -78,6 +89,7 @@ def main():
         20.0,
         4.0,
         25.0,
+        rheology=args.rheology,
     )
     _, velocity, solve_diagnostics = margin.solve_stokes(configuration)
     sampling_left = margin.x_at_thickness(
@@ -163,8 +175,8 @@ def main():
                 ],
             }
         )
-        OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-        pd.DataFrame(rows).to_csv(OUTPUT, index=False)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(rows).to_csv(output, index=False)
     print(pd.DataFrame(rows).to_string(index=False), flush=True)
 
 
