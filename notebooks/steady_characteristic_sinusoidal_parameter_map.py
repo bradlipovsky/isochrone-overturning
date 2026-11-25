@@ -54,6 +54,12 @@ BASAL_DRAG = 1.0e5  # Pa yr m^-1; C = 1 / beta = 10^-5 m yr^-1 Pa^-1
 # numerical normal-velocity penalty, not the basal sliding coefficient.
 NITSCHE_PENALTY = 3.0e4
 
+SECONDS_PER_YEAR = 365.25 * 86400.0
+GLEN_EXPONENT = 3.0
+GLEN_FLUIDITY_PA_S = 6.8e-26  # Pa^-3 s^-1; Cuffey & Paterson (2010), T = -25 C
+GLEN_FLUIDITY = GLEN_FLUIDITY_PA_S * SECONDS_PER_YEAR  # Pa^-3 yr^-1
+GLEN_STRAIN_RATE_REG = 1.0e-10  # yr^-1
+
 BED_SIGMA = 0.005
 SURFACE_SIGMA = 1.0
 ANALYSIS_SURFACE_SIGMA = 0.95
@@ -75,6 +81,36 @@ DEFAULT_SAMPLER_NZ = 161
 DIAGNOSTIC_METHOD_VERSION = (
     "sinusoidal-steady-v2-exact-surface-ablation-only-buffer"
 )
+GLEN_DIAGNOSTIC_METHOD_VERSION = (
+    "sinusoidal-steady-glen-n3-v2-exact-surface-ablation-only-buffer"
+)
+
+
+def diagnostic_method_version_for_rheology(rheology: str = "linear") -> str:
+    if rheology == "linear":
+        return DIAGNOSTIC_METHOD_VERSION
+    if rheology == "glen":
+        return GLEN_DIAGNOSTIC_METHOD_VERSION
+    raise ValueError(f"unknown rheology {rheology!r}")
+
+
+def characteristic_viscosity(
+    mean_thickness: float, rheology: str = "linear"
+) -> float:
+    if rheology == "linear":
+        return float(VISCOSITY)
+    if rheology == "glen":
+        driving_stress = (
+            DENSITY * GRAVITY * float(mean_thickness) * np.sin(SURFACE_SLOPE)
+        )
+        return float(
+            0.5
+            / (
+                GLEN_FLUIDITY
+                * driving_stress ** (GLEN_EXPONENT - 1.0)
+            )
+        )
+    raise ValueError(f"unknown rheology {rheology!r}")
 
 SOLVER_PARAMETERS = {
     "ksp_type": "preonly",
@@ -251,15 +287,38 @@ def make_mesh(geometry, nx, nz, vertical_grading_power=1.0):
     mesh.coordinates.dat.data[:, 1] = -local_thickness * (
         1.0 - sigma
     )
-    mesh.clear_spatial_index()
+    if hasattr(mesh, "clear_spatial_index"):
+        mesh.clear_spatial_index()
     return mesh
 
 
-def solve_stokes(geometry, nx, nz, vertical_grading_power=1.0):
+def _periodic_bed_surface_markers(mesh):
+    """Return (bed, surface) exterior facet markers across Firedrake versions."""
+    if 3 in mesh.exterior_facets.unique_markers:
+        return 3, 4
+    return 1, 2
+
+
+def _cofunction_norm(form) -> float:
+    assembled = fd.assemble(form)
+    return float(
+        np.sqrt(
+            sum(
+                np.dot(part.ravel(), part.ravel())
+                for part in assembled.dat.data_ro
+            )
+        )
+    )
+
+
+def solve_stokes(
+    geometry, nx, nz, vertical_grading_power=1.0, rheology="linear"
+):
     """Solve periodic Stokes flow with no penetration and linear basal drag."""
     mesh = make_mesh(
         geometry, nx, nz, vertical_grading_power=vertical_grading_power
     )
+    bed_marker, surface_marker = _periodic_bed_surface_markers(mesh)
     velocity_space = fd.VectorFunctionSpace(mesh, "CG", 2)
     pressure_space = fd.FunctionSpace(mesh, "CG", 1)
     solution = fd.Function(velocity_space * pressure_space)
@@ -271,49 +330,174 @@ def solve_stokes(geometry, nx, nz, vertical_grading_power=1.0):
             -DENSITY * GRAVITY * np.cos(SURFACE_SLOPE),
         )
     )
-    residual = (
-        2.0
-        * VISCOSITY
-        * fd.inner(fd.sym(fd.grad(u)), fd.sym(fd.grad(v)))
-        - p * fd.div(v)
-        - q * fd.div(u)
-        - fd.dot(body_force, v)
-    ) * fd.dx
-
     normal = fd.FacetNormal(mesh)
     tangent = fd.as_vector((-normal[1], normal[0]))
-    stress = 2.0 * VISCOSITY * fd.sym(fd.grad(u)) - p * fd.Identity(2)
-    test_stress = 2.0 * VISCOSITY * fd.sym(fd.grad(v)) - q * fd.Identity(2)
     normal_speed = fd.dot(u, normal)
     test_normal_speed = fd.dot(v, normal)
-    residual += (
-        BASAL_DRAG * fd.dot(u, tangent) * fd.dot(v, tangent)
-        - fd.dot(stress * normal, normal) * test_normal_speed
-        - fd.dot(test_stress * normal, normal) * normal_speed
-        + NITSCHE_PENALTY
-        * VISCOSITY
-        / fd.CellDiameter(mesh)
-        * normal_speed
-        * test_normal_speed
-    ) * fd.ds(1)
+    cell_diameter = fd.CellDiameter(mesh)
 
-    fd.solve(residual == 0, solution, solver_parameters=SOLVER_PARAMETERS)
-    velocity, pressure = solution.subfunctions
+    if rheology == "linear":
+        effective_viscosity_expr = fd.Constant(VISCOSITY)
+        stress = 2.0 * VISCOSITY * fd.sym(fd.grad(u)) - p * fd.Identity(2)
+        test_stress = 2.0 * VISCOSITY * fd.sym(fd.grad(v)) - q * fd.Identity(2)
+        residual = (
+            2.0
+            * VISCOSITY
+            * fd.inner(fd.sym(fd.grad(u)), fd.sym(fd.grad(v)))
+            - p * fd.div(v)
+            - q * fd.div(u)
+            - fd.dot(body_force, v)
+        ) * fd.dx + (
+            BASAL_DRAG * fd.dot(u, tangent) * fd.dot(v, tangent)
+            - fd.dot(stress * normal, normal) * test_normal_speed
+            - fd.dot(test_stress * normal, normal) * normal_speed
+            + NITSCHE_PENALTY
+            * VISCOSITY
+            / cell_diameter
+            * normal_speed
+            * test_normal_speed
+        ) * fd.ds(bed_marker)
+        fd.solve(residual == 0, solution, solver_parameters=SOLVER_PARAMETERS)
+        velocity, pressure = solution.subfunctions
+        solved_viscosity = fd.Constant(VISCOSITY)
+    elif rheology == "glen":
+        n_const = fd.Constant(1.0)
+        a_const = fd.Constant(1.0 / (2.0 * VISCOSITY))
 
-    bed_length = fd.assemble(fd.Constant(1.0) * fd.ds(1, domain=mesh))
-    surface_length = fd.assemble(fd.Constant(1.0) * fd.ds(2, domain=mesh))
+        def glen_eta(vel_field):
+            strain = fd.sym(fd.grad(vel_field))
+            d_eff_sq = 0.5 * fd.inner(strain, strain) + fd.Constant(
+                GLEN_STRAIN_RATE_REG**2
+            )
+            return (
+                0.5
+                * a_const ** (-1.0 / n_const)
+                * d_eff_sq ** ((1.0 - n_const) / (2.0 * n_const))
+            )
+
+        def build_residual(eta_field):
+            strain_u = fd.sym(fd.grad(u))
+            strain_v = fd.sym(fd.grad(v))
+            stress_field = 2.0 * eta_field * strain_u - p * fd.Identity(2)
+            test_stress_field = (
+                2.0 * eta_field * strain_v - q * fd.Identity(2)
+            )
+            return (
+                2.0 * eta_field * fd.inner(strain_u, strain_v)
+                - p * fd.div(v)
+                - q * fd.div(u)
+                - fd.dot(body_force, v)
+            ) * fd.dx + (
+                BASAL_DRAG * fd.dot(u, tangent) * fd.dot(v, tangent)
+                - fd.dot(stress_field * normal, normal) * test_normal_speed
+                - fd.dot(test_stress_field * normal, normal) * normal_speed
+                + NITSCHE_PENALTY
+                * eta_field
+                / cell_diameter
+                * normal_speed
+                * test_normal_speed
+            ) * fd.ds(bed_marker)
+
+        def set_continuation(n_value: float):
+            n_const.assign(n_value)
+            alpha_h = (n_value - 1.0) / (GLEN_EXPONENT - 1.0)
+            a_step = (1.0 / (2.0 * VISCOSITY)) ** (
+                1.0 - alpha_h
+            ) * GLEN_FLUIDITY**alpha_h
+            a_const.assign(a_step)
+
+        nonlinear_residual = build_residual(glen_eta(u))
+        newton_parameters = {
+            "snes_type": "newtonls",
+            "snes_linesearch_type": "bt",
+            "snes_max_it": 45,
+            "snes_rtol": 1.0e-10,
+            "snes_atol": 1.0e-8,
+            **SOLVER_PARAMETERS,
+        }
+        solved_directly = False
+        try:
+            for n_step in (1.0, 2.0, GLEN_EXPONENT):
+                set_continuation(n_step)
+                fd.solve(
+                    nonlinear_residual == 0,
+                    solution,
+                    solver_parameters=newton_parameters,
+                )
+            solved_directly = True
+        except fd.ConvergenceError:
+            solution.assign(0.0)
+
+        if not solved_directly:
+            u_prev = fd.Function(velocity_space)
+            use_picard = fd.Constant(0.0)
+            set_continuation(GLEN_EXPONENT)
+            f0_norm = max(_cofunction_norm(nonlinear_residual), 1.0)
+            picard_eta = (1.0 - use_picard) * fd.Constant(
+                VISCOSITY
+            ) + use_picard * glen_eta(u_prev)
+            picard_solver = fd.NonlinearVariationalSolver(
+                fd.NonlinearVariationalProblem(
+                    build_residual(picard_eta), solution
+                ),
+                solver_parameters={
+                    "snes_type": "ksponly",
+                    **SOLVER_PARAMETERS,
+                },
+            )
+            picard_solver.solve()
+            u_prev.assign(solution.subfunctions[0])
+            use_picard.assign(1.0)
+            for _ in range(50):
+                picard_solver.solve()
+                vel_new = solution.subfunctions[0]
+                rel_du = float(
+                    fd.norm(vel_new - u_prev) / max(fd.norm(vel_new), 1.0e-30)
+                )
+                u_prev.assign(0.4 * u_prev + 0.6 * vel_new)
+                if (
+                    _cofunction_norm(nonlinear_residual) / f0_norm < 1.0e-7
+                    or rel_du < 1.0e-6
+                ):
+                    break
+            backup = solution.copy(deepcopy=True)
+            for linesearch in ("bt", "l2"):
+                try:
+                    fd.solve(
+                        nonlinear_residual == 0,
+                        solution,
+                        solver_parameters={
+                            **newton_parameters,
+                            "snes_linesearch_type": linesearch,
+                            "snes_atol": 1.0e-10 * f0_norm,
+                            "snes_rtol": 1.0e-12,
+                            "snes_max_it": 25,
+                        },
+                    )
+                    break
+                except fd.ConvergenceError:
+                    solution.assign(backup)
+        velocity, pressure = solution.subfunctions
+        solved_viscosity = glen_eta(velocity)
+    else:
+        raise ValueError(f"unknown rheology {rheology!r}")
+
+    bed_length = fd.assemble(fd.Constant(1.0) * fd.ds(bed_marker, domain=mesh))
+    surface_length = fd.assemble(
+        fd.Constant(1.0) * fd.ds(surface_marker, domain=mesh)
+    )
     basal_speed = fd.dot(velocity, tangent)
     physical_stress = (
-        2.0 * VISCOSITY * fd.sym(fd.grad(velocity))
+        2.0 * solved_viscosity * fd.sym(fd.grad(velocity))
         - pressure * fd.Identity(2)
     )
     gravity_power = fd.assemble(fd.dot(body_force, velocity) * fd.dx)
     basal_dissipation = fd.assemble(
-        BASAL_DRAG * basal_speed**2 * fd.ds(1)
+        BASAL_DRAG * basal_speed**2 * fd.ds(bed_marker)
     )
     viscous_dissipation = fd.assemble(
         2.0
-        * VISCOSITY
+        * solved_viscosity
         * fd.inner(
             fd.sym(fd.grad(velocity)), fd.sym(fd.grad(velocity))
         )
@@ -328,13 +512,13 @@ def solve_stokes(geometry, nx, nz, vertical_grading_power=1.0):
             * fd.dot(physical_stress * normal, normal)
             * fd.dot(velocity, normal)
             + NITSCHE_PENALTY
-            * VISCOSITY
-            / fd.CellDiameter(mesh)
+            * solved_viscosity
+            / cell_diameter
             * fd.dot(velocity, normal) ** 2
         )
-        * fd.ds(1)
+        * fd.ds(bed_marker)
     )
-    surface_vertical_flux = fd.assemble(velocity[1] * fd.ds(2))
+    surface_vertical_flux = fd.assemble(velocity[1] * fd.ds(surface_marker))
     velocity_data = velocity.dat.data_ro
     diagnostics = {
         "mesh cells": int(mesh.num_cells()),
@@ -361,7 +545,7 @@ def solve_stokes(geometry, nx, nz, vertical_grading_power=1.0):
         ),
         "rms basal normal speed (m/yr)": float(
             np.sqrt(
-                fd.assemble(fd.dot(velocity, normal) ** 2 * fd.ds(1))
+                fd.assemble(fd.dot(velocity, normal) ** 2 * fd.ds(bed_marker))
                 / bed_length
             )
         ),
@@ -1000,6 +1184,7 @@ def solve_parameter_case(
     time_step=DEFAULT_TIME_STEP,
     maximum_age=DEFAULT_MAXIMUM_AGE,
     minimum_surface_signal_to_basal_leakage=None,
+    rheology="linear",
 ):
     """Solve one geometry and summarize its direct steady characteristics."""
     if mesh_nx is None or mesh_nz is None:
@@ -1009,8 +1194,12 @@ def solve_parameter_case(
         mesh_nx = default_nx if mesh_nx is None else mesh_nx
         mesh_nz = default_nz if mesh_nz is None else mesh_nz
 
+    method_version = diagnostic_method_version_for_rheology(rheology)
+    char_eta = characteristic_viscosity(geometry.mean_thickness, rheology)
     base = {
-        "diagnostic method version": DIAGNOSTIC_METHOD_VERSION,
+        "diagnostic method version": method_version,
+        "rheology": rheology,
+        "characteristic viscosity (Pa yr)": char_eta,
         "wavelength (m)": geometry.wavelength,
         "bed amplitude (m)": geometry.amplitude,
         "bed phase origin (m; coordinate gauge)": geometry.phase_origin,
@@ -1087,6 +1276,7 @@ def solve_parameter_case(
             int(mesh_nx),
             int(mesh_nz),
             vertical_grading_power=vertical_grading_power,
+            rheology=rheology,
         )
         stokes_seconds = perf_counter() - started
         started = perf_counter()
@@ -1167,6 +1357,23 @@ def solve_parameter_case(
                 "classification": "not evaluated",
             }
 
+        effective_time_step = float(time_step)
+        effective_maximum_age = float(maximum_age)
+        if rheology == "glen":
+            u_scale = max(
+                abs(float(sampler["minimum sampled u (m/yr)"])),
+                abs(float(sampler["maximum sampled u (m/yr)"])),
+            )
+            if u_scale > 0.0:
+                advective_period = geometry.wavelength / u_scale
+                effective_time_step = (
+                    0.002 * (float(time_step) / 25.0) * advective_period
+                )
+                effective_maximum_age = max(
+                    float(maximum_age),
+                    25.0 * advective_period,
+                )
+
         started = perf_counter()
         trajectories = trace_sources_to_exit(
             geometry,
@@ -1174,8 +1381,8 @@ def solve_parameter_case(
             sample_vector,
             sample_gradient,
             sources,
-            time_step=time_step,
-            maximum_age=maximum_age,
+            time_step=effective_time_step,
+            maximum_age=effective_maximum_age,
             start_depth=START_DEPTH,
             surface_accumulation_tolerance=source_data[
                 "accumulation tolerance"
@@ -1255,6 +1462,8 @@ def solve_parameter_case(
         exit_counts = trajectories["exit kind"].value_counts()
         return base | stokes | sampler | source_summary | {
             "status": status,
+            "actual characteristic time step (yr)": effective_time_step,
+            "actual safety maximum age (yr)": effective_maximum_age,
             "Stokes solve wall time (s)": stokes_seconds,
             "sampler construction wall time (s)": sampler_seconds,
             "characteristic wall time (s)": trace_seconds,
@@ -1388,12 +1597,12 @@ SMOKE_GEOMETRIES = (
 )
 
 
-def run_smoke_grid():
+def run_smoke_grid(rheology="linear"):
     """Run four inexpensive cases spanning all three geometric inputs."""
     rows = []
     for geometry in SMOKE_GEOMETRIES:
         print(
-            "Solving smoke case "
+            f"Solving {rheology} smoke case "
             f"lambda={geometry.wavelength:g} m, A={geometry.amplitude:g} m, "
             f"H={geometry.mean_thickness:g} m.",
             flush=True,
@@ -1408,6 +1617,7 @@ def run_smoke_grid():
                 source_count=161,
                 time_step=10.0,
                 maximum_age=120_000.0,
+                rheology=rheology,
             )
         )
     return pd.DataFrame(rows)
@@ -1416,6 +1626,11 @@ def run_smoke_grid():
 def parse_arguments():
     repository = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--rheology",
+        choices=("linear", "glen"),
+        default="linear",
+    )
     parser.add_argument("--smoke-grid", action="store_true")
     parser.add_argument("--wavelength", type=float, default=600.0)
     parser.add_argument("--amplitude", type=float, default=60.0)
@@ -1452,7 +1667,7 @@ def parse_arguments():
 def main():
     args = parse_arguments()
     if args.smoke_grid:
-        table = run_smoke_grid()
+        table = run_smoke_grid(rheology=args.rheology)
     else:
         geometry = SinusoidalGeometry(
             args.wavelength, args.amplitude, args.mean_thickness
@@ -1474,6 +1689,7 @@ def main():
                     retained_flux_fraction=args.retained_flux_fraction,
                     time_step=args.time_step,
                     maximum_age=args.maximum_age,
+                    rheology=args.rheology,
                 )
             ]
         )

@@ -8,7 +8,7 @@ This project converts that observational ambiguity into a well-posed analytical 
 
 | Artifact | Location | Status |
 | --- | --- | --- |
-| Revised manuscript (*Journal of Glaciology*, `JOG-2026-0127`) | [`latex/manuscript.pdf`](latex/manuscript.pdf) / [`latex/manuscript.tex`](latex/manuscript.tex) | 39 pp., clean build |
+| Revised manuscript (*Journal of Glaciology*, `JOG-2026-0127`) | [`latex/manuscript.pdf`](latex/manuscript.pdf) / [`latex/manuscript.tex`](latex/manuscript.tex) | 41 pp., clean build |
 | EarthArXiv preprint (3 September 2026) | [`latex/eartharxiv-preprint.pdf`](latex/eartharxiv-preprint.pdf) | Submitted |
 | Point-by-point response to reviewers (40 items) | [`latex/response_to_reviewers.pdf`](latex/response_to_reviewers.pdf) | Complete |
 | Tracked-changes diff vs. original submission (`main_v0`) | [`latex/main_diff.pdf`](latex/main_diff.pdf) | Clean build |
@@ -79,29 +79,29 @@ As documented in the manuscript acknowledgements, this repository was built over
 
 ## Manuscript Stokes experiments
 
-The revised manuscript pairs two contrasting steady Stokes experiments under the same linear viscosity ($`\eta = 2.5\times 10^8\ \mathrm{Pa\,yr}`$), density ($`\rho = 917\ \mathrm{kg\,m^{-3}}`$), and passive linear sliding law ($`C = 10^{-5}\ \mathrm{m\,yr^{-1}\,Pa^{-1}}`$).
+The revised manuscript pairs two contrasting steady Stokes experiments under both linear-viscous rheology ($`\eta = 2.5\times 10^8\ \mathrm{Pa\,yr}`$) and isotropic nonlinear Glen rheology ($`n = 3`$, $`A_{\mathrm{G}} = 6.8\times 10^{-26}\ \mathrm{Pa^{-3}\,s^{-1}}`$ at $`-25^{\circ}\mathrm{C}`$), with ice density $`\rho = 917\ \mathrm{kg\,m^{-3}}`$ and linear basal sliding ($`C = 10^{-5}\ \mathrm{m\,yr^{-1}\,Pa^{-1}}`$).
 
 ### 1. Convergent point-margin flow (idealized nunatak analogue)
 
-An idealized 2 km domain thickens smoothly from a true zero-thickness grounded point margin ($`H(0) = 0`$, zero left boundary facet or flux) to 360 m at the right inlet, where a reduced linear-viscous SIA inflow (1% of reference flux, $`w = 0`$) converges against rightward surface-slope-driven flow near the wedge tip beneath a traction-free surface.
+An idealized 2 km domain thickens smoothly from a true zero-thickness grounded point margin ($`H(0) = 0`$, zero left boundary facet or flux) to 360 m at the right inlet, where a reduced SIA-plus-sliding inflow (1% of reference flux, $`w = 0`$) converges against rightward surface-slope-driven flow near the wedge tip beneath a traction-free surface.
 
-- **Overturning without recirculation:** All trajectories are open, rising and exiting through the surface. Horizontal incoming lines reach a mesh-converged minimum $`J_{\min} = -0.1936`$ (varying from −0.1946 to −0.1934 across 30, 20, and 13 m meshes, and converging monotonically as positive-thickness left truncations shrink from 20 m to 2.5 m). Restricting sources to $`\sigma_0 \ge 0.05`$ still gives $`J_{\min} = -0.0574`$; moving the source plane 20 m inside the inlet gives $`J_{\min} = -0.1769`$.
-- **Fold evolution:** A 30 m horizontal near-bed segment ($`\sigma_0 = 0.049`$) forms an S-shaped fold whose endpoint crosses $`J = 0`$ at 130.2 kyr and reaches $`J = -0.072`$ at 136.2 kyr.
-- **Boundary-closure sensitivity:** Replacing the traction-free surface with prescribed uniform steady ablation on the exact same geometry eliminates overturning ($`J_{\min} = 0.3075`$), showing that surface/lateral mass-flux closure—not margin geometry alone—controls counterflow overturning.
+- **Overturning without recirculation:** All trajectories are open, rising and exiting through the surface. Horizontal incoming lines reach mesh-converged minima of $`J_{\min} = -0.1936`$ for linear-viscous ice and $`J_{\min} = -0.2916`$ for nonlinear Glen ($`n = 3`$) ice across 30, 20, and 13 m meshes, converging monotonically as positive-thickness left truncations shrink from 20 m to 2.5 m. Restricting sources to $`\sigma_0 \ge 0.05`$ still gives $`J_{\min} = -0.0574`$ (linear) and $`-0.1728`$ (Glen).
+- **Fold evolution:** A 30 m horizontal near-bed segment ($`\sigma_0 = 0.049`$) forms an S-shaped fold whose endpoint crosses $`J = 0`$ at 130.2 kyr and reaches $`J = -0.072`$ at 136.2 kyr in linear ice, and crosses $`J = 0`$ at 146.3 kyr and reaches $`J = -0.186`$ at 154.5 kyr in Glen ($`n = 3`$) ice.
+- **Boundary-closure sensitivity:** Replacing the traction-free surface with prescribed uniform steady ablation on the exact same geometry eliminates overturning under both rheologies ($`J_{\min} = 0.3075`$ linear; $`0.3071`$ Glen), showing that surface/lateral mass-flux closure—not margin geometry alone—controls counterflow overturning.
 
 ![Steady reversal of an incoming material line in a convergent point-margin flow](figures/allan_hills_nunatak_margin.png)
-*Figure 4 of the manuscript: geometry, velocity fields and open trajectories, inlet-parameter map of minimum $`J = T_x`$, and S-shaped fold evolution in the convergent point-margin flow ([report](notebooks/allan_hills_nunatak_margin_report.md), [convergence](figures/allan_hills_nunatak_margin_convergence.png)).*
+*Figure 4 of the manuscript (linear-viscous; see also Figure 5, [`allan_hills_nunatak_margin_glen.png`](figures/allan_hills_nunatak_margin_glen.png), for nonlinear Glen $`n=3`$): geometry, velocity fields and open trajectories, inlet-parameter map of minimum $`J = T_x`$, and S-shaped fold evolution in the convergent point-margin flow ([linear report](notebooks/allan_hills_nunatak_margin_report.md), [Glen report](notebooks/allan_hills_nunatak_margin_glen_report.md)).*
 
-### 2. Periodic sinusoidal-bed control (750 resolved runs)
+### 2. Periodic sinusoidal-bed control (750 linear and 745 Glen resolved runs)
 
 A single periodic cell with flat upper surface, bed $`b(x) = -H + A\cos(2\pi x/\lambda)`$, and 0.05 rad mean slope tests whether smooth, finite-amplitude bed roughness generically overturns surface-deposited stratigraphy across five mean thicknesses ($`H \in \{50, 100, 160, 240, 320\}\ \mathrm{m}`$), 13 amplitudes ($`A/H = 0\text{–}0.85`$), and 16 wavelengths ($`\lambda/H = 1/12\text{–}12`$).
 
-- **Universal order preservation across the resolved map:** All **750 resolved numerical cells** and **80 analytical flat-bed limits** remain ordered. The global minimum is $`J_{\min} = 0.6428`$ (raw-to-exit minimum 0.4428) at $`H = 50\ \mathrm{m}`$, $`A/H = 0.85`$, $`\lambda/H = 3`$, with peak distortion at intermediate coupling wavelengths ($`\lambda/H \approx 2\text{–}4`$) and recovery toward $`J = 1`$ in both short-wave screened and long-wave lubrication limits.
-- **Explicit numerical-reach boundary:** 210 short-wave cells where the surface signal falls below 10× RMS basal normal leakage are explicitly left unclassified (dotted region) rather than interpreted.
-- **No counterflow folding:** Small Eulerian reverse-flow pockets appear in 160 cells (peak speed ≈ 1.8% of maximum), yet no retained surface-deposition characteristic ever reverses horizontal direction.
+- **Universal order preservation across both sweeps:** All **750 resolved linear-viscous cells**, **745 resolved nonlinear Glen ($`n=3`$) cells**, and **80 analytical flat-bed limits** per sweep remain ordered. The global minimum is $`J_{\min} = 0.6428`$ (raw-to-exit 0.4428) at $`H = 50\ \mathrm{m}`$, $`A/H = 0.85`$, $`\lambda/H = 3`$ for linear ice, and $`J_{\min} = 0.3686`$ (raw-to-exit 0.2562) at $`H = 50\ \mathrm{m}`$, $`A/H = 0.85`$, $`\lambda/H = 4`$ for Glen ($`n=3`$) ice across $`\beta H/\eta_{\mathrm{G}} = 0.011\text{–}2.84`$.
+- **Explicit numerical-reach boundary:** Short-wave cells where the surface signal falls below 10× RMS basal normal leakage (210 linear, 215 Glen) are explicitly left unclassified (dotted region) rather than interpreted.
+- **No counterflow folding:** Small Eulerian reverse-flow pockets appear in 160 linear and 156 Glen cells, yet no retained surface-deposition characteristic ever reverses horizontal direction.
 
 ![Steady isochrone order over periodic sinusoidal beds](figures/steady_characteristic_sinusoidal_parameter_map.png)
-*Figure 5 of the manuscript: minimum steady-characteristic order metric $`J = T_x`$ across 1,040 grid cells (750 resolved Stokes solves, 80 flat-bed limits, 210 leakage-screened cells) ([report](notebooks/steady_characteristic_sinusoidal_parameter_map.md), [validation](notebooks/steady_characteristic_sinusoidal_validation.md)).*
+*Figure 6 of the manuscript (linear-viscous; see also Figure 7, [`steady_characteristic_sinusoidal_glen_parameter_map.png`](figures/steady_characteristic_sinusoidal_glen_parameter_map.png), for nonlinear Glen $`n=3`$): minimum steady-characteristic order metric $`J = T_x`$ across 1,040 grid cells ([linear report](notebooks/steady_characteristic_sinusoidal_parameter_map.md), [Glen report](notebooks/steady_characteristic_sinusoidal_glen_parameter_map.md)).*
 
 ---
 
@@ -152,7 +152,7 @@ Rather than claiming that steady flow explains Allan Hills stratigraphy, the ana
 ├── Dockerfile                    # Reproducible Firedrake (2025-01) + Icepack + notebook environment
 ├── AGENTS.md                     # Minimalist, first-principles modeling and verification conventions
 ├── latex/
-│   ├── manuscript.tex / .pdf     # Revised Journal of Glaciology manuscript (39 pp.)
+│   ├── manuscript.tex / .pdf     # Revised Journal of Glaciology manuscript (41 pp.)
 │   ├── main_v0.tex / .pdf        # Frozen original submission (1 September 2026)
 │   ├── main_v1.tex / .pdf        # Mirror of revised submission
 │   ├── main_diff.pdf             # latexdiff tracked changes vs. main_v0
@@ -188,14 +188,19 @@ source /home/firedrake/firedrake/bin/activate
 Run the manuscript experiments or quick smoke checks from `/workspace`:
 
 ```bash
-# Convergent point-margin experiment and convergence/truncation suite (Figure 4 & Figure S1)
+# Convergent point-margin experiment and convergence/truncation suite (linear & Glen n=3)
 python notebooks/allan_hills_nunatak_margin.py
 python notebooks/allan_hills_nunatak_validation.py
+python notebooks/allan_hills_nunatak_margin.py --rheology glen
+python notebooks/allan_hills_nunatak_validation.py --rheology glen
 
-# Periodic sinusoidal-bed quick smoke test, full parallel sweep (Figure 5), and validation audit
+# Periodic sinusoidal-bed quick smoke test, full parallel sweep, and validation audit (linear & Glen n=3)
 python notebooks/steady_characteristic_sinusoidal_parameter_map.py --smoke-grid
 python notebooks/steady_characteristic_sinusoidal_parameter_sweep.py --jobs 4
 python notebooks/steady_characteristic_sinusoidal_validation.py
+python notebooks/steady_characteristic_sinusoidal_parameter_sweep.py --rheology glen --jobs 4
+python notebooks/steady_characteristic_sinusoidal_validation.py --rheology glen
+python notebooks/plot_steady_characteristic_sinusoidal_parameter_map.py --rheology glen
 ```
 
 ### Manuscript PDF

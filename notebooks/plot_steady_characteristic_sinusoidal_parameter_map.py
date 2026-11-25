@@ -42,6 +42,39 @@ METHOD_COLUMN = "diagnostic method version"
 EXPECTED_METHOD_VERSION = (
     "sinusoidal-steady-v2-exact-surface-ablation-only-buffer"
 )
+EXPECTED_GLEN_METHOD_VERSION = (
+    "sinusoidal-steady-glen-n3-v2-exact-surface-ablation-only-buffer"
+)
+SECONDS_PER_YEAR = 365.25 * 86400.0
+GLEN_FLUIDITY = 6.8e-26 * SECONDS_PER_YEAR
+DENSITY = 917.0
+GRAVITY = 9.81
+SURFACE_SLOPE = 0.05
+BASAL_DRAG = 1.0e5
+
+
+def expected_method_for_rheology(rheology: str = "linear") -> str:
+    return (
+        EXPECTED_METHOD_VERSION
+        if rheology == "linear"
+        else EXPECTED_GLEN_METHOD_VERSION
+    )
+
+
+def sliding_thickness_ratio(
+    table, mean_thickness: float, rheology: str = "linear"
+) -> float:
+    column = "sliding thickness ratio beta H / eta"
+    subset = table[np.isclose(table[H_COLUMN], mean_thickness)]
+    if column in subset.columns and subset[column].notna().any():
+        return float(subset[column].dropna().iloc[0])
+    if rheology == "linear":
+        return float(mean_thickness) / 2500.0
+    driving_stress = (
+        DENSITY * GRAVITY * float(mean_thickness) * np.sin(SURFACE_SLOPE)
+    )
+    eta_g = 0.5 / (GLEN_FLUIDITY * driving_stress**2)
+    return float(BASAL_DRAG * float(mean_thickness) / eta_g)
 
 EXPECTED_THICKNESSES = np.array((50.0, 100.0, 160.0, 240.0, 320.0))
 EXPECTED_AMPLITUDE_RATIOS = np.array(
@@ -112,8 +145,9 @@ def canonicalize_grid_coordinate(values, reference, tolerance=1.0e-10):
     return result
 
 
-def load_table(path):
+def load_table(path, rheology="linear"):
     """Load, type-check, and de-duplicate restartable sweep output."""
+    expected_method = expected_method_for_rheology(rheology)
     table = pd.read_csv(path)
     required = {
         H_COLUMN,
@@ -126,12 +160,12 @@ def load_table(path):
     missing = sorted(required.difference(table.columns))
     if missing:
         raise ValueError(f"{path} lacks required columns: {missing}")
-    current_method = table[METHOD_COLUMN].eq(EXPECTED_METHOD_VERSION)
+    current_method = table[METHOD_COLUMN].eq(expected_method)
     if not bool(current_method.all()):
         counts = table[METHOD_COLUMN].fillna("<missing>").value_counts()
         raise ValueError(
             f"{path} mixes or lacks diagnostic method versions; expected "
-            f"{EXPECTED_METHOD_VERSION!r} in every row, found "
+            f"{expected_method!r} in every row, found "
             f"{counts.to_dict()}"
         )
     for column in (H_COLUMN, EPSILON_COLUMN, WAVELENGTH_COLUMN, MINIMUM_COLUMN):
@@ -417,7 +451,7 @@ def status_legend(table):
     return handles
 
 
-def save_main_figure(table, path):
+def save_main_figure(table, path, rheology="linear"):
     """Save the geometry plus five fixed-H heat maps."""
     figure, axes = plt.subplots(
         2,
@@ -434,15 +468,19 @@ def save_main_figure(table, path):
     for letter, mean_thickness, axis in zip(
         "BCDEF", EXPECTED_THICKNESSES, map_axes
     ):
-        delta = mean_thickness / 2500.0
+        delta = sliding_thickness_ratio(
+            table, mean_thickness, rheology=rheology
+        )
+        if rheology == "linear":
+            ratio_label = rf"$\beta H/\eta={delta:.3f}$"
+        else:
+            delta_str = f"{delta:.3f}" if delta < 1.0 else f"{delta:.2f}"
+            ratio_label = rf"$\beta H/\eta_{{\mathrm{{G}}}}={delta_str}$"
         image = draw_heatmap(
             axis,
             table,
             mean_thickness,
-            panel_title=(
-                rf"{letter}   $H={mean_thickness:g}$ m; "
-                rf"$\beta H/\eta={delta:.3f}$"
-            ),
+            panel_title=rf"{letter}   $H={mean_thickness:g}$ m; {ratio_label}",
         )
         if image is not None:
             images.append(image)
@@ -529,8 +567,11 @@ def nearest_values(values, targets):
     return chosen
 
 
-def _wavelength_audit_values(validation_table, mean_thickness, amplitude):
+def _wavelength_audit_values(
+    validation_table, mean_thickness, amplitude, rheology="linear"
+):
     """Return distinct short/long extensions, never production-grid cells."""
+    expected_method = expected_method_for_rheology(rheology)
     empty = pd.DataFrame(columns=(WAVELENGTH_COLUMN, MINIMUM_COLUMN))
     if validation_table is None or validation_table.empty:
         return empty
@@ -552,7 +593,7 @@ def _wavelength_audit_values(validation_table, mean_thickness, amplitude):
         audit["scenario"].isin(
             ("short-wave extension", "long-wave extension")
         )
-        & audit[METHOD_COLUMN].eq(EXPECTED_METHOD_VERSION)
+        & audit[METHOD_COLUMN].eq(expected_method)
         & audit[STATUS_COLUMN].map(resolved_status)
         & np.isclose(audit[H_COLUMN], mean_thickness)
         & np.isclose(audit[EPSILON_COLUMN], amplitude)
@@ -562,9 +603,10 @@ def _wavelength_audit_values(validation_table, mean_thickness, amplitude):
 
 
 def _thin_neck_audit_values(
-    validation_table, mean_thickness, wavelength_ratio
+    validation_table, mean_thickness, wavelength_ratio, rheology="linear"
 ):
     """Return the two primary A/H>0.85 extensions on one fixed slice."""
+    expected_method = expected_method_for_rheology(rheology)
     empty = pd.DataFrame(columns=(EPSILON_COLUMN, MINIMUM_COLUMN))
     if validation_table is None or validation_table.empty:
         return empty
@@ -589,7 +631,7 @@ def _thin_neck_audit_values(
                 "thin-neck extension A/H=0.95",
             )
         )
-        & audit[METHOD_COLUMN].eq(EXPECTED_METHOD_VERSION)
+        & audit[METHOD_COLUMN].eq(expected_method)
         & audit[STATUS_COLUMN].map(resolved_status)
         & np.isclose(audit[H_COLUMN], mean_thickness)
         & np.isclose(audit[WAVELENGTH_COLUMN], wavelength_ratio)
@@ -645,7 +687,8 @@ def _line_data(table, mean_thickness, amplitude=None, wavelength=None):
 
 
 def draw_wavelength_section(axis, table, mean_thickness, selected_amplitude,
-                            selected_wavelength, validation_table=None):
+                            selected_wavelength, validation_table=None,
+                            rheology="linear"):
     """Show short/intermediate/long wavelength behavior at fixed H."""
     available = np.sort(
         table.loc[np.isclose(table[H_COLUMN], mean_thickness), EPSILON_COLUMN]
@@ -694,7 +737,7 @@ def draw_wavelength_section(axis, table, mean_thickness, selected_amplitude,
         )
 
     audit_values = _wavelength_audit_values(
-        validation_table, mean_thickness, amplitude=0.65
+        validation_table, mean_thickness, amplitude=0.65, rheology=rheology
     )
     if len(audit_values) and any(np.isclose(amplitudes, 0.65)):
         audit_color = amplitude_colors[
@@ -825,7 +868,8 @@ def draw_wavelength_section(axis, table, mean_thickness, selected_amplitude,
 
 
 def draw_amplitude_section(axis, table, selected_thickness,
-                           selected_wavelength, validation_table=None):
+                           selected_wavelength, validation_table=None,
+                           rheology="linear"):
     """Show the regular flat-bed and singular thin-neck directions."""
     thicknesses = np.sort(table[H_COLUMN].dropna().unique())
     colors = plt.get_cmap("plasma")(np.linspace(0.10, 0.82, len(thicknesses)))
@@ -851,7 +895,10 @@ def draw_amplitude_section(axis, table, selected_thickness,
     axis.axvspan(EXPECTED_AMPLITUDE_RATIOS[-1], 1.0,
                  color=COLORS["missing"], zorder=-2)
     thin_neck_audits = _thin_neck_audit_values(
-        validation_table, selected_thickness, selected_wavelength
+        validation_table,
+        selected_thickness,
+        selected_wavelength,
+        rheology=rheology,
     )
     if len(thin_neck_audits):
         selected_production = _line_data(
@@ -1043,7 +1090,7 @@ def draw_flow_diagnostics(axis, table, mean_thickness, amplitude):
     )
 
 
-def save_limits_figure(table, path, validation_table=None):
+def save_limits_figure(table, path, validation_table=None, rheology="linear"):
     """Save central-H map sections and dynamical/asymptotic diagnostics."""
     mean_thickness, amplitude, wavelength, minimum = select_sections(table)
     figure, axes = plt.subplots(
@@ -1054,13 +1101,21 @@ def save_limits_figure(table, path, validation_table=None):
     )
     map_axis, wavelength_axis, amplitude_axis, dynamics_axis = axes.flat
 
+    delta = sliding_thickness_ratio(
+        table, mean_thickness, rheology=rheology
+    )
+    if rheology == "linear":
+        ratio_text = rf"$\beta H/\eta={delta:.3f}$"
+    else:
+        delta_str = f"{delta:.3f}" if delta < 1.0 else f"{delta:.2f}"
+        ratio_text = rf"$\beta H/\eta_{{\mathrm{{G}}}}={delta_str}$"
     image = draw_heatmap(
         map_axis,
         table,
         mean_thickness,
         panel_title=(
             rf"A   Selected map, $H={mean_thickness:g}$ m "
-            rf"($\beta H/\eta={mean_thickness / 2500.0:.3f}$)"
+            rf"({ratio_text})"
         ),
     )
     map_axis.set_xlabel(r"Wavelength, $\lambda/H$")
@@ -1122,6 +1177,7 @@ def save_limits_figure(table, path, validation_table=None):
         amplitude,
         wavelength,
         validation_table=validation_table,
+        rheology=rheology,
     )
     wavelength_axis.set_title(
         rf"B   Wavelength sections at $H={mean_thickness:g}$ m",
@@ -1133,6 +1189,7 @@ def save_limits_figure(table, path, validation_table=None):
         mean_thickness,
         wavelength,
         validation_table=validation_table,
+        rheology=rheology,
     )
     amplitude_axis.set_title(
         rf"C   Amplitude section at $\lambda/H={wavelength:g}$",
@@ -1160,32 +1217,29 @@ def parse_arguments():
     repository = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--rheology",
+        choices=("linear", "glen"),
+        default="linear",
+    )
+    parser.add_argument(
         "--csv",
         type=Path,
-        default=repository
-        / "data"
-        / "steady_characteristic_sinusoidal_parameter_map.csv",
+        default=None,
     )
     parser.add_argument(
         "--main-figure",
         type=Path,
-        default=repository
-        / "figures"
-        / "steady_characteristic_sinusoidal_parameter_map.png",
+        default=None,
     )
     parser.add_argument(
         "--limits-figure",
         type=Path,
-        default=repository
-        / "figures"
-        / "steady_characteristic_sinusoidal_limits.png",
+        default=None,
     )
     parser.add_argument(
         "--validation-csv",
         type=Path,
-        default=repository
-        / "data"
-        / "steady_characteristic_sinusoidal_validation.csv",
+        default=None,
         help=(
             "Optional regime-audit table; if present, lambda/H=0.5 and 24 "
             "are plotted as distinct open audit markers."
@@ -1196,20 +1250,47 @@ def parse_arguments():
         action="store_true",
         help="Plot available cells while a restartable production sweep is running.",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    suffix = "" if args.rheology == "linear" else f"_{args.rheology}"
+    if args.csv is None:
+        args.csv = (
+            repository
+            / "data"
+            / f"steady_characteristic_sinusoidal{suffix}_parameter_map.csv"
+        )
+    if args.main_figure is None:
+        args.main_figure = (
+            repository
+            / "figures"
+            / f"steady_characteristic_sinusoidal{suffix}_parameter_map.png"
+        )
+    if args.limits_figure is None:
+        args.limits_figure = (
+            repository
+            / "figures"
+            / f"steady_characteristic_sinusoidal{suffix}_limits.png"
+        )
+    if args.validation_csv is None:
+        args.validation_csv = (
+            repository
+            / "data"
+            / f"steady_characteristic_sinusoidal{suffix}_validation.csv"
+        )
+    return args
 
 
 def main():
     args = parse_arguments()
+    expected_method = expected_method_for_rheology(args.rheology)
     configure_matplotlib()
-    table = load_table(args.csv)
+    table = load_table(args.csv, rheology=args.rheology)
     problems = check_completeness(table)
     if problems and not args.allow_incomplete:
         raise RuntimeError(
             "; ".join(problems)
             + ". Rerun after the sweep finishes, or pass --allow-incomplete."
         )
-    save_main_figure(table, args.main_figure)
+    save_main_figure(table, args.main_figure, rheology=args.rheology)
     validation_table = None
     if args.validation_csv.exists():
         validation_table = pd.read_csv(args.validation_csv)
@@ -1218,7 +1299,7 @@ def main():
                 f"{args.validation_csv} lacks {METHOD_COLUMN!r}"
             )
         if not bool(
-            validation_table[METHOD_COLUMN].eq(EXPECTED_METHOD_VERSION).all()
+            validation_table[METHOD_COLUMN].eq(expected_method).all()
         ):
             raise ValueError(
                 f"{args.validation_csv} contains a stale diagnostic method"
@@ -1227,6 +1308,7 @@ def main():
         table,
         args.limits_figure,
         validation_table=validation_table,
+        rheology=args.rheology,
     )
     print(f"Wrote {args.main_figure}")
     print(f"Wrote {args.main_figure.with_suffix('.pdf')}")

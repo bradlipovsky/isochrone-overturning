@@ -23,6 +23,7 @@ from steady_characteristic_sinusoidal_parameter_map import (
     DIAGNOSTIC_METHOD_VERSION,
     START_DEPTH,
     SinusoidalGeometry,
+    diagnostic_method_version_for_rheology,
     solve_parameter_case,
 )
 from steady_characteristic_sinusoidal_parameter_sweep import (
@@ -99,8 +100,9 @@ def _geometry(mean_thickness, amplitude_ratio, wavelength_ratio, phase=0.0):
     )
 
 
-def select_focus_geometry(production_table):
+def select_focus_geometry(production_table, rheology="linear"):
     """Return the lowest-J uncensored production geometry."""
+    method_version = diagnostic_method_version_for_rheology(rheology)
     production = pd.read_csv(production_table)
     required = {
         "diagnostic method version",
@@ -121,14 +123,12 @@ def select_focus_geometry(production_table):
         * len(WAVELENGTH_RATIOS)
     )
     current = production.loc[
-        production["diagnostic method version"].eq(
-            DIAGNOSTIC_METHOD_VERSION
-        )
+        production["diagnostic method version"].eq(method_version)
     ]
     if len(current) != expected_count:
         raise ValueError(
             "production sweep is incomplete for diagnostic method "
-            f"{DIAGNOSTIC_METHOD_VERSION!r}: found {len(current)} of "
+            f"{method_version!r}: found {len(current)} of "
             f"{expected_count} rows"
         )
     successful = current.loc[
@@ -378,7 +378,7 @@ def annotate_result(result, specification, origin):
     return result
 
 
-def solve_scenario(specification):
+def solve_scenario(specification, rheology="linear"):
     phase = specification["phase fraction"]
     geometry = _geometry(
         specification["H"],
@@ -402,12 +402,14 @@ def solve_scenario(specification):
         ),
         time_step=float(specification["time_step"]),
         maximum_age=float(specification["maximum_age"]),
+        rheology=rheology,
     )
     return annotate_result(result, specification, "independent audit solve")
 
 
-def matching_production_result(production, specification):
+def matching_production_result(production, specification, rheology="linear"):
     """Reuse exact production calculations for unmodified regime references."""
+    method_version = diagnostic_method_version_for_rheology(rheology)
     geometry = _geometry(
         specification["H"],
         specification["A/H"],
@@ -432,9 +434,7 @@ def matching_production_result(production, specification):
         "characteristic time step (yr)": specification["time_step"],
         "safety maximum age (yr)": specification["maximum_age"],
     }
-    mask = production["diagnostic method version"].eq(
-        DIAGNOSTIC_METHOD_VERSION
-    )
+    mask = production["diagnostic method version"].eq(method_version)
     for column, value in requested.items():
         values = pd.to_numeric(production[column], errors="coerce")
         if column in (
@@ -510,8 +510,9 @@ def add_reference_differences(table):
     return table
 
 
-def run(production_table, output):
-    focus = select_focus_geometry(production_table)
+def run(production_table, output, rheology="linear"):
+    method_version = diagnostic_method_version_for_rheology(rheology)
+    focus = select_focus_geometry(production_table, rheology=rheology)
     production = pd.read_csv(production_table)
     specifications = scenario_table(focus)
     existing = {}
@@ -551,7 +552,7 @@ def run(production_table, output):
             specification["phase fraction"],
         )
         prospective = {
-            "diagnostic method version": DIAGNOSTIC_METHOD_VERSION,
+            "diagnostic method version": method_version,
             "scenario": specification["scenario"],
             "audit family": specification["audit family"],
             "mean ice thickness (m)": geometry.mean_thickness,
@@ -579,7 +580,9 @@ def run(production_table, output):
             result = existing[key]
             action = "reused"
         else:
-            result = matching_production_result(production, specification)
+            result = matching_production_result(
+                production, specification, rheology=rheology
+            )
             if result is not None:
                 action = "reused exact production row"
             else:
@@ -588,7 +591,7 @@ def run(production_table, output):
                     f"{specification['scenario']}",
                     flush=True,
                 )
-                result = solve_scenario(specification)
+                result = solve_scenario(specification, rheology=rheology)
                 action = "solved"
         rows.append(result)
         checkpoint = add_reference_differences(pd.DataFrame(rows))
@@ -607,26 +610,45 @@ def parse_arguments():
     repository = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--rheology",
+        choices=("linear", "glen"),
+        default="linear",
+    )
+    parser.add_argument(
         "--production-table",
         type=Path,
-        default=repository
-        / "data"
-        / "steady_characteristic_sinusoidal_parameter_map.csv",
+        default=None,
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=repository
-        / "data"
-        / "steady_characteristic_sinusoidal_validation.csv",
+        default=None,
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    suffix = "" if args.rheology == "linear" else f"_{args.rheology}"
+    if args.production_table is None:
+        args.production_table = (
+            repository
+            / "data"
+            / f"steady_characteristic_sinusoidal{suffix}_parameter_map.csv"
+        )
+    if args.output is None:
+        args.output = (
+            repository
+            / "data"
+            / f"steady_characteristic_sinusoidal{suffix}_validation.csv"
+        )
+    return args
 
 
 def main():
     arguments = parse_arguments()
     arguments.output.parent.mkdir(parents=True, exist_ok=True)
-    table = run(arguments.production_table, arguments.output)
+    table = run(
+        arguments.production_table,
+        arguments.output,
+        rheology=arguments.rheology,
+    )
     print(
         table[
             [

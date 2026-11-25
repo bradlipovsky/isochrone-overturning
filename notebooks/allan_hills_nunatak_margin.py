@@ -32,6 +32,8 @@ from matplotlib.patches import Rectangle
 import numpy as np
 import pandas as pd
 
+_trapezoid = getattr(np, "trapezoid", getattr(np, "trapz", None))
+
 try:
     import firedrake as fd
     import gmsh
@@ -55,6 +57,12 @@ DEFAULT_CHARACTERISTIC_RESOLUTION = 20.0
 DEFAULT_TIP_RESOLUTION = 4.0
 DEFAULT_DIAGNOSTIC_THICKNESS_CUTOFF = 25.0
 
+SECONDS_PER_YEAR = 365.25 * 86400.0
+GLEN_EXPONENT = 3.0
+GLEN_FLUIDITY_PA_S = 6.8e-26  # Pa^-3 s^-1; Cuffey & Paterson (2010), T = -25 C
+GLEN_FLUIDITY = GLEN_FLUIDITY_PA_S * SECONDS_PER_YEAR  # Pa^-3 yr^-1
+GLEN_STRAIN_RATE_REG = 1.0e-10  # yr^-1
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIRECTORY = ROOT / "data"
 FIGURE_DIRECTORY = ROOT / "figures"
@@ -74,6 +82,7 @@ class MarginConfiguration:
     inflow_fraction: float = DEFAULT_INFLOW_FRACTION
     store_history: bool = False
     surface_mode: str = "traction_free"
+    rheology: str = "linear"
 
 
 def require_environment():
@@ -227,20 +236,89 @@ def make_margin_mesh(configuration: MarginConfiguration):
     return fd.Mesh(coordinates), x_left
 
 
+def glen_sia_flux(
+    thickness: float,
+    slope: float,
+    fluidity: float = GLEN_FLUIDITY,
+    exponent: float = GLEN_EXPONENT,
+) -> float:
+    """Depth-integrated horizontal flux of an isotropic Glen slab with linear slip."""
+    drive = core.DENSITY * core.GRAVITY * slope
+    drive_abs = abs(drive)
+    return float(
+        -drive * thickness**2 / core.BASAL_DRAG
+        - (2.0 * fluidity / (exponent + 2.0))
+        * drive_abs ** (exponent - 1.0)
+        * drive
+        * thickness ** (exponent + 2.0)
+    )
+
+
+def _glen_sia_profile_ufl(
+    y,
+    thickness: float,
+    slope: float,
+    fluidity: float,
+    exponent: float,
+):
+    drive = core.DENSITY * core.GRAVITY * slope
+    drive_abs = abs(drive)
+    return -drive * thickness / core.BASAL_DRAG - (
+        2.0
+        * fluidity
+        / (exponent + 1.0)
+        * drive_abs ** (exponent - 1.0)
+        * drive
+        * (thickness ** (exponent + 1.0) - (thickness - y) ** (exponent + 1.0))
+    )
+
+
+def _reference_inflow_flux(rheology: str) -> float:
+    if rheology == "linear":
+        return core.REFERENCE_INFLOW_FLUX
+    if rheology == "glen":
+        return glen_sia_flux(RIGHT_THICKNESS, core.RIGHT_SURFACE_SLOPE)
+    raise ValueError(f"unknown rheology {rheology!r}")
+
+
 def _right_inflow_horizontal(mesh, configuration):
-    """Same linear-viscous SIA profile as the finite-cut experiment."""
+    """SIA-plus-slip horizontal inflow profile matching the active rheology."""
     _, z = fd.SpatialCoordinate(mesh)
     h_right = RIGHT_THICKNESS
     b_right = float(bed_elevation(LENGTH))
     y = z - b_right
-    drive = core.DENSITY * core.GRAVITY * core.RIGHT_SURFACE_SLOPE
-    raw_u = -drive * (
-        h_right / core.BASAL_DRAG
-        + (h_right * y - 0.5 * y**2) / core.VISCOSITY
+    if configuration.rheology == "linear":
+        drive = core.DENSITY * core.GRAVITY * core.RIGHT_SURFACE_SLOPE
+        raw_u = -drive * (
+            h_right / core.BASAL_DRAG
+            + (h_right * y - 0.5 * y**2) / core.VISCOSITY
+        )
+        raw_flux = core.raw_sia_flux(h_right, core.RIGHT_SURFACE_SLOPE)
+        target_flux = configuration.inflow_fraction * core.REFERENCE_INFLOW_FLUX
+        return target_flux / raw_flux * raw_u
+    if configuration.rheology == "glen":
+        raw_u = _glen_sia_profile_ufl(
+            y, h_right, core.RIGHT_SURFACE_SLOPE, GLEN_FLUIDITY, GLEN_EXPONENT
+        )
+        raw_flux = glen_sia_flux(h_right, core.RIGHT_SURFACE_SLOPE)
+        target_flux = configuration.inflow_fraction * raw_flux
+        return target_flux / raw_flux * raw_u
+    raise ValueError(f"unknown rheology {configuration.rheology!r}")
+
+
+def _cofunction_norm(form, bcs=None) -> float:
+    assembled = fd.assemble(form)
+    if bcs:
+        for bc in bcs:
+            bc.zero(assembled)
+    return float(
+        np.sqrt(
+            sum(
+                np.dot(part.ravel(), part.ravel())
+                for part in assembled.dat.data_ro
+            )
+        )
     )
-    raw_flux = core.raw_sia_flux(h_right, core.RIGHT_SURFACE_SLOPE)
-    target_flux = configuration.inflow_fraction * core.REFERENCE_INFLOW_FLUX
-    return target_flux / raw_flux * raw_u
 
 
 def _cell_diameter_field(mesh):
@@ -260,7 +338,7 @@ def _cell_diameter_field(mesh):
 
 
 def solve_stokes(configuration: MarginConfiguration):
-    """Solve the point-margin or truncated-margin full-Stokes problem."""
+    """Solve the point-margin or truncated-margin Stokes problem."""
     mesh, x_left = make_margin_mesh(configuration)
     velocity_space = fd.VectorFunctionSpace(mesh, "CG", 2)
     pressure_space = fd.FunctionSpace(mesh, "CG", 1)
@@ -269,45 +347,23 @@ def solve_stokes(configuration: MarginConfiguration):
     u, p = fd.split(solution)
     v, q = fd.TestFunctions(mixed_space)
     body_force = fd.Constant((0.0, -core.DENSITY * core.GRAVITY))
-    stress = 2.0 * core.VISCOSITY * fd.sym(fd.grad(u)) - p * fd.Identity(2)
-    test_stress = (
-        2.0 * core.VISCOSITY * fd.sym(fd.grad(v)) - q * fd.Identity(2)
-    )
-    residual = (
-        2.0
-        * core.VISCOSITY
-        * fd.inner(fd.sym(fd.grad(u)), fd.sym(fd.grad(v)))
-        - p * fd.div(v)
-        - q * fd.div(u)
-        - fd.dot(body_force, v)
-    ) * fd.dx
-
     normal = fd.FacetNormal(mesh)
     tangent = fd.as_vector((-normal[1], normal[0]))
     normal_speed = fd.dot(u, normal)
     test_normal_speed = fd.dot(v, normal)
     cell_diameter = _cell_diameter_field(mesh)
-    residual += (
-        core.BASAL_DRAG * fd.dot(u, tangent) * fd.dot(v, tangent)
-        - fd.dot(stress * normal, normal) * test_normal_speed
-        - fd.dot(test_stress * normal, normal) * normal_speed
-        + core.NITSCHE_PENALTY
-        * core.VISCOSITY
-        / cell_diameter
-        * normal_speed
-        * test_normal_speed
-    ) * fd.ds(3)
+    reference_flux = _reference_inflow_flux(configuration.rheology)
+    target_flux = configuration.inflow_fraction * reference_flux
 
     prescribed_surface_balance = np.nan
+    target_surface_normal_speed = None
     if configuration.surface_mode == "uniform_ablation":
         # For a fixed surface, a_s = u*s_x-w and therefore
         # u.n = -a_s/sqrt(1+s_x^2).  Choose uniform a_s so that its
         # integrated outward flux exactly balances the right influx.  The
         # normal velocity is imposed weakly while tangential traction remains
         # natural (zero).
-        prescribed_surface_balance = (
-            configuration.inflow_fraction * core.REFERENCE_INFLOW_FLUX
-        ) / LENGTH
+        prescribed_surface_balance = target_flux / LENGTH
         x_coordinate = fd.SpatialCoordinate(mesh)[0]
         midpoint = 0.5 * (
             core.LEFT_SURFACE_SLOPE + core.RIGHT_SURFACE_SLOPE
@@ -322,37 +378,222 @@ def solve_stokes(configuration: MarginConfiguration):
         target_surface_normal_speed = -fd.Constant(
             prescribed_surface_balance
         ) / fd.sqrt(1.0 + surface_slope_ufl**2)
-        normal_mismatch = normal_speed - target_surface_normal_speed
-        residual += (
-            -fd.dot(stress * normal, normal) * test_normal_speed
-            - fd.dot(test_stress * normal, normal) * normal_mismatch
-            + core.NITSCHE_PENALTY
-            * core.VISCOSITY
-            / cell_diameter
-            * normal_mismatch
-            * test_normal_speed
-        ) * fd.ds(4)
     elif configuration.surface_mode != "traction_free":
         raise ValueError(
             f"unknown surface mode {configuration.surface_mode!r}"
         )
 
-    boundary_conditions = [
-        fd.DirichletBC(
-            mixed_space.sub(0).sub(0),
-            _right_inflow_horizontal(mesh, configuration),
-            2,
-        ),
-        fd.DirichletBC(
-            mixed_space.sub(0).sub(1), fd.Constant(0.0), 2
-        ),
-    ]
-    fd.solve(
-        residual == 0,
-        solution,
-        bcs=boundary_conditions,
-        solver_parameters=core.SOLVER_PARAMETERS,
-    )
+    if configuration.rheology == "linear":
+        stress = 2.0 * core.VISCOSITY * fd.sym(fd.grad(u)) - p * fd.Identity(2)
+        test_stress = (
+            2.0 * core.VISCOSITY * fd.sym(fd.grad(v)) - q * fd.Identity(2)
+        )
+        residual = (
+            2.0
+            * core.VISCOSITY
+            * fd.inner(fd.sym(fd.grad(u)), fd.sym(fd.grad(v)))
+            - p * fd.div(v)
+            - q * fd.div(u)
+            - fd.dot(body_force, v)
+        ) * fd.dx
+        residual += (
+            core.BASAL_DRAG * fd.dot(u, tangent) * fd.dot(v, tangent)
+            - fd.dot(stress * normal, normal) * test_normal_speed
+            - fd.dot(test_stress * normal, normal) * normal_speed
+            + core.NITSCHE_PENALTY
+            * core.VISCOSITY
+            / cell_diameter
+            * normal_speed
+            * test_normal_speed
+        ) * fd.ds(3)
+        if target_surface_normal_speed is not None:
+            normal_mismatch = normal_speed - target_surface_normal_speed
+            residual += (
+                -fd.dot(stress * normal, normal) * test_normal_speed
+                - fd.dot(test_stress * normal, normal) * normal_mismatch
+                + core.NITSCHE_PENALTY
+                * core.VISCOSITY
+                / cell_diameter
+                * normal_mismatch
+                * test_normal_speed
+            ) * fd.ds(4)
+        boundary_conditions = [
+            fd.DirichletBC(
+                mixed_space.sub(0).sub(0),
+                _right_inflow_horizontal(mesh, configuration),
+                2,
+            ),
+            fd.DirichletBC(
+                mixed_space.sub(0).sub(1), fd.Constant(0.0), 2
+            ),
+        ]
+        fd.solve(
+            residual == 0,
+            solution,
+            bcs=boundary_conditions,
+            solver_parameters=core.SOLVER_PARAMETERS,
+        )
+    elif configuration.rheology == "glen":
+        n_const = fd.Constant(1.0)
+        a_const = fd.Constant(1.0 / (2.0 * core.VISCOSITY))
+        _, z_coord = fd.SpatialCoordinate(mesh)
+        y_right = z_coord - float(bed_elevation(LENGTH))
+        inflow_fn = fd.Function(velocity_space.sub(0))
+        boundary_conditions = [
+            fd.DirichletBC(mixed_space.sub(0).sub(0), inflow_fn, 2),
+            fd.DirichletBC(mixed_space.sub(0).sub(1), fd.Constant(0.0), 2),
+        ]
+
+        def glen_eta(vel_field):
+            strain = fd.sym(fd.grad(vel_field))
+            d_eff_sq = 0.5 * fd.inner(strain, strain) + fd.Constant(
+                GLEN_STRAIN_RATE_REG**2
+            )
+            return (
+                0.5
+                * a_const ** (-1.0 / n_const)
+                * d_eff_sq ** ((1.0 - n_const) / (2.0 * n_const))
+            )
+
+        def build_residual(eta_field, constant_penalty: bool = False):
+            strain_u = fd.sym(fd.grad(u))
+            strain_v = fd.sym(fd.grad(v))
+            stress_field = 2.0 * eta_field * strain_u - p * fd.Identity(2)
+            test_stress_field = (
+                2.0 * eta_field * strain_v - q * fd.Identity(2)
+            )
+            penalty_visc = (
+                fd.Constant(core.VISCOSITY) if constant_penalty else eta_field
+            )
+            form = (
+                2.0 * eta_field * fd.inner(strain_u, strain_v)
+                - p * fd.div(v)
+                - q * fd.div(u)
+                - fd.dot(body_force, v)
+            ) * fd.dx + (
+                core.BASAL_DRAG * fd.dot(u, tangent) * fd.dot(v, tangent)
+                - fd.dot(stress_field * normal, normal) * test_normal_speed
+                - fd.dot(test_stress_field * normal, normal) * normal_speed
+                + core.NITSCHE_PENALTY
+                * penalty_visc
+                / cell_diameter
+                * normal_speed
+                * test_normal_speed
+            ) * fd.ds(3)
+            if target_surface_normal_speed is not None:
+                normal_mismatch = normal_speed - target_surface_normal_speed
+                form += (
+                    -fd.dot(stress_field * normal, normal) * test_normal_speed
+                    - fd.dot(test_stress_field * normal, normal)
+                    * normal_mismatch
+                    + core.NITSCHE_PENALTY
+                    * penalty_visc
+                    / cell_diameter
+                    * normal_mismatch
+                    * test_normal_speed
+                ) * fd.ds(4)
+            return form
+
+        def set_continuation(n_value: float):
+            n_const.assign(n_value)
+            alpha_h = (n_value - 1.0) / (GLEN_EXPONENT - 1.0)
+            a_step = (1.0 / (2.0 * core.VISCOSITY)) ** (
+                1.0 - alpha_h
+            ) * GLEN_FLUIDITY**alpha_h
+            a_const.assign(a_step)
+            raw_u_step = _glen_sia_profile_ufl(
+                y_right,
+                RIGHT_THICKNESS,
+                core.RIGHT_SURFACE_SLOPE,
+                a_step,
+                n_value,
+            )
+            raw_flux_step = glen_sia_flux(
+                RIGHT_THICKNESS, core.RIGHT_SURFACE_SLOPE, a_step, n_value
+            )
+            inflow_fn.interpolate(target_flux / raw_flux_step * raw_u_step)
+
+        use_constant_penalty = target_surface_normal_speed is not None
+        nonlinear_residual = build_residual(
+            glen_eta(u), constant_penalty=use_constant_penalty
+        )
+        newton_parameters = {
+            "snes_type": "newtonls",
+            "snes_linesearch_type": "bt",
+            "snes_max_it": 50,
+            "snes_rtol": 1.0e-10,
+            "snes_atol": 1.0e-8,
+            **core.SOLVER_PARAMETERS,
+        }
+        solved_directly = False
+        if not use_constant_penalty:
+            try:
+                for n_step in (1.0, 2.0, GLEN_EXPONENT):
+                    set_continuation(n_step)
+                    fd.solve(
+                        nonlinear_residual == 0,
+                        solution,
+                        bcs=boundary_conditions,
+                        solver_parameters=newton_parameters,
+                    )
+                solved_directly = True
+            except fd.ConvergenceError:
+                solution.assign(0.0)
+
+        if not solved_directly:
+            u_prev = fd.Function(velocity_space)
+            use_picard = fd.Constant(0.0)
+            set_continuation(GLEN_EXPONENT)
+            f0_norm = max(
+                _cofunction_norm(nonlinear_residual, boundary_conditions), 1.0
+            )
+            picard_eta = (1.0 - use_picard) * fd.Constant(
+                core.VISCOSITY
+            ) + use_picard * glen_eta(u_prev)
+            picard_residual = build_residual(
+                picard_eta, constant_penalty=use_constant_penalty
+            )
+            picard_solver = fd.NonlinearVariationalSolver(
+                fd.NonlinearVariationalProblem(
+                    picard_residual, solution, bcs=boundary_conditions
+                ),
+                solver_parameters={
+                    "snes_type": "ksponly",
+                    **core.SOLVER_PARAMETERS,
+                },
+            )
+            picard_solver.solve()
+            u_prev.assign(solution.subfunctions[0])
+            use_picard.assign(1.0)
+            for _ in range(30):
+                picard_solver.solve()
+                u_prev.assign(0.35 * u_prev + 0.65 * solution.subfunctions[0])
+                if (
+                    _cofunction_norm(nonlinear_residual, boundary_conditions)
+                    / f0_norm
+                    < 1.0e-5
+                ):
+                    break
+            backup = solution.copy(deepcopy=True)
+            for linesearch in ("bt", "l2"):
+                try:
+                    fd.solve(
+                        nonlinear_residual == 0,
+                        solution,
+                        bcs=boundary_conditions,
+                        solver_parameters={
+                            **newton_parameters,
+                            "snes_linesearch_type": linesearch,
+                            "snes_atol": 1.0e-10 * f0_norm,
+                            "snes_rtol": 1.0e-12,
+                            "snes_max_it": 30,
+                        },
+                    )
+                    break
+                except fd.ConvergenceError:
+                    solution.assign(backup)
+    else:
+        raise ValueError(f"unknown rheology {configuration.rheology!r}")
     velocity, _ = solution.subfunctions
 
     boundary_flux = {
@@ -372,9 +613,9 @@ def solve_stokes(configuration: MarginConfiguration):
     surface_length = float(
         fd.assemble(fd.Constant(1.0) * fd.ds(4, domain=mesh))
     )
-    target_flux = configuration.inflow_fraction * core.REFERENCE_INFLOW_FLUX
     diagnostics = {
         "case": configuration.key,
+        "rheology": configuration.rheology,
         "title": configuration.title,
         "left thickness (m)": configuration.left_thickness,
         "left x (m)": x_left,
@@ -512,7 +753,7 @@ def run_configuration(configuration: MarginConfiguration, args):
 
     sigma = sampler["sigma"]
     thickness = sampler["thickness"](sampler["x"])
-    flux_profile = thickness * np.trapz(
+    flux_profile = thickness * _trapezoid(
         sampler["velocity"][..., 0], sigma, axis=0
     )
     surface_frame = pd.DataFrame(
@@ -554,6 +795,7 @@ def default_configurations(args):
             30.0,
             6.0,
             args.diagnostic_thickness_cutoff,
+            rheology=args.rheology,
         ),
         MarginConfiguration(
             "point_margin",
@@ -563,6 +805,7 @@ def default_configurations(args):
             args.tip_resolution,
             args.diagnostic_thickness_cutoff,
             store_history=True,
+            rheology=args.rheology,
         ),
         MarginConfiguration(
             "point_margin_refined",
@@ -571,6 +814,7 @@ def default_configurations(args):
             13.0,
             2.6,
             args.diagnostic_thickness_cutoff,
+            rheology=args.rheology,
         ),
         *(
             MarginConfiguration(
@@ -580,6 +824,7 @@ def default_configurations(args):
                 args.resolution,
                 args.tip_resolution,
                 args.diagnostic_thickness_cutoff,
+                rheology=args.rheology,
             )
             for thickness in (20.0, 10.0, 5.0, 2.5)
         ),
@@ -591,11 +836,17 @@ def default_configurations(args):
             args.tip_resolution,
             10.0,
             surface_mode="uniform_ablation",
+            rheology=args.rheology,
         ),
     )
 
 
-def write_outputs(results):
+def _output_suffix(rheology: str) -> str:
+    return "" if rheology == "linear" else f"_{rheology}"
+
+
+def write_outputs(results, rheology: str = "linear"):
+    suffix = _output_suffix(rheology)
     DATA_DIRECTORY.mkdir(parents=True, exist_ok=True)
     case_frame = pd.DataFrame([result["diagnostics"] for result in results])
     source_frame = pd.concat(
@@ -605,20 +856,22 @@ def write_outputs(results):
         [result["surface frame"] for result in results], ignore_index=True
     )
     case_frame.to_csv(
-        DATA_DIRECTORY / "allan_hills_nunatak_margin_cases.csv", index=False
+        DATA_DIRECTORY / f"allan_hills_nunatak_margin{suffix}_cases.csv",
+        index=False,
     )
     source_frame.to_csv(
-        DATA_DIRECTORY / "allan_hills_nunatak_margin_sources.csv.gz",
+        DATA_DIRECTORY / f"allan_hills_nunatak_margin{suffix}_sources.csv.gz",
         index=False,
         compression="gzip",
     )
     surface_frame.to_csv(
-        DATA_DIRECTORY / "allan_hills_nunatak_margin_flux.csv", index=False
+        DATA_DIRECTORY / f"allan_hills_nunatak_margin{suffix}_flux.csv",
+        index=False,
     )
     return case_frame, source_frame, surface_frame
 
 
-def _draw_geometry(axis):
+def _draw_geometry(axis, rheology: str = "linear"):
     x = np.linspace(0.0, LENGTH, 1001)
     surface = surface_elevation(x)
     bed = bed_elevation(x)
@@ -644,19 +897,40 @@ def _draw_geometry(axis):
         va="center",
     )
 
-    # Draw the actual n=1 SIA-plus-slip shape imposed at the right inlet.
-    # Arrow lengths use the same polynomial as _right_inflow_horizontal;
-    # only their common plotting scale is arbitrary.
     right_bed = float(bed_elevation(LENGTH))
     right_surface = float(surface_elevation(LENGTH))
     profile_z = np.linspace(right_bed + 18.0, right_surface - 18.0, 8)
     profile_y = profile_z - right_bed
-    profile_speed = (
-        RIGHT_THICKNESS / core.BASAL_DRAG
-        + (
-            RIGHT_THICKNESS * profile_y - 0.5 * profile_y**2
-        ) / core.VISCOSITY
-    )
+    if rheology == "linear":
+        profile_speed = (
+            RIGHT_THICKNESS / core.BASAL_DRAG
+            + (
+                RIGHT_THICKNESS * profile_y - 0.5 * profile_y**2
+            ) / core.VISCOSITY
+        )
+        inflow_label = (
+            "scaled $n=1$ SIA inflow + slip\n"
+            "$u_R=-r_q\\rho g s_x"
+            "[H/\\beta+(Hy-y^2/2)/\\eta]$\n"
+            "$y=z-b_R$, $r_q=q_R/q_{\\mathrm{SIA}}$; $w_R=0$"
+        )
+    else:
+        drive_abs = abs(
+            core.DENSITY * core.GRAVITY * core.RIGHT_SURFACE_SLOPE
+        )
+        profile_speed = (
+            drive_abs * RIGHT_THICKNESS / core.BASAL_DRAG
+            + 0.5
+            * GLEN_FLUIDITY
+            * drive_abs**3
+            * (RIGHT_THICKNESS**4 - (RIGHT_THICKNESS - profile_y) ** 4)
+        )
+        inflow_label = (
+            "scaled $n=3$ Glen SIA inflow + slip\n"
+            "$u_R=-r_q[\\tau_R/\\beta+(A_{\\mathrm{G}}/2)"
+            "\\tau_R^3 H(1-(1-y/H)^4)]$\n"
+            "$\\tau_R=\\rho g s_x H$, $y=z-b_R$; $w_R=0$"
+        )
     arrow_lengths = 0.22 * profile_speed / np.max(profile_speed)
     profile_tail = 1.985
     profile_heads = profile_tail - arrow_lengths
@@ -690,12 +964,7 @@ def _draw_geometry(axis):
     axis.text(
         1.10,
         252.0,
-        (
-            "scaled $n=1$ SIA inflow + slip\n"
-            "$u_R=-r_q\\rho g s_x"
-            "[H/\\beta+(Hy-y^2/2)/\\eta]$\n"
-            "$y=z-b_R$, $r_q=q_R/q_{\\mathrm{SIA}}$; $w_R=0$"
-        ),
+        inflow_label,
         ha="center",
         va="center",
         fontsize=7.2,
@@ -919,26 +1188,45 @@ def material_curve_snapshots(
         raise RuntimeError("could not identify selected horizontal source")
     selected_row = horizontal.iloc[0]
     minimum_age = float(selected_row["age at minimum J (yr)"])
-    snapshot_ages = np.unique(
-        np.array(
-            (
-                0.0,
-                20_000.0,
-                40_000.0,
-                60_000.0,
-                80_000.0,
-                100_000.0,
-                115_000.0,
-                122_000.0,
-                126_000.0,
-                129_000.0,
-                zero_age,
-                133_000.0,
-                minimum_age,
-            ),
-            dtype=float,
+    rheology = result["configuration"].rheology
+    if rheology == "linear":
+        pre_zero_age = 122_000.0
+        snapshot_ages = np.unique(
+            np.array(
+                (
+                    0.0,
+                    20_000.0,
+                    40_000.0,
+                    60_000.0,
+                    80_000.0,
+                    100_000.0,
+                    115_000.0,
+                    pre_zero_age,
+                    126_000.0,
+                    129_000.0,
+                    zero_age,
+                    133_000.0,
+                    minimum_age,
+                ),
+                dtype=float,
+            )
         )
-    )
+    else:
+        pre_zero_age = float(np.round(0.935 * zero_age, -3))
+        early_limit = 20_000.0 * np.floor(0.82 * zero_age / 20_000.0)
+        early_ages = np.arange(0.0, early_limit + 1.0, 20_000.0)
+        snapshot_ages = np.unique(
+            np.r_[
+                early_ages,
+                np.round(0.88 * zero_age, -3),
+                pre_zero_age,
+                np.round(0.965 * zero_age, -3),
+                np.round(0.988 * zero_age, -3),
+                zero_age,
+                np.round(0.5 * (zero_age + minimum_age), -3),
+                minimum_age,
+            ].astype(float)
+        )
 
     positions = initial_positions.copy()
     active = np.ones(source_count, dtype=bool)
@@ -1019,6 +1307,7 @@ def material_curve_snapshots(
             float(np.max(initial_sigma)),
         ),
         "zero age": zero_age,
+        "pre-zero closeup age": pre_zero_age,
         "minimum age": minimum_age,
         "minimum J": float(selected_row["minimum J"]),
         "endpoint finite-difference J": endpoint_finite_difference,
@@ -1126,7 +1415,11 @@ def _draw_material_curve_evolution(axis, result, curve, cmap, age_norm):
 def _draw_fold_closeup(axis, result, curve, colors):
     """Resolve the narrow re-entrant hook once the endpoint reaches J < 0."""
     sampler = result["sampler"]
-    closeup_ages = (122_000.0, curve["zero age"], curve["minimum age"])
+    closeup_ages = (
+        curve["pre-zero closeup age"],
+        curve["zero age"],
+        curve["minimum age"],
+    )
     late = [
         (snapshot, color)
         for snapshot, color in zip(curve["snapshots"], colors)
@@ -1243,7 +1536,7 @@ def _convergence_cases(case_frame):
     return truncated, production.iloc[0], exact
 
 
-def make_convergence_figure(case_frame):
+def make_convergence_figure(case_frame, rheology: str = "linear"):
     """Write the point-margin numerical-convergence supplement figure."""
     truncated, production, exact = _convergence_cases(case_frame)
     figure, axes = plt.subplots(
@@ -1266,8 +1559,20 @@ def make_convergence_figure(case_frame):
         label="true point margin",
         zorder=4,
     )
+    if rheology == "linear":
+        trunc_ylim = (-0.205, -0.115)
+    else:
+        trunc_vals = np.r_[
+            truncated["minimum J, m0=0"].to_numpy(float),
+            float(production["minimum J, m0=0"]),
+        ]
+        span = max(0.06, float(np.ptp(trunc_vals)))
+        trunc_ylim = (
+            float(np.min(trunc_vals) - 0.18 * span),
+            min(-0.01, float(np.max(trunc_vals) + 0.18 * span)),
+        )
     axes[0].set(
-        ylim=(-0.205, -0.115),
+        ylim=trunc_ylim,
         xlabel="Thickness of artificial left truncation (m)",
         ylabel="Minimum $J$ for horizontal incoming layers",
         title="Truncation limit",
@@ -1317,16 +1622,23 @@ def make_convergence_figure(case_frame):
             ha="left",
             va="bottom",
         )
+    suffix = _output_suffix(rheology)
     FIGURE_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    png = FIGURE_DIRECTORY / "allan_hills_nunatak_margin_convergence.png"
-    pdf = FIGURE_DIRECTORY / "allan_hills_nunatak_margin_convergence.pdf"
+    png = (
+        FIGURE_DIRECTORY
+        / f"allan_hills_nunatak_margin{suffix}_convergence.png"
+    )
+    pdf = (
+        FIGURE_DIRECTORY
+        / f"allan_hills_nunatak_margin{suffix}_convergence.pdf"
+    )
     figure.savefig(png, dpi=220)
     figure.savefig(pdf)
     plt.close(figure)
     return png, pdf
 
 
-def make_figure(results):
+def make_figure(results, rheology: str = "linear"):
     primary = next(
         result for result in results if result["configuration"].key == "point_margin"
     )
@@ -1334,7 +1646,7 @@ def make_figure(results):
         2, 3, figsize=(13.4, 8.4), constrained_layout=True
     )
     axes = axes.ravel()
-    _draw_geometry(axes[0])
+    _draw_geometry(axes[0], rheology=rheology)
     u_contour = _draw_flow(axes[1], primary, 0, "Horizontal flow and paths")
     w_contour = _draw_flow(axes[2], primary, 1, "Vertical velocity")
     j_image = _draw_j_map(axes[3], primary)
@@ -1395,13 +1707,19 @@ def make_figure(results):
         )
     age_mappable = plt.cm.ScalarMappable(norm=age_norm, cmap=age_cmap)
     age_mappable.set_array([])
+    max_kyr = curve["minimum age"] / 1000.0
+    if rheology == "linear":
+        age_ticks = (0.0, 30.0, 60.0, 90.0, 120.0, max_kyr)
+    else:
+        base_ticks = np.arange(0.0, max_kyr - 14.0, 30.0)
+        age_ticks = tuple(np.r_[base_ticks, max_kyr])
     figure.colorbar(
         age_mappable,
         ax=[axes[4], axes[5]],
         orientation="horizontal",
         pad=0.12,
         label="Elapsed time (kyr)",
-        ticks=(0.0, 30.0, 60.0, 90.0, 120.0, curve["minimum age"] / 1000.0),
+        ticks=age_ticks,
         format="%.0f",
     )
     for label, axis in zip("ABCDEF", axes):
@@ -1415,16 +1733,18 @@ def make_figure(results):
             ha="left",
             va="bottom",
         )
+    suffix = _output_suffix(rheology)
     FIGURE_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    png = FIGURE_DIRECTORY / "allan_hills_nunatak_margin.png"
-    pdf = FIGURE_DIRECTORY / "allan_hills_nunatak_margin.pdf"
+    png = FIGURE_DIRECTORY / f"allan_hills_nunatak_margin{suffix}.png"
+    pdf = FIGURE_DIRECTORY / f"allan_hills_nunatak_margin{suffix}.pdf"
     figure.savefig(png, dpi=220)
     figure.savefig(pdf)
     plt.close(figure)
-    return png, pdf
+    return png, pdf, curve
 
 
-def write_report(case_frame):
+def write_report(case_frame, rheology: str = "linear", curve=None):
+    suffix = _output_suffix(rheology)
     primary = case_frame.loc[case_frame["case"] == "point_margin"].iloc[0]
     refined = case_frame.loc[
         case_frame["case"] == "point_margin_refined"
@@ -1433,7 +1753,7 @@ def write_report(case_frame):
         case_frame["case"] == "point_margin_uniform_ablation"
     ].iloc[0]
     source_frame = pd.read_csv(
-        DATA_DIRECTORY / "allan_hills_nunatak_margin_sources.csv.gz"
+        DATA_DIRECTORY / f"allan_hills_nunatak_margin{suffix}_sources.csv.gz"
     )
     primary_horizontal = source_frame[
         (source_frame["case"] == "point_margin")
@@ -1445,7 +1765,9 @@ def write_report(case_frame):
     minimum_above_five_percent = primary_horizontal.loc[
         primary_horizontal["source sigma"] >= 0.05, "minimum J"
     ].min()
-    validation_path = DATA_DIRECTORY / "allan_hills_nunatak_validation.csv"
+    validation_path = (
+        DATA_DIRECTORY / f"allan_hills_nunatak{suffix}_validation.csv"
+    )
     if validation_path.exists():
         validation_frame = pd.read_csv(validation_path)
         validation_table = core._markdown_table(
@@ -1509,11 +1831,39 @@ def write_report(case_frame):
             "maximum abs detF-1": lambda value: f"{value:.2e}",
         },
     )
-    text = f"""# Allan Hills nunatak-margin experiment
+    rheology_note = (
+        f"linear viscosity $\\eta={core.VISCOSITY:.2e}$ Pa yr"
+        if rheology == "linear"
+        else (
+            f"isotropic Glen rheology ($n={GLEN_EXPONENT:g}$, "
+            f"$A_{{\\mathrm{{G}}}}={GLEN_FLUIDITY_PA_S:.2e}$ Pa$^{{-3}}$ s$^{{-1}}$ "
+            f"$={GLEN_FLUIDITY:.3e}$ Pa$^{{-3}}$ yr$^{{-1}}$ at $-25^\\circ$C, "
+            f"regularization $D_0={GLEN_STRAIN_RATE_REG:.1e}$ yr$^{{-1}}$)"
+        )
+    )
+    curve_note = ""
+    if curve is not None:
+        curve_note = (
+            f"\n\nFor the plotted 30 m horizontal segment at $\\sigma_0={curve['source sigma']:.3f}$, "
+            f"the endpoint reaches $J=0$ at {curve['zero age'] / 1000.0:.1f} kyr and "
+            f"$J={curve['minimum J']:.3f}$ at {curve['minimum age'] / 1000.0:.1f} kyr."
+        )
+    displaced_note = ""
+    if validation_path.exists():
+        displaced_rows = validation_frame[
+            validation_frame["variant"] == "source-plane-20m-inside"
+        ]
+        if len(displaced_rows) == 1:
+            displaced_note = (
+                f" The displaced source plane gives "
+                f"$J_{{min}}={displaced_rows.iloc[0]['minimum J, m0=0']:.5f}$, "
+                f"ruling out the lower-right boundary corner as the sole cause."
+            )
+    text = f"""# Allan Hills nunatak-margin experiment ({rheology})
 
 ## Setup
 
-The ice domain ends at a true grounded point margin: bed and free surface meet at $x=0$, and exposed rock lies to the left. There is no left boundary facet, no left boundary condition, and no prescribed left influx. The bed has no penetration plus the same linear sliding law as the other experiments. The primary surface is fully traction free; a control instead imposes the normal velocity corresponding to uniform steady ablation while retaining zero tangential traction. At the right inlet, the horizontal velocity is the reduced SIA-shaped profile and $w=0$.
+The ice domain ends at a true grounded point margin: bed and free surface meet at $x=0$, and exposed rock lies to the left. There is no left boundary facet, no left boundary condition, and no prescribed left influx. Ice obeys {rheology_note}. The bed has no penetration plus the same linear sliding law as the other experiments. The primary surface is fully traction free; a control instead imposes the normal velocity corresponding to uniform steady ablation while retaining zero tangential traction. At the right inlet, the horizontal velocity is the reduced SIA-shaped profile and $w=0$.
 
 The thickness is $H(x)=H_R[1-\\exp(-x/\\ell_H)]/[1-\\exp(-L/\\ell_H)]$, with $H_R={RIGHT_THICKNESS:.0f}$ m, $L={LENGTH / 1000:.1f}$ km, and $\\ell_H={THICKENING_LENGTH:.0f}$ m. Thus $H(0)=0$ with a finite opening angle. The immediate contact-line region is excluded from the material-line minimum because terrain coordinates are singular at the apex: the primary uses $H>{primary['diagnostic thickness cutoff (m)']:.0f}$ m and the uniform-ablation control uses the more permissive $H>{uniform['diagnostic thickness cutoff (m)']:.0f}$ m.
 
@@ -1523,7 +1873,7 @@ For the fixed geometry, the effective surface mass balance $a_{{\\mathrm{{eff}}}
 
 {table}
 
-With the fully traction-free surface, the production point-margin value is $J_{{min}}={primary['minimum J, m0=0']:.5f}$ for initially horizontal layers; the refined value is {refined['minimum J, m0=0']:.5f}. {len(negative_horizontal)} of {len(primary_horizontal)} sampled right-inlet source heights overturn. The sign does not depend solely on the lowest source: after excluding all sources below $\\sigma_0=0.05$, the minimum is still {minimum_above_five_percent:.5f}. The global horizontal-layer minimum occurs at $x={primary['x at minimum J, m0=0 (m)']:.0f}$ m, where $H={float(ice_thickness(primary['x at minimum J, m0=0 (m)'])):.0f}$ m, well outside the contact-line exclusion. The exact point margin has zero left flux by construction. However, that solution diagnoses a spatially alternating surface balance that supplies a small rightward flow near the nunatak. When a uniform steady ablation rate is imposed instead, the minimum is {uniform['minimum J, m0=0']:.5f}, so the layers remain ordered. All control paths exit and the minimum stays positive. The margin geometry alone is therefore not sufficient: the surface/lateral mass-flux closure controls whether the convergent counterflow exists.
+With the fully traction-free surface, the production point-margin value is $J_{{min}}={primary['minimum J, m0=0']:.5f}$ for initially horizontal layers; the refined value is {refined['minimum J, m0=0']:.5f}. {len(negative_horizontal)} of {len(primary_horizontal)} sampled right-inlet source heights overturn. The sign does not depend solely on the lowest source: after excluding all sources below $\\sigma_0=0.05$, the minimum is still {minimum_above_five_percent:.5f}. The global horizontal-layer minimum occurs at $x={primary['x at minimum J, m0=0 (m)']:.0f}$ m, where $H={float(ice_thickness(primary['x at minimum J, m0=0 (m)'])):.0f}$ m, well outside the contact-line exclusion. The exact point margin has zero left flux by construction. However, that solution diagnoses a spatially alternating surface balance that supplies a small rightward flow near the nunatak. When a uniform steady ablation rate is imposed instead, the minimum is {uniform['minimum J, m0=0']:.5f}, so the layers remain ordered. All control paths exit and the minimum stays positive. The margin geometry alone is therefore not sufficient: the surface/lateral mass-flux closure controls whether the convergent counterflow exists.{curve_note}
 
 The production right-boundary RMS vertical velocity is {primary['rms right-boundary w (m/yr)']:.2e} m yr$^{{-1}}$. The uniform-ablation control prescribes $a_s={uniform['prescribed uniform surface mass balance (m/yr)']:.3e}$ m yr$^{{-1}}$ and has RMS surface normal-speed error {uniform['rms surface normal-speed error (m/yr)']:.2e} m yr$^{{-1}}$.
 
@@ -1531,17 +1881,26 @@ The production right-boundary RMS vertical velocity is {primary['rms right-bound
 
 {validation_table}
 
-The overturning sign is unchanged by halving the trajectory step, increasing terrain and source resolution, enlarging the terrain buffer, or moving the source plane from 1 m to 20 m inside the inlet. The displaced source plane gives $J_{{min}}=-0.17685$, ruling out the lower-right boundary corner as the sole cause.
+The overturning sign is unchanged by halving the trajectory step, increasing terrain and source resolution, enlarging the terrain buffer, or moving the source plane from 1 m to 20 m inside the inlet.{displaced_note}
 
 ## Interpretation limits
 
 The margin corner can carry a local stress singularity, so only minima outside the stated thickness cutoff are interpreted. Positive-thickness truncations and the exact-margin mesh sequence test this sensitivity; their shrinking artificial faces are traction free and can carry small fluxes, so they are numerical checks rather than physical boundary models. This remains a two-dimensional fixed-geometry calculation: any implausible diagnosed surface balance is evidence that lateral convergence around the nunatak matters dynamically.
 """
-    REPORT_PATH.write_text(text)
+    report_path = (
+        ROOT / f"notebooks/allan_hills_nunatak_margin{suffix}_report.md"
+    )
+    report_path.write_text(text)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--rheology",
+        choices=("linear", "glen"),
+        default="linear",
+        help="Constitutive law: linear viscous (n=1) or isotropic Glen (n=3).",
+    )
     parser.add_argument("--resolution", type=float, default=DEFAULT_CHARACTERISTIC_RESOLUTION)
     parser.add_argument("--tip-resolution", type=float, default=DEFAULT_TIP_RESOLUTION)
     parser.add_argument(
@@ -1588,10 +1947,10 @@ def main():
             flush=True,
         )
         return
-    case_frame, _, _ = write_outputs(results)
-    make_figure(results)
-    make_convergence_figure(case_frame)
-    write_report(case_frame)
+    case_frame, _, _ = write_outputs(results, rheology=args.rheology)
+    _, _, curve = make_figure(results, rheology=args.rheology)
+    make_convergence_figure(case_frame, rheology=args.rheology)
+    write_report(case_frame, rheology=args.rheology, curve=curve)
     print(case_frame.to_string(index=False), flush=True)
 
 
