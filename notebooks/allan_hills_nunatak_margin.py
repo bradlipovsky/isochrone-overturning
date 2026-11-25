@@ -1190,7 +1190,7 @@ def material_curve_snapshots(
     minimum_age = float(selected_row["age at minimum J (yr)"])
     rheology = result["configuration"].rheology
     if rheology == "linear":
-        pre_zero_age = 122_000.0
+        pre_zero_age = 126_000.0
         snapshot_ages = np.unique(
             np.array(
                 (
@@ -1201,8 +1201,8 @@ def material_curve_snapshots(
                     80_000.0,
                     100_000.0,
                     115_000.0,
+                    122_000.0,
                     pre_zero_age,
-                    126_000.0,
                     129_000.0,
                     zero_age,
                     133_000.0,
@@ -1212,15 +1212,15 @@ def material_curve_snapshots(
             )
         )
     else:
-        pre_zero_age = float(np.round(0.935 * zero_age, -3))
+        pre_zero_age = float(np.round(0.971 * zero_age, -3))
         early_limit = 20_000.0 * np.floor(0.82 * zero_age / 20_000.0)
         early_ages = np.arange(0.0, early_limit + 1.0, 20_000.0)
         snapshot_ages = np.unique(
             np.r_[
                 early_ages,
                 np.round(0.88 * zero_age, -3),
+                np.round(0.935 * zero_age, -3),
                 pre_zero_age,
-                np.round(0.965 * zero_age, -3),
                 np.round(0.988 * zero_age, -3),
                 zero_age,
                 np.round(0.5 * (zero_age + minimum_age), -3),
@@ -1482,13 +1482,28 @@ def _draw_fold_closeup(axis, result, curve, colors):
                 zorder=2,
             )
         negative = np.flatnonzero(snapshot["segment J"] < 0.0)
-        negative = negative[:: max(1, len(negative) // 10)]
         if len(negative):
             marker_color, marker = negative_style[snapshot["age"]]
-            midpoints = 0.5 * (
+            all_midpoints = 0.5 * (
                 snapshot["positions"][negative]
                 + snapshot["positions"][negative + 1]
             )
+            x_span = max(x_limits[1] - x_limits[0], 1.0e-9)
+            y_span = max(y_limits[1] - y_limits[0], 1.0e-9)
+            norm_pts = np.column_stack(
+                (
+                    (all_midpoints[:, 0] - x_limits[0]) / x_span,
+                    (all_midpoints[:, 1] - y_limits[0]) / y_span,
+                )
+            )
+            selected_idx = [0]
+            for idx in range(1, len(norm_pts)):
+                if (
+                    np.linalg.norm(norm_pts[idx] - norm_pts[selected_idx[-1]])
+                    >= 0.055
+                ):
+                    selected_idx.append(idx)
+            midpoints = all_midpoints[selected_idx]
             axis.scatter(
                 midpoints[:, 0],
                 midpoints[:, 1],
@@ -1516,7 +1531,7 @@ def _draw_fold_closeup(axis, result, curve, colors):
             fontsize=6.5,
             title=r"$J<0$ markers (elapsed time)",
             title_fontsize=6.7,
-            loc="upper right",
+            loc="lower right",
             borderpad=0.35,
             handletextpad=0.35,
             labelspacing=0.25,
