@@ -1190,7 +1190,7 @@ def material_curve_snapshots(
     minimum_age = float(selected_row["age at minimum J (yr)"])
     rheology = result["configuration"].rheology
     if rheology == "linear":
-        pre_zero_age = 126_000.0
+        pre_zero_age = 124_000.0
         snapshot_ages = np.unique(
             np.array(
                 (
@@ -1201,7 +1201,6 @@ def material_curve_snapshots(
                     80_000.0,
                     100_000.0,
                     115_000.0,
-                    122_000.0,
                     pre_zero_age,
                     129_000.0,
                     zero_age,
@@ -1212,14 +1211,14 @@ def material_curve_snapshots(
             )
         )
     else:
-        pre_zero_age = float(np.round(0.971 * zero_age, -3))
+        pre_zero_age = float(np.round(0.950 * zero_age, -3))
         early_limit = 20_000.0 * np.floor(0.82 * zero_age / 20_000.0)
         early_ages = np.arange(0.0, early_limit + 1.0, 20_000.0)
         snapshot_ages = np.unique(
             np.r_[
                 early_ages,
                 np.round(0.88 * zero_age, -3),
-                np.round(0.935 * zero_age, -3),
+                np.round(0.925 * zero_age, -3),
                 pre_zero_age,
                 np.round(0.988 * zero_age, -3),
                 zero_age,
@@ -1448,28 +1447,22 @@ def _draw_fold_closeup(axis, result, curve, colors):
     if np.min(surface) <= y_limits[1]:
         axis.plot(x, surface, color="0.15", linewidth=1.0, label="surface")
 
-    negative_snapshots = [
-        snapshot
-        for snapshot, _ in late
-        if np.any(snapshot["segment J"] < 0.0)
-    ]
-    negative_colors = (
+    snapshot_colors = (
         "#0072B2",
         "#009E73",
         "#CC79A7",
-        "#E69F00",
-        "#56B4E9",
-        "#332288",
     )
-    negative_markers = ("o", "s", "^", "D", "P", "X")
-    negative_style = {
-        snapshot["age"]: (
-            negative_colors[index % len(negative_colors)],
-            negative_markers[index % len(negative_markers)],
-        )
-        for index, snapshot in enumerate(negative_snapshots)
-    }
-    for snapshot, color in late:
+    snapshot_markers = ("o", "s", "^")
+    markers_per_curve = 12
+    x_span = max(x_limits[1] - x_limits[0], 1.0e-9)
+    y_span = max(y_limits[1] - y_limits[0], 1.0e-9)
+    legend_handles = []
+    if np.min(surface) <= y_limits[1]:
+        legend_handles.extend(axis.lines[:1])
+
+    for snap_idx, (snapshot, _) in enumerate(late):
+        line_color = snapshot_colors[snap_idx % len(snapshot_colors)]
+        marker = snapshot_markers[snap_idx % len(snapshot_markers)]
         valid_indices = np.flatnonzero(snapshot["valid"])
         for group in _consecutive_groups(valid_indices):
             if len(group) < 2:
@@ -1477,44 +1470,62 @@ def _draw_fold_closeup(axis, result, curve, colors):
             axis.plot(
                 snapshot["positions"][group, 0],
                 snapshot["positions"][group, 1],
-                color=color,
-                linewidth=1.8,
-                zorder=2,
+                color=line_color,
+                linewidth=1.5,
+                alpha=0.9,
+                zorder=2 + snap_idx,
             )
-        negative = np.flatnonzero(snapshot["segment J"] < 0.0)
-        if len(negative):
-            marker_color, marker = negative_style[snapshot["age"]]
-            all_midpoints = 0.5 * (
-                snapshot["positions"][negative]
-                + snapshot["positions"][negative + 1]
+            pts = snapshot["positions"][group]
+            seg_j = snapshot["segment J"][group[:-1]]
+            nx = (pts[:, 0] - x_limits[0]) / x_span
+            ny = (pts[:, 1] - y_limits[0]) / y_span
+            cum_s = np.r_[0.0, np.cumsum(np.hypot(np.diff(nx), np.diff(ny)))]
+            if cum_s[-1] <= 0.0:
+                continue
+            target_s = np.linspace(0.0, cum_s[-1], markers_per_curve)
+            mx = np.interp(target_s, cum_s, pts[:, 0])
+            mz = np.interp(target_s, cum_s, pts[:, 1])
+            seg_indices = np.clip(
+                np.searchsorted(cum_s, target_s, side="right") - 1,
+                0,
+                len(seg_j) - 1,
             )
-            x_span = max(x_limits[1] - x_limits[0], 1.0e-9)
-            y_span = max(y_limits[1] - y_limits[0], 1.0e-9)
-            norm_pts = np.column_stack(
-                (
-                    (all_midpoints[:, 0] - x_limits[0]) / x_span,
-                    (all_midpoints[:, 1] - y_limits[0]) / y_span,
+            is_neg = seg_j[seg_indices] < 0.0
+            if np.any(~is_neg):
+                axis.scatter(
+                    mx[~is_neg],
+                    mz[~is_neg],
+                    s=26,
+                    marker=marker,
+                    facecolors="white",
+                    edgecolors=line_color,
+                    linewidths=1.1,
+                    zorder=4 + snap_idx,
                 )
-            )
-            selected_idx = [0]
-            for idx in range(1, len(norm_pts)):
-                if (
-                    np.linalg.norm(norm_pts[idx] - norm_pts[selected_idx[-1]])
-                    >= 0.055
-                ):
-                    selected_idx.append(idx)
-            midpoints = all_midpoints[selected_idx]
-            axis.scatter(
-                midpoints[:, 0],
-                midpoints[:, 1],
-                s=24,
-                marker=marker,
-                facecolors="white",
-                edgecolors=marker_color,
-                linewidths=1.05,
-                label=f"{snapshot['age'] / 1000.0:.1f} kyr",
-                zorder=4,
-            )
+            if np.any(is_neg):
+                axis.scatter(
+                    mx[is_neg],
+                    mz[is_neg],
+                    s=26,
+                    marker=marker,
+                    facecolors=line_color,
+                    edgecolors=line_color,
+                    linewidths=1.1,
+                    zorder=4 + snap_idx,
+                )
+        (proxy,) = axis.plot(
+            [],
+            [],
+            color=line_color,
+            linewidth=1.5,
+            marker=marker,
+            markersize=4.8,
+            markerfacecolor=line_color,
+            markeredgecolor=line_color,
+            label=f"{snapshot['age'] / 1000.0:.1f} kyr",
+        )
+        legend_handles.append(proxy)
+
     axis.set(
         xlim=x_limits,
         ylim=y_limits,
@@ -1522,18 +1533,20 @@ def _draw_fold_closeup(axis, result, curve, colors):
         ylabel="Elevation (m)",
         title="Fold close-up",
     )
-    if negative_snapshots:
+    if legend_handles:
         axis.legend(
+            handles=legend_handles,
             frameon=True,
             facecolor="white",
             edgecolor="none",
-            framealpha=0.88,
+            framealpha=0.90,
             fontsize=6.5,
-            title=r"$J<0$ markers (elapsed time)",
-            title_fontsize=6.7,
-            loc="lower right",
+            title="Elapsed time\n(filled: $J<0$; open: $J\\geq 0$)",
+            title_fontsize=6.5,
+            loc="upper left",
+            bbox_to_anchor=(0.02, 0.93),
             borderpad=0.35,
-            handletextpad=0.35,
+            handletextpad=0.4,
             labelspacing=0.25,
         )
     return x_limits, y_limits
@@ -1730,9 +1743,9 @@ def make_figure(results, rheology: str = "linear"):
         age_ticks = tuple(np.r_[base_ticks, max_kyr])
     figure.colorbar(
         age_mappable,
-        ax=[axes[4], axes[5]],
+        ax=axes[4],
         orientation="horizontal",
-        pad=0.12,
+        pad=0.11,
         label="Elapsed time (kyr)",
         ticks=age_ticks,
         format="%.0f",
