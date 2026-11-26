@@ -1,6 +1,6 @@
 # Isochrone overturning in steady glacier flow
 
-Theoretical analysis, finite-element Stokes modeling, large-scale parameter-space sweeps, and manuscript source for ***Isochrone overturning in steady glacier flow*** (EarthArXiv preprint, September 2026; revised *Journal of Glaciology* submission `JOG-2026-0127`, November 2026). This work made significant use of coding agents (Codex Astra 5.1 and Gemini 4 Carbon).
+Theoretical analysis, finite-element Stokes modeling, large-scale parameter-space sweeps, and manuscript source for ***Isochrone overturning in steady glacier flow*** (EarthArXiv preprint, September 2026; revised *Journal of Glaciology* submission `JOG-2026-0127`, November 2026). This work made significant use of coding agents (OpenAI Codex / GPT-6 Astra and Google Antigravity / Gemini 4 Carbon), using an estimated 150–250 million tokens in total across the project.
 
 Ice cores from the Allan Hills blue-ice area in East Antarctica recover ice and trapped air reaching into the Miocene (23–5.3 Ma), yet metre-scale age reversals, steep dips, and basal folds obscure the stratigraphic record ([Shackleton et al., 2025](https://doi.org/10.1073/pnas.2502681122); [Marks-Peterson et al., 2026](https://doi.org/10.1038/s41586-025-10032-y)). Whether steady glacier flow over fixed topography can turn surface-deposited layers upside down—or whether observed inversions require transient forcing, multiple sources, or rheological heterogeneity—has remained an open mechanical question.
 
@@ -69,7 +69,7 @@ $$
 
 ### Agent-assisted engineering and verification discipline
 
-As documented in the manuscript acknowledgements, this repository was built over a multi-month, long-horizon workflow using AI coding agents (**OpenAI Codex** and **Google Antigravity / Gemini**) under explicit human specification, mathematical review, and automated verification across 147 commits:
+As documented in the manuscript acknowledgements, this repository was built over a multi-month, long-horizon workflow using AI coding agents (**OpenAI Codex / GPT-6 Astra** and **Google Antigravity / Gemini 4 Carbon**) under explicit human specification, mathematical review, and automated verification, including detailed back-and-forth collaboration with GPT-6 Astra on several calculations and derivations (an estimated 150–250 million tokens in total, with roughly 4–6 million output and reasoning tokens):
 
 - **First-principles task constraints ([`AGENTS.md`](AGENTS.md)):** Agent sessions are constrained against contrived shortcuts—no synthetic interior layer clipping, no heuristic constraints, explicit units and boundary conditions, and strict separation between observations, calculations, and inferences.
 - **Handcrafted analytical and numerical graders:** Rather than trusting aggregate fit metrics, every solver family is checked against closed-form analytical limits (machine-precision flat-bed sliding, exact $`J \to 1`$ recovery down to $`A = 0.001\ \mathrm{m}`$, lubrication-limit monotonicity, and analytical convergent-flow benchmarks), independent cross-method diagnostics (variational tangent vs. centered finite-difference vs. Eulerian audits), and single-factor mesh/step/sampler/inlet convergence tables.
